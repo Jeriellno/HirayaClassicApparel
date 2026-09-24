@@ -1,0 +1,1200 @@
+[2m1:01:59 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:01:59 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:01:59 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:00 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:00 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:00 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:00 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:16 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:16 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:16 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:16 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:16 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:16 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:02:17 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:17 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:17 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:17 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:18 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:18 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:33 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:33 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:33 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:33 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:33 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:34 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:34 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:34 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:34 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:35 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:35 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:35 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:35 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:36 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:36 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:02:36 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:37 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:02:58 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:17 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:17 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:18 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:18 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:18 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:18 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:19 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:19 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:19 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:19 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:20 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:20 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:20 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:03:21 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:22 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:22 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:22 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:22 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:22 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:22 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:23 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:23 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:23 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:03:24 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:25 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:25 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:03:25 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:03:25 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:03:26 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:02 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:02 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:02 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:03 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:03 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:03 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:03 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:04:03 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:03 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:04 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:04 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:04:04 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:04:04 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:04 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:04 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:05 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:05 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:05 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:05 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:05 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:05 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:06 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:06 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:06 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:06 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:07 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:07 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:07 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:07 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:07 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:08 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:08 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:08 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:08 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:09 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:09 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:09 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m1:04:09 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:09 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:10 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:10 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:10 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:11 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:11 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:11 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:11 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:11 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:12 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:12 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:12 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:13 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:13 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:13 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:14 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:14 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:14 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:31 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:32 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:32 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:36 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:37 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:04:37 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:04:49 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/OrdersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:10:22
+[33m  23 |  import DashboardTab from "./tabs/DashboardTab";
+  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+     |                         ^
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 10)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:05:09 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:10 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:10 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:12 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:12 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:12 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:11:25
+[33m  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+     |                            ^
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";
+  28 |  import FeedbackTab from "./tabs/FeedbackTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:05:12 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:13 AM[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?
+[2m1:05:14 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:11:25
+[33m  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+     |                            ^
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";
+  28 |  import FeedbackTab from "./tabs/FeedbackTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m1:05:14 AM[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./tabs/CustomersTab" from "src/components/superadmin/SuperAdmin.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/SuperAdmin.jsx[39m:11:25
+[33m  24 |  import InventoryTab from "./tabs/InventoryTab";
+  25 |  import OrdersTab from "./tabs/OrdersTab";
+  26 |  import CustomersTab from "./tabs/CustomersTab";
+     |                            ^
+  27 |  import AnalyticsTab from "./tabs/AnalyticsTab";
+  28 |  import FeedbackTab from "./tabs/FeedbackTab";[39m
+      at TransformPluginContext._formatError (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 11)
+      at async TransformPluginContext.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/Hirayaaa-main/hiraya-frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m9:48:18 AM[22m [33m[1m[vite][22m[39m [33mwarning: [33mDuplicate "product" attribute in JSX element[33m
+184|              </p>
+185|              {products.map((p) =>
+186|            <ProductCard key={p.id} product={p} product onSelectProduct={onSelectProduct} />
+   |                                                ^
+187|            )}
+188|            </div>
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mD:/Hirayaaa-main/hiraya-frontend/src/components/tryon/StylistChat.jsx[39m
+[2m11:50:18 AM[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /storage/v1/object/public/products/catalog/1789993354-2ripusv.png[39m
+Error: getaddrinfo EAI_AGAIN qnyskltxjfdsvncaehvh.supabase.co
+    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)

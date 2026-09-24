@@ -1,0 +1,109 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Handle X-XSRF-Token Header
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # ==========================================================================
+    # SUPABASE STORAGE PROXY — ROUTED INTO LARAVEL, NOT TO A FILE.
+    #
+    # The SPA emits `/supabase-storage/storage/v1/object/public/products/<file>`
+    # for every catalog image (see hiraya-frontend/src/utils/imageHelper.js).
+    #
+    # WHY IT MUST COME BACK THROUGH PHP
+    # ---------------------------------
+    # This document sends `Cross-Origin-Embedder-Policy: require-corp` below, so the
+    # page is cross-origin isolated and EVERY cross-origin subresource needs
+    # `Cross-Origin-Resource-Policy`. Supabase Storage does not send that header on a
+    # plain image request, and a SaaS host cannot be made to, so the request has to
+    # become SAME-ORIGIN instead. Same-origin subresources are exempt from COEP, so
+    # the image loads AND the page keeps the isolation that makes the on-device
+    # segmentation model fast (~6s vs ~22s single-threaded).
+    #
+    # Without this block the catch-all rewrite at the end of this file returns
+    # index.html for the image URL with HTTP 200 — HTML where an image was expected.
+    # That renders as a broken tile and is far harder to diagnose than a clean 404.
+
+    # `-f` / `-d` RESET: the catch-all walks everything that is NOT a real file into
+    # index.php, and an image path is not a real file — so those conditions must be
+    # reset here or they would keep the SPA's front controller in charge of the
+    # already-aliased path. `[END]` stops any further rewriting of it.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^supabase-storage(/.*)?$ - [END]
+
+    # The Alias is mod_alias, present in nearly every Apache build. It hands the
+    # request to Laravel's front controller, whose `/supabase-storage/{path}` route
+    # streams the object through App\Http\Controllers\SupabaseStorageController and
+    # stamps `Cross-Origin-Resource-Policy: cross-origin` on the response.
+    #
+    # REPLACE the placeholder below with this site's public path (no trailing slash):
+    #   local:      Alias /supabase-storage "C:/hiraya/hiraya-backend/public/index.php"
+    #   production: Alias /supabase-storage "/home/<user>/public_html/public/index.php"
+    <IfModule mod_alias.c>
+        Alias /supabase-storage "/home/SITE_ABSOLUTE_PATH/public/index.php"
+    </IfModule>
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# ============================================================================
+# CROSS-ORIGIN ISOLATION — REMOVED ON PURPOSE. DO NOT RE-ADD IT BLINDLY.
+#
+# This block used to send Cross-Origin-Opener-Policy and
+# Cross-Origin-Embedder-Policy, which make the document "cross-origin isolated"
+# and unlock `SharedArrayBuffer` for onnxruntime-web's WASM threads. That ran the
+# on-device person-segmentation mask in ~6s instead of ~22s single-threaded.
+#
+# IT WAS NOT WORTH IT. `require-corp` requires EVERY cross-origin subresource to
+# opt in with `Cross-Origin-Resource-Policy` (or be fetched via CORS). Supabase
+# Storage does neither for a plain `<img src>`, and it is a SaaS host, so the
+# header cannot be added on their side. Every catalog image on Home, Shop,
+# Wishlist, Cart, Quick View and the Style Stack was consequently blocked with
+#
+#   net::ERR_BLOCKED_BY_RESPONSE.NotSameOriginAfterDefaultedToSameOriginByCoep
+#
+# The product images matter more than the 16 seconds, so isolation is gone and
+# the ~22s single-threaded mask is accepted deliberately.
+#
+# NOTE: an earlier comment here justified `require-corp` partly by claiming the
+# mirrored `/supabase-storage` proxy made every image same-origin and therefore
+# exempt. That was true only for images. Any other cross-origin subresource would
+# still have been blocked, and the proxy itself is no longer required — it is kept
+# for URL hygiene, not for COEP.
+#
+# The effect: cross-origin images, fonts and CDN assets now load with no proxy and
+# no CORP header. If you ever DO re-add these headers, you must simultaneously
+# guarantee every cross-origin asset sends `Cross-Origin-Resource-Policy`, or the
+# images will silently disappear again — which is this exact bug.
+#
+# Keep this file and hiraya-backend/public/.htaccess in sync: if one origin served
+# COOP/COEP and the other did not, behaviour would differ per surface for no gain.
+# ============================================================================
+
+# The mirrored @imgly model + WASM chunks still declare CORP. It is harmless now
+# that COEP is gone (nothing enforces it), and it keeps them loadable if isolation
+# is ever restored — which would otherwise look like a sudden 190 MB model-download
+# failure rather than an image problem.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(wasm|mjs)$">
+        Header always set Cross-Origin-Resource-Policy "cross-origin"
+    </FilesMatch>
+</IfModule>

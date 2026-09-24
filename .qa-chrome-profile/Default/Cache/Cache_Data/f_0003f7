@@ -1,0 +1,261 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/@fs/D:\\Hirayaaa-main\\hiraya-frontend\\src\\components\\admin\\tabs\\inventory\\modal\\forms\\ProductBasicInfo.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=3878a93a"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=3878a93a"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react;
+const ProductBasicInfo = ({ formData, handleBasicChange }) => {
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-4", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ jsxDEV("label", { className: "text-[10px] font-mono uppercase text-[#E9C46A] font-bold", children: [
+        "Garment Name ",
+        /* @__PURE__ */ jsxDEV("span", { className: "text-red-500", children: "*" }, void 0, false, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+          lineNumber: 28,
+          columnNumber: 26
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+        lineNumber: 27,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "input",
+        {
+          type: "text",
+          name: "name",
+          value: formData.name || "",
+          onChange: handleBasicChange,
+          placeholder: "e.g. Classic White Linen Button-Down",
+          className: "w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm font-sans text-white focus:outline-none focus:border-[#E9C46A] transition-colors",
+          required: true
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+          lineNumber: 30,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+      lineNumber: 26,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex gap-4", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col gap-1 w-1/3", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "text-[10px] font-mono uppercase text-gray-400", children: "Price (₱)" }, void 0, false, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+          lineNumber: 44,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            type: "number",
+            name: "price",
+            min: "0",
+            step: "0.01",
+            value: formData.price || "",
+            onChange: handleBasicChange,
+            placeholder: "0.00",
+            className: "w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm font-sans text-white focus:outline-none focus:border-[#E9C46A] transition-colors"
+          },
+          void 0,
+          false,
+          {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+            lineNumber: 45,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+        lineNumber: 43,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col gap-1 w-1/3", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "text-[10px] font-mono uppercase text-gray-400", children: "Category" }, void 0, false, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+          lineNumber: 59,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "select",
+          {
+            name: "category",
+            value: formData.category || "TOPS",
+            onChange: handleBasicChange,
+            className: "w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-[#E9C46A] transition-colors appearance-none",
+            children: [
+              /* @__PURE__ */ jsxDEV("option", { value: "TOPS", children: "Tops" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 66,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "BOTTOMS", children: "Bottoms" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 67,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "DRESSES", children: "Dresses" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 68,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "OUTERWEAR", children: "Outerwear" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 69,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "FORMAL_MEN", children: "Formal (Men)" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 70,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "FORMAL_WOMEN", children: "Formal (Women)" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 71,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "FULL_BODY", children: "Full Body" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 72,
+                columnNumber: 13
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+            lineNumber: 60,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+        lineNumber: 58,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col gap-1 w-1/3", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "text-[10px] font-mono uppercase text-gray-400", children: "Gender Target" }, void 0, false, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+          lineNumber: 78,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "select",
+          {
+            name: "gender",
+            value: formData.gender || "Men",
+            onChange: handleBasicChange,
+            className: "w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm font-mono text-white focus:outline-none focus:border-[#E9C46A] transition-colors appearance-none",
+            children: [
+              /* @__PURE__ */ jsxDEV("option", { value: "Men", children: "Men" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 85,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "Women", children: "Women" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 86,
+                columnNumber: 13
+              }, this),
+              /* @__PURE__ */ jsxDEV("option", { value: "Unisex", children: "Unisex" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+                lineNumber: 87,
+                columnNumber: 13
+              }, this)
+            ]
+          },
+          void 0,
+          true,
+          {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+            lineNumber: 79,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+        lineNumber: 77,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+      lineNumber: 41,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ jsxDEV("label", { className: "text-[10px] font-mono uppercase text-gray-400", children: "Description" }, void 0, false, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+        lineNumber: 94,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "textarea",
+        {
+          name: "description",
+          value: formData.description || "",
+          onChange: handleBasicChange,
+          placeholder: "Enter garment details, fabric info, etc.",
+          rows: "3",
+          className: "w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm font-sans text-white focus:outline-none focus:border-[#E9C46A] transition-colors resize-none"
+        },
+        void 0,
+        false,
+        {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+          lineNumber: 95,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+      lineNumber: 93,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx",
+    lineNumber: 24,
+    columnNumber: 5
+  }, this);
+};
+_c = ProductBasicInfo;
+export default ProductBasicInfo;
+var _c;
+$RefreshReg$(_c, "ProductBasicInfo");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/Hirayaaa-main/hiraya-frontend/src/components/admin/tabs/inventory/modal/forms/ProductBasicInfo.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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Z2UiLCJuYW1lIiwicHJpY2UiLCJjYXRlZ29yeSIsImdlbmRlciIsImRlc2NyaXB0aW9uIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiUHJvZHVjdEJhc2ljSW5mby5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcclxuXHJcbmNvbnN0IFByb2R1Y3RCYXNpY0luZm8gPSAoeyBmb3JtRGF0YSwgaGFuZGxlQmFzaWNDaGFuZ2UgfSkgPT4ge1xyXG4gIHJldHVybiAoXHJcbiAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktNFwiPlxyXG4gICAgICB7LyogMS4gUHJvZHVjdCBOYW1lIChEaXRvIG5hbmd5YXlhcmkgeXVuZyBlcnJvciBtbyBrYXlhIHNpbmlndXJvIG5hdGluZyB0YW1hIGFuZyBuYW1lIGF0IG9uQ2hhbmdlKSAqL31cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIGdhcC0xXCI+XHJcbiAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtbW9ubyB1cHBlcmNhc2UgdGV4dC1bI0U5QzQ2QV0gZm9udC1ib2xkXCI+XHJcbiAgICAgICAgICAgIEdhcm1lbnQgTmFtZSA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXJlZC01MDBcIj4qPC9zcGFuPlxyXG4gICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgPGlucHV0XHJcbiAgICAgICAgICB0eXBlPVwidGV4dFwiXHJcbiAgICAgICAgICBuYW1lPVwibmFtZVwiXHJcbiAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEubmFtZSB8fCAnJ31cclxuICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVCYXNpY0NoYW5nZX1cclxuICAgICAgICAgIHBsYWNlaG9sZGVyPVwiZS5nLiBDbGFzc2ljIFdoaXRlIExpbmVuIEJ1dHRvbi1Eb3duXCJcclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHB4LTMgcHktMiBiZy1ibGFjay80MCBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtbGcgdGV4dC1zbSBmb250LXNhbnMgdGV4dC13aGl0ZSBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6Ym9yZGVyLVsjRTlDNDZBXSB0cmFuc2l0aW9uLWNvbG9yc1wiXHJcbiAgICAgICAgICByZXF1aXJlZFxyXG4gICAgICAgIC8+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGdhcC00XCI+XHJcbiAgICAgICAgey8qIDIuIFByaWNlICovfVxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBmbGV4LWNvbCBnYXAtMSB3LTEvM1wiPlxyXG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtbW9ubyB1cHBlcmNhc2UgdGV4dC1ncmF5LTQwMFwiPlByaWNlICjigrEpPC9sYWJlbD5cclxuICAgICAgICAgIDxpbnB1dFxyXG4gICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcclxuICAgICAgICAgICAgbmFtZT1cInByaWNlXCJcclxuICAgICAgICAgICAgbWluPVwiMFwiXHJcbiAgICAgICAgICAgIHN0ZXA9XCIwLjAxXCJcclxuICAgICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLnByaWNlIHx8ICcnfVxyXG4gICAgICAgICAgICBvbkNoYW5nZT17aGFuZGxlQmFzaWNDaGFuZ2V9XHJcbiAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiMC4wMFwiXHJcbiAgICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHB4LTMgcHktMiBiZy1ibGFjay80MCBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtbGcgdGV4dC1zbSBmb250LXNhbnMgdGV4dC13aGl0ZSBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6Ym9yZGVyLVsjRTlDNDZBXSB0cmFuc2l0aW9uLWNvbG9yc1wiXHJcbiAgICAgICAgICAvPlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICB7LyogMy4gQ2F0ZWdvcnkgKi99XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIGdhcC0xIHctMS8zXCI+XHJcbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1tb25vIHVwcGVyY2FzZSB0ZXh0LWdyYXktNDAwXCI+Q2F0ZWdvcnk8L2xhYmVsPlxyXG4gICAgICAgICAgPHNlbGVjdFxyXG4gICAgICAgICAgICBuYW1lPVwiY2F0ZWdvcnlcIlxyXG4gICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEuY2F0ZWdvcnkgfHwgJ1RPUFMnfVxyXG4gICAgICAgICAgICBvbkNoYW5nZT17aGFuZGxlQmFzaWNDaGFuZ2V9XHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBweC0zIHB5LTIgYmctYmxhY2svNDAgYm9yZGVyIGJvcmRlci13aGl0ZS8xMCByb3VuZGVkLWxnIHRleHQtc20gZm9udC1tb25vIHRleHQtd2hpdGUgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOmJvcmRlci1bI0U5QzQ2QV0gdHJhbnNpdGlvbi1jb2xvcnMgYXBwZWFyYW5jZS1ub25lXCJcclxuICAgICAgICAgICAgPlxyXG4gICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiVE9QU1wiPlRvcHM8L29wdGlvbj5cclxuICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIkJPVFRPTVNcIj5Cb3R0b21zPC9vcHRpb24+XHJcbiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJEUkVTU0VTXCI+RHJlc3Nlczwvb3B0aW9uPlxyXG4gICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiT1VURVJXRUFSXCI+T3V0ZXJ3ZWFyPC9vcHRpb24+XHJcbiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJGT1JNQUxfTUVOXCI+Rm9ybWFsIChNZW4pPC9vcHRpb24+XHJcbiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJGT1JNQUxfV09NRU5cIj5Gb3JtYWwgKFdvbWVuKTwvb3B0aW9uPlxyXG4gICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiRlVMTF9CT0RZXCI+RnVsbCBCb2R5PC9vcHRpb24+XHJcbiAgICAgICAgICA8L3NlbGVjdD5cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgey8qIDQuIEdlbmRlciAqL31cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggZmxleC1jb2wgZ2FwLTEgdy0xLzNcIj5cclxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LW1vbm8gdXBwZXJjYXNlIHRleHQtZ3JheS00MDBcIj5HZW5kZXIgVGFyZ2V0PC9sYWJlbD5cclxuICAgICAgICAgIDxzZWxlY3RcclxuICAgICAgICAgICAgbmFtZT1cImdlbmRlclwiXHJcbiAgICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5nZW5kZXIgfHwgJ01lbid9XHJcbiAgICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVCYXNpY0NoYW5nZX1cclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHB4LTMgcHktMiBiZy1ibGFjay80MCBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtbGcgdGV4dC1zbSBmb250LW1vbm8gdGV4dC13aGl0ZSBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6Ym9yZGVyLVsjRTlDNDZBXSB0cmFuc2l0aW9uLWNvbG9ycyBhcHBlYXJhbmNlLW5vbmVcIlxyXG4gICAgICAgICAgICA+XHJcbiAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJNZW5cIj5NZW48L29wdGlvbj5cclxuICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIldvbWVuXCI+V29tZW48L29wdGlvbj5cclxuICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlVuaXNleFwiPlVuaXNleDwvb3B0aW9uPlxyXG4gICAgICAgICAgPC9zZWxlY3Q+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgey8qIDUuIERlc2NyaXB0aW9uICovfVxyXG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXggZmxleC1jb2wgZ2FwLTFcIj5cclxuICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gZm9udC1tb25vIHVwcGVyY2FzZSB0ZXh0LWdyYXktNDAwXCI+RGVzY3JpcHRpb248L2xhYmVsPlxyXG4gICAgICAgIDx0ZXh0YXJlYVxyXG4gICAgICAgICAgbmFtZT1cImRlc2NyaXB0aW9uXCJcclxuICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5kZXNjcmlwdGlvbiB8fCAnJ31cclxuICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVCYXNpY0NoYW5nZX1cclxuICAgICAgICAgIHBsYWNlaG9sZGVyPVwiRW50ZXIgZ2FybWVudCBkZXRhaWxzLCBmYWJyaWMgaW5mbywgZXRjLlwiXHJcbiAgICAgICAgICByb3dzPVwiM1wiXHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCBweC0zIHB5LTIgYmctYmxhY2svNDAgYm9yZGVyIGJvcmRlci13aGl0ZS8xMCByb3VuZGVkLWxnIHRleHQtc20gZm9udC1zYW5zIHRleHQtd2hpdGUgZm9jdXM6b3V0bGluZS1ub25lIGZvY3VzOmJvcmRlci1bI0U5QzQ2QV0gdHJhbnNpdGlvbi1jb2xvcnMgcmVzaXplLW5vbmVcIlxyXG4gICAgICAgIC8+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgPC9kaXY+XHJcbiAgKTtcclxufTtcclxuXHJcbmV4cG9ydCBkZWZhdWx0IFByb2R1Y3RCYXNpY0luZm87XHJcbiJdLCJmaWxlIjoiRDovSGlyYXlhYWEtbWFpbi9oaXJheWEtZnJvbnRlbmQvc3JjL2NvbXBvbmVudHMvYWRtaW4vdGFicy9pbnZlbnRvcnkvbW9kYWwvZm9ybXMvUHJvZHVjdEJhc2ljSW5mby5qc3gifQ==

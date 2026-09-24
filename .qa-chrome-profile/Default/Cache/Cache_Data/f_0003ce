@@ -1,0 +1,211 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/settings/VirtualTryOnSection.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=3878a93a"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+import { Sparkles } from "/node_modules/.vite/deps/lucide-react.js?v=21856c4b";
+import { Field } from "/src/components/settings/Field.jsx";
+export const CORE_MEASUREMENT_FIELDS = [
+  { key: "chest_bust", label: "Chest / Bust" },
+  { key: "waist", label: "Waist" },
+  { key: "hips", label: "Hips" },
+  { key: "shoulder_width", label: "Shoulder Width" },
+  { key: "sleeve_length", label: "Sleeve Length" }
+];
+export const VirtualTryOnSection = ({ formData, handleChange }) => /* @__PURE__ */ jsxDEV("section", { className: "space-y-4 rounded-2xl border border-white/10 bg-[#121620] p-6 shadow-xl", children: [
+  /* @__PURE__ */ jsxDEV("h2", { className: "flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E9C46A]", children: [
+    /* @__PURE__ */ jsxDEV(Sparkles, { size: 16 }, void 0, false, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+      lineNumber: 35,
+      columnNumber: 7
+    }, this),
+    " 5 Core Body Measurements"
+  ] }, void 0, true, {
+    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+    lineNumber: 34,
+    columnNumber: 5
+  }, this),
+  /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-gray-400", children: "All measurements in centimeters. These five fields are the standardized profile used by the AI Virtual Try-On engine." }, void 0, false, {
+    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+    lineNumber: 37,
+    columnNumber: 5
+  }, this),
+  /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3", children: CORE_MEASUREMENT_FIELDS.map(
+    ({ key, label }) => /* @__PURE__ */ jsxDEV(Field, { label: `${label} (cm)`, children: /* @__PURE__ */ jsxDEV(
+      "input",
+      {
+        type: "number",
+        step: "0.1",
+        name: key,
+        value: formData[key] ?? "",
+        onChange: handleChange,
+        placeholder: "0",
+        className: "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition"
+      },
+      void 0,
+      false,
+      {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+        lineNumber: 45,
+        columnNumber: 11
+      },
+      this
+    ) }, key, false, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+      lineNumber: 44,
+      columnNumber: 5
+    }, this)
+  ) }, void 0, false, {
+    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+    lineNumber: 42,
+    columnNumber: 5
+  }, this),
+  /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2 border-t border-white/5", children: [
+    /* @__PURE__ */ jsxDEV(Field, { label: "Top Size", children: /* @__PURE__ */ jsxDEV(
+      "select",
+      {
+        name: "topSize",
+        value: formData.topSize,
+        onChange: handleChange,
+        className: "w-full rounded-xl border border-white/10 bg-[#181D2A] px-3 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition",
+        children: [
+          /* @__PURE__ */ jsxDEV("option", { value: "XS", children: "Extra Small (XS)" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 66,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("option", { value: "S", children: "Small (S)" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 67,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("option", { value: "M", children: "Medium (M)" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 68,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("option", { value: "L", children: "Large (L)" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 69,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("option", { value: "XL", children: "Extra Large (XL)" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 70,
+            columnNumber: 11
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+        lineNumber: 60,
+        columnNumber: 9
+      },
+      this
+    ) }, void 0, false, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+      lineNumber: 59,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(Field, { label: "Waist Size (Inches)", children: /* @__PURE__ */ jsxDEV(
+      "input",
+      {
+        type: "number",
+        name: "bottomSize",
+        value: formData.bottomSize,
+        onChange: handleChange,
+        className: "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition"
+      },
+      void 0,
+      false,
+      {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+        lineNumber: 75,
+        columnNumber: 9
+      },
+      this
+    ) }, void 0, false, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+      lineNumber: 74,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(Field, { label: "Fit Style", children: /* @__PURE__ */ jsxDEV(
+      "select",
+      {
+        name: "preferredFit",
+        value: formData.preferredFit,
+        onChange: handleChange,
+        className: "w-full rounded-xl border border-white/10 bg-[#181D2A] px-3 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition",
+        children: [
+          /* @__PURE__ */ jsxDEV("option", { value: "slim", children: "Slim / Fitted" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 91,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("option", { value: "regular", children: "Regular" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 92,
+            columnNumber: 11
+          }, this),
+          /* @__PURE__ */ jsxDEV("option", { value: "oversized", children: "Oversized / Loose" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+            lineNumber: 93,
+            columnNumber: 11
+          }, this)
+        ]
+      },
+      void 0,
+      true,
+      {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+        lineNumber: 85,
+        columnNumber: 9
+      },
+      this
+    ) }, void 0, false, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+      lineNumber: 84,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+    lineNumber: 58,
+    columnNumber: 5
+  }, this)
+] }, void 0, true, {
+  fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx",
+  lineNumber: 33,
+  columnNumber: 1
+}, this);
+_c = VirtualTryOnSection;
+var _c;
+$RefreshReg$(_c, "VirtualTryOnSection");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/Hirayaaa-main/hiraya-frontend/src/components/settings/VirtualTryOnSection.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFBQTtBQUFBLFFBQ0MsTUFBSztBQUFBLFFBQ0wsT0FBT0QsU0FBU0s7QUFBQUEsUUFDaEIsVUFBVUo7QUFBQUEsUUFDVixXQUFVO0FBQUEsUUFFVjtBQUFBLGlDQUFDLFlBQU8sT0FBTSxRQUFPLDZCQUFyQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFrQztBQUFBLFVBQ2xDLHVCQUFDLFlBQU8sT0FBTSxXQUFVLHVCQUF4QjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUErQjtBQUFBLFVBQy9CLHVCQUFDLFlBQU8sT0FBTSxhQUFZLGlDQUExQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUEyQztBQUFBO0FBQUE7QUFBQSxNQVI3QztBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsSUFTQSxLQVZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FXQTtBQUFBLE9BckNGO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0FzQ0E7QUFBQSxLQS9ERjtBQUFBO0FBQUE7QUFBQTtBQUFBLE9BZ0VBO0FBQ0FLLEtBbEVXUDtBQUFtQixJQUFBTztBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJTcGFya2xlcyIsIkZpZWxkIiwiQ09SRV9NRUFTVVJFTUVOVF9GSUVMRFMiLCJrZXkiLCJsYWJlbCIsIlZpcnR1YWxUcnlPblNlY3Rpb24iLCJmb3JtRGF0YSIsImhhbmRsZUNoYW5nZSIsIm1hcCIsInRvcFNpemUiLCJib3R0b21TaXplIiwicHJlZmVycmVkRml0IiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiVmlydHVhbFRyeU9uU2VjdGlvbi5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgU3BhcmtsZXMgfSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IHsgRmllbGQgfSBmcm9tICcuL0ZpZWxkJztcblxuLy8gNSBDb3JlIFN0YW5kYXJkaXplZCBCb2R5IE1lYXN1cmVtZW50cyAoaWRlbnRpY2FsIGZvciBNZW4gJiBXb21lbilcbmV4cG9ydCBjb25zdCBDT1JFX01FQVNVUkVNRU5UX0ZJRUxEUyA9IFtcbiAgICB7IGtleTogJ2NoZXN0X2J1c3QnLCAgICAgbGFiZWw6ICdDaGVzdCAvIEJ1c3QnIH0sXG4gICAgeyBrZXk6ICd3YWlzdCcsICAgICAgICAgIGxhYmVsOiAnV2Fpc3QnIH0sXG4gICAgeyBrZXk6ICdoaXBzJywgICAgICAgICAgIGxhYmVsOiAnSGlwcycgfSxcbiAgICB7IGtleTogJ3Nob3VsZGVyX3dpZHRoJywgbGFiZWw6ICdTaG91bGRlciBXaWR0aCcgfSxcbiAgICB7IGtleTogJ3NsZWV2ZV9sZW5ndGgnLCAgbGFiZWw6ICdTbGVldmUgTGVuZ3RoJyB9LFxuXTtcblxuZXhwb3J0IGNvbnN0IFZpcnR1YWxUcnlPblNlY3Rpb24gPSAoeyBmb3JtRGF0YSwgaGFuZGxlQ2hhbmdlIH0pID0+IChcbiAgPHNlY3Rpb24gY2xhc3NOYW1lPVwic3BhY2UteS00IHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItd2hpdGUvMTAgYmctWyMxMjE2MjBdIHAtNiBzaGFkb3cteGxcIj5cbiAgICA8aDIgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgdGV4dC14cyBmb250LWJvbGQgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyIHRleHQtWyNFOUM0NkFdXCI+XG4gICAgICA8U3BhcmtsZXMgc2l6ZT17MTZ9IC8+IDUgQ29yZSBCb2R5IE1lYXN1cmVtZW50c1xuICAgIDwvaDI+XG4gICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC1ncmF5LTQwMFwiPlxuICAgICAgQWxsIG1lYXN1cmVtZW50cyBpbiBjZW50aW1ldGVycy4gVGhlc2UgZml2ZSBmaWVsZHMgYXJlIHRoZSBzdGFuZGFyZGl6ZWRcbiAgICAgIHByb2ZpbGUgdXNlZCBieSB0aGUgQUkgVmlydHVhbCBUcnktT24gZW5naW5lLlxuICAgIDwvcD5cblxuICAgIDxkaXYgY2xhc3NOYW1lPVwiZ3JpZCBncmlkLWNvbHMtMSBnYXAtNCBtZDpncmlkLWNvbHMtMiBsZzpncmlkLWNvbHMtM1wiPlxuICAgICAge0NPUkVfTUVBU1VSRU1FTlRfRklFTERTLm1hcCgoeyBrZXksIGxhYmVsIH0pID0+IChcbiAgICAgICAgPEZpZWxkIGtleT17a2V5fSBsYWJlbD17YCR7bGFiZWx9IChjbSlgfT5cbiAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxuICAgICAgICAgICAgc3RlcD1cIjAuMVwiXG4gICAgICAgICAgICBuYW1lPXtrZXl9XG4gICAgICAgICAgICB2YWx1ZT17Zm9ybURhdGFba2V5XSA/PyAnJ31cbiAgICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVDaGFuZ2V9XG4gICAgICAgICAgICBwbGFjZWhvbGRlcj1cIjBcIlxuICAgICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci13aGl0ZS8xMCBiZy13aGl0ZS81IHB4LTQgcHktMi41IHRleHQteHMgdGV4dC13aGl0ZSBmb2N1czpib3JkZXItWyNFOUM0NkFdIGZvY3VzOm91dGxpbmUtbm9uZSB0cmFuc2l0aW9uXCJcbiAgICAgICAgICAvPlxuICAgICAgICA8L0ZpZWxkPlxuICAgICAgKSl9XG4gICAgPC9kaXY+XG5cbiAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgZ2FwLTQgbWQ6Z3JpZC1jb2xzLTIgbGc6Z3JpZC1jb2xzLTQgcHQtMiBib3JkZXItdCBib3JkZXItd2hpdGUvNVwiPlxuICAgICAgPEZpZWxkIGxhYmVsPVwiVG9wIFNpemVcIj5cbiAgICAgICAgPHNlbGVjdFxuICAgICAgICAgIG5hbWU9XCJ0b3BTaXplXCJcbiAgICAgICAgICB2YWx1ZT17Zm9ybURhdGEudG9wU2l6ZX1cbiAgICAgICAgICBvbkNoYW5nZT17aGFuZGxlQ2hhbmdlfVxuICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItd2hpdGUvMTAgYmctWyMxODFEMkFdIHB4LTMgcHktMi41IHRleHQteHMgdGV4dC13aGl0ZSBmb2N1czpib3JkZXItWyNFOUM0NkFdIGZvY3VzOm91dGxpbmUtbm9uZSB0cmFuc2l0aW9uXCJcbiAgICAgICAgPlxuICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJYU1wiPkV4dHJhIFNtYWxsIChYUyk8L29wdGlvbj5cbiAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiU1wiPlNtYWxsIChTKTwvb3B0aW9uPlxuICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJNXCI+TWVkaXVtIChNKTwvb3B0aW9uPlxuICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJMXCI+TGFyZ2UgKEwpPC9vcHRpb24+XG4gICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlhMXCI+RXh0cmEgTGFyZ2UgKFhMKTwvb3B0aW9uPlxuICAgICAgICA8L3NlbGVjdD5cbiAgICAgIDwvRmllbGQ+XG5cbiAgICAgIDxGaWVsZCBsYWJlbD1cIldhaXN0IFNpemUgKEluY2hlcylcIj5cbiAgICAgICAgPGlucHV0XG4gICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgbmFtZT1cImJvdHRvbVNpemVcIlxuICAgICAgICAgIHZhbHVlPXtmb3JtRGF0YS5ib3R0b21TaXplfVxuICAgICAgICAgIG9uQ2hhbmdlPXtoYW5kbGVDaGFuZ2V9XG4gICAgICAgICAgY2xhc3NOYW1lPVwidy1mdWxsIHJvdW5kZWQteGwgYm9yZGVyIGJvcmRlci13aGl0ZS8xMCBiZy13aGl0ZS81IHB4LTQgcHktMi41IHRleHQteHMgdGV4dC13aGl0ZSBmb2N1czpib3JkZXItWyNFOUM0NkFdIGZvY3VzOm91dGxpbmUtbm9uZSB0cmFuc2l0aW9uXCJcbiAgICAgICAgLz5cbiAgICAgIDwvRmllbGQ+XG5cbiAgICAgIDxGaWVsZCBsYWJlbD1cIkZpdCBTdHlsZVwiPlxuICAgICAgICA8c2VsZWN0XG4gICAgICAgICAgbmFtZT1cInByZWZlcnJlZEZpdFwiXG4gICAgICAgICAgdmFsdWU9e2Zvcm1EYXRhLnByZWZlcnJlZEZpdH1cbiAgICAgICAgICBvbkNoYW5nZT17aGFuZGxlQ2hhbmdlfVxuICAgICAgICAgIGNsYXNzTmFtZT1cInctZnVsbCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItd2hpdGUvMTAgYmctWyMxODFEMkFdIHB4LTMgcHktMi41IHRleHQteHMgdGV4dC13aGl0ZSBmb2N1czpib3JkZXItWyNFOUM0NkFdIGZvY3VzOm91dGxpbmUtbm9uZSB0cmFuc2l0aW9uXCJcbiAgICAgICAgPlxuICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJzbGltXCI+U2xpbSAvIEZpdHRlZDwvb3B0aW9uPlxuICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJyZWd1bGFyXCI+UmVndWxhcjwvb3B0aW9uPlxuICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJvdmVyc2l6ZWRcIj5PdmVyc2l6ZWQgLyBMb29zZTwvb3B0aW9uPlxuICAgICAgICA8L3NlbGVjdD5cbiAgICAgIDwvRmllbGQ+XG4gICAgPC9kaXY+XG4gIDwvc2VjdGlvbj5cbik7XG4iXSwiZmlsZSI6IkQ6L0hpcmF5YWFhLW1haW4vaGlyYXlhLWZyb250ZW5kL3NyYy9jb21wb25lbnRzL3NldHRpbmdzL1ZpcnR1YWxUcnlPblNlY3Rpb24uanN4In0=

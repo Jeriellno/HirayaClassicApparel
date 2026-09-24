@@ -1,0 +1,238 @@
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
+import { CheckCircle2, ArrowLeft, AlertCircle, Loader2, Sparkles, Mail, Send, ShieldCheck } from 'lucide-react';
+import api, { parseApiError } from '../api/axios';
+
+/**
+ * ForgotPassword - Hiraya"Gold & Black" luxury reset gateway.
+ *
+ * Two explicit steps, driven by a single `step` machine:
+ *   STEP 1 - email entry with INSTANT (as-you-type) validation.
+ *   STEP 2 - success confirmation + a quick link back to /login.
+ *
+ * The step is advanced ONLY after a successful submission, so a failed
+ * request keeps the customer on the form with their input intact rather than
+ * dumping them on a success screen for an email that never got sent.
+ */
+
+const STEP = { EMAIL: 1, SUCCESS: 2 };
+
+/** Laravel-ish email shape check - good enough to gate the request client-side. */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const ForgotPassword = () => {
+    const [step, setStep] = useState(STEP.EMAIL);
+    const [email, setEmail] = useState('');
+    // `touched` keeps the error hidden until the field is blurred OR a submit
+    // was attempted - we never scold someone mid-way through typing.
+    const [touched, setTouched] = useState(false);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const navigate = useNavigate();
+
+    const trimmedEmail = email.trim();
+    const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
+    // Instant validation: recomputed on every keystroke, no request involved.
+    const emailError = useMemo(() => {
+        if (!touched) return '';
+        if (!trimmedEmail) return 'Email address is required.';
+        if (!isEmailValid) return 'Please enter a valid email address.';
+        return '';
+    }, [touched, trimmedEmail, isEmailValid]);
+
+    const canSubmit = isEmailValid && !loading;
+
+    /** Auto-dismiss the success notice if the user lingers, then bounce home. */
+    useEffect(() => {
+        if (step !== STEP.SUCCESS) return undefined;
+        const timer = setTimeout(() => navigate('/login', { replace: true }), 12000);
+        return () => clearTimeout(timer);
+    }, [step, navigate]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setTouched(true);
+        setError('');
+
+        if (!isEmailValid) return;
+        // Guard against a double-submit: the button is disabled while loading,
+        // but Enter-key spam can still re-fire the handler.
+        if (loading) return;
+
+        setLoading(true);
+        try {
+            // The backend stays enumeration-safe - it never reveals whether the
+            // address exists, so we ALWAYS advance to the success step and keep
+            // the copy conditional ("if an account exists").
+            await api.post('/check-email', { email: trimmedEmail.toLowerCase() });
+            setStep(STEP.SUCCESS);
+        } catch (err) {
+            const { message, errors } = parseApiError(err);
+            setError(errors?.email || message || 'Unable to send the reset link. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black p-4 font-sans">
+            {/* Ambient gold glow - same signature lighting as the Login gateway. */}
+            <div className="pointer-events-none absolute inset-0">
+                <div className="absolute -top-1/3 left-1/2 h-[70vh] w-[70vh] -translate-x-1/2 rounded-full bg-[#F5EBE0]/\[0.05\] blur-[120px]" />
+                <div className="absolute bottom-0 right-0 h-[40vh] w-[40vh] rounded-full bg-[#F2D89B]/\[0.03\] blur-[100px]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(245,235,224,0.08),transparent_60%)]" />
+            </div>
+
+            <motion.div 
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="relative z-10 w-full max-w-[420px]"
+            >
+                <div className="overflow-hidden rounded-[2rem] border-zinc-800 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
+                    <div className="mb-8 text-center">
+                        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border-stone-300/30 bg-[#E9C46A]/10 text-stone-200">
+                            {step === STEP.SUCCESS ? <ShieldCheck size={20} /> : <Sparkles size={20} />}
+                        </div>
+                        <h1 className="font-serif text-3xl uppercase leading-none tracking-[0.25em] text-[#E9C46A]">
+                            {step === STEP.SUCCESS ? 'Check Inbox' : 'Reset Password'}
+                        </h1>
+                        <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-[#E9C46A]/60">
+                            {step === STEP.SUCCESS ? 'Reset link dispatched' : 'We will email you a secure link'}
+                        </p>
+                    </div>
+
+                    {error && (
+                        <div className="mb-5 flex items-start gap-2 rounded-xl p-3 text-left bg-red-500/10 border border-red-500/30 text-xs font-medium text-red-400">
+                            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                            <span className="leading-relaxed">{error}</span>
+                        </div>
+                    )}
+
+                    {/* STEP 1 - EMAIL INPUT (instant validation) */}
+                    {step === STEP.EMAIL && (
+                        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                            <div className="relative">
+                                <Mail size={16} className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                                <input
+                                    type="email"
+                                    inputMode="email"
+                                    autoComplete="email"
+                                    placeholder="Email Address"
+                                    value={email}
+                                    onChange={(e) => {
+                                        setEmail(e.target.value);
+                                        if (error) setError('');
+                                    }}
+                                    onBlur={() => setTouched(true)}
+                                    aria-invalid={!!emailError}
+                                    aria-describedby={emailError ? 'email-error' : undefined}
+                                    className={`w-full rounded-xl py-3.5 pl-12 pr-12 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:ring-1 ${
+                                        emailError
+                                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
+                                            : 'focus:border-stone-300/60 focus:ring-stone-200/25'
+                                    }`}
+                                    required
+                                />
+                                {/* Instant, live validation feedback */}
+                                {isEmailValid && !emailError && (
+                                    <CheckCircle2 size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-200" />
+                                )}
+                            </div>
+
+                            <div className="min-h-[16px] px-2">
+                                {emailError ? (
+                                    <p id="email-error" className="text-[10px] font-medium text-red-400">{emailError}</p>
+                                ) : (
+                                    <p className="text-[10px] text-zinc-600">
+                                        Enter the email linked to your Hiraya account.
+                                    </p>
+                                )}
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={!canSubmit}
+                                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#E9C46A] py-4 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-stone-200/10 transition-all hover:bg-[#D4A94F] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={15} className="animate-spin" /> Sending Link...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send size={15} /> Send Reset Link
+                                    </>
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* STEP 2 - SUCCESS CONFIRMATION */}
+                    {step === STEP.SUCCESS && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: 'easeOut' }}
+                            className="space-y-4"
+                        >
+                            <div className="flex items-start gap-3 rounded-2xl border-stone-300/30 bg-[#E9C46A]/10 p-4">
+                                <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-stone-200" />
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-stone-200">
+                                        Reset Link Sent
+                                    </p>
+                                    <p className="text-[11px] leading-relaxed text-zinc-400">
+                                        If an account exists for{' '}
+                                        <span className="font-semibold text-stone-200">{trimmedEmail}</span>, a
+                                        password reset link is on its way. The link expires in 60 minutes.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border-zinc-800 bg-black/40 p-4 text-[11px] leading-relaxed text-zinc-500">
+                                Didn&apos;t get it? Check your spam folder, or wait a minute and request a
+                                new link. This page will return you to sign in automatically.
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => navigate('/login', { replace: true })}
+                                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#E9C46A] py-4 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-stone-200/10 transition-all hover:bg-[#D4A94F] active:scale-95"
+                            >
+                                Back to Sign In <ArrowLeft size={15} />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setStep(STEP.EMAIL);
+                                    setTouched(false);
+                                    setError('');
+                                }}
+                                className="w-full text-[11px] text-zinc-500 underline transition-colors hover:text-stone-200"
+                            >
+                                Use a different email
+                            </button>
+                        </motion.div>
+                    )}
+
+                    {step === STEP.EMAIL && (
+                        <p className="mt-8 text-center text-[11px] text-zinc-500">
+                            Remembered it?{' '}
+                            <Link
+                                to="/login"
+                                className="ml-1 inline-flex items-center gap-1 border-b border-stone-300/30 font-bold text-stone-200 transition-colors hover:text-stone-200"
+                            >
+                                Back to Sign In
+                            </Link>
+                        </p>
+                    )}
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+export default ForgotPassword;

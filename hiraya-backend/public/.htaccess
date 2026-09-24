@@ -1,0 +1,75 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Handle X-XSRF-Token Header
+    RewriteCond %{HTTP:x-xsrf-token} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+    </IfModule>
+
+    # ============================================================================
+    # CROSS-ORIGIN ISOLATION — REMOVED ON PURPOSE. DO NOT RE-ADD IT BLINDLY.
+    #
+    # This block used to send Cross-Origin-Opener-Policy and
+    # Cross-Origin-Embedder-Policy so that onnxruntime-web could get
+    # `SharedArrayBuffer` and run its WASM threads — a ~6s person mask instead of
+    # ~22s single-threaded.
+    #
+    # THE SPEED WAS NOT WORTH THE COST. `require-corp` requires EVERY cross-origin
+    # subresource to opt in with `Cross-Origin-Resource-Policy` (or be fetched via
+    # CORS). Supabase Storage does neither for a plain `<img src>`, and it is a SaaS
+    # host, so the header cannot be added on their side. Every catalog image was
+    # therefore blocked with
+    #
+    #   net::ERR_BLOCKED_BY_RESPONSE.NotSameOriginAfterDefaultedToSameOriginByCoep
+    #
+    # The product images matter more than the 16 seconds, so isolation is gone and
+    # the ~22s single-threaded mask is accepted deliberately.
+    #
+    # A NOTE THAT WAS WRONG HERE BEFORE, AND WHY IT MATTERED: an earlier comment
+    # claimed Supabase garment images "already satisfy" require-corp because they
+    # send `access-control-allow-origin: *`. They do not. A bare `<img src>` is not
+    # a CORS request, so that header is never consulted, and no CORP header is sent
+    # at all — which is exactly the bug this removal fixes.
+    #
+    # If you ever DO re-add these headers, every cross-origin asset must be made to
+    # send CORP in the same change, or the images silently disappear again.
+    #
+    # Keep this identical to hiraya-frontend/public/.htaccess.
+    # ============================================================================
+
+    # The mirrored @imgly model + WASM chunks still declare CORP. It is harmless
+    # now that COEP is gone (nothing enforces it), and it keeps them loadable if
+    # cross-origin isolation is ever restored — which would otherwise look like a
+    # sudden 190 MB model-download failure.
+    <IfModule mod_headers.c>
+        <FilesMatch "\.(wasm|mjs|js)$">
+            Header always set Cross-Origin-Resource-Policy "cross-origin"
+        </FilesMatch>
+    </IfModule>
+
+    # Long-lived caching for the mirrored model chunks. They are content-addressed
+    # (the filename IS the hash) and total ~190 MB, so re-downloading them on every
+    # visit is pure waste. `immutable` stops even a revalidation request.
+    <IfModule mod_headers.c>
+        <FilesMatch "\.(wasm|mjs)$">
+            Header always set Cache-Control "public, max-age=31536000, immutable"
+        </FilesMatch>
+    </IfModule>

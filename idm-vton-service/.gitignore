@@ -1,0 +1,38 @@
+# ---------------------------------------------------------------------------
+# IDM-VTON service — files that must NEVER be committed.
+#
+# The model weights and the HumanParsing/OpenPose/DensePose checkpoints are
+# multi-gigabyte binaries that are redistributed by their own upstream
+# projects under their own licences. They are downloaded at install time
+# (see README.md) and are intentionally excluded here. IDM-VTON's own weights
+# are CC BY-NC-SA 4.0 (NON-COMMERCIAL) — see the licence section of README.md.
+# ---------------------------------------------------------------------------
+
+# Model weights + upstream checkpoints (downloaded, not vendored).
+models/*
+!models/.gitkeep
+!models/README.md
+
+# The official IDM-VTON source checkout (cloned at install time).
+IDM-VTON/
+
+# Runtime input/output scratch space.
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Local configuration / secrets
+.env
+
+# OS noise
+.DS_Store
+Thumbs.db

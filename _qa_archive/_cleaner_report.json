@@ -1,0 +1,27 @@
+{
+  "engineOutput": {
+    "size": "900x1100",
+    "scan": "419x512",
+    "opaqueCount": 32316
+  },
+  "rawResidue": {
+    "caption": 0,
+    "logo": 0,
+    "backdrop": 0,
+    "garment": 85
+  },
+  "largestBoxInFixtureCoords": "299,230 303x711",
+  "componentCount": 1,
+  "biggestComponents": [
+    {
+      "where": "GARMENT-band",
+      "size": 32316,
+      "pctOfLargest": 100,
+      "box": "139,107 141x331",
+      "aspect": 0.43,
+      "fill": 0.692,
+      "inTopBand_old": false,
+      "oldWouldKeep": true
+    }
+  ]
+}

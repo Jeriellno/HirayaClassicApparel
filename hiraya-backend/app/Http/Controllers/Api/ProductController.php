@@ -1,0 +1,521 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\ProductRequest;
+use App\Models\Product;
+use App\Services\SizeChart;
+use App\Support\SupabaseStorage;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+
+class ProductController extends Controller
+{
+    /*
+     * DEFAULT_SIZE_CHART used to be a private constant here, duplicating the
+     * same numbers the stylist, the render job and the pre-processor each held.
+     * It now lives in App\Services\SizeChart so a chart change is made once.
+     *
+     * See `processProductInventoryAndMeasurements()` for how it is used: as the
+     * per-size fallback when an admin supplies no measurements of their own.
+     */
+
+    public function index(): JsonResponse
+    {
+        try {
+            $products = Product::latest()->get();
+            return response()->json($products, 200);
+        } catch (\Throwable $e) {
+            Log::error('Error fetching products: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function spotlight(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            /*
+             * The 5 Core measurements are COLUMNS ON `users`; there is no
+             * `bodyMeasurements` relation on the User model. The old
+             * `$user->bodyMeasurements ?? $user` fell back to `$user` only by
+             * accident (Eloquent returns null for an undefined attribute), so
+             * the real source of truth was always `$user` itself. Read it
+             * directly instead of relying on a relation that does not exist.
+             */
+            $userMeasurements = $user;
+
+            if ($userMeasurements && $this->hasValidMeasurements($userMeasurements)) {
+                $matchedProducts = $this->getPersonalizedSpotlight($userMeasurements);
+
+                if ($matchedProducts->isNotEmpty()) {
+                    return response()->json([
+                        'type'    => 'personalized',
+                        'message' => 'Garments matched to your body measurements',
+                        'data'    => $matchedProducts
+                    ], 200);
+                }
+            }
+
+            $latestProducts = Product::latest()->take(8)->get();
+
+            return response()->json([
+                'type'    => 'default',
+                'message' => 'Latest garments spotlight',
+                'data'    => $latestProducts
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error fetching spotlight recommendations: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function show($id): JsonResponse
+    {
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+        return response()->json($product, 200);
+    }
+
+    public function store(ProductRequest $request): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+            $validated = $this->handleImageUpload($request, $validated);
+            $validated = $this->prepareAiTags($validated);
+            $validated = $this->processProductInventoryAndMeasurements($validated, $request);
+
+            $product = Product::create($validated);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $product
+            ], 201);
+        } catch (\Throwable $e) {
+            Log::error('Error storing product: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function update(ProductRequest $request, $id): JsonResponse
+    {
+        try {
+            $product = Product::find($id);
+            if (!$product) {
+                return response()->json(['message' => 'Product not found'], 404);
+            }
+
+            $validated = $request->validated();
+            $validated = $this->handleImageUpload($request, $validated, $product);
+            $validated = $this->prepareAiTags($validated, is_array($product->ai_tags) ? $product->ai_tags : []);
+            $validated = $this->processProductInventoryAndMeasurements($validated, $request);
+
+            $product->update($validated);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $product
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error updating product: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * PATCH /api/admin/products/{product}/ai-tags
+     *
+     * Updates ONLY the AI styling tags of a product (body_shapes, undertone,
+     * occasions, fit_type) without touching price/stock/images. Used by the
+     * Admin "AI Styling Tags" tab.
+     */
+    public function updateAiTags(Request $request, $id): JsonResponse
+    {
+        try {
+            $product = Product::find($id);
+            if (!$product) {
+                return response()->json(['message' => 'Product not found'], 404);
+            }
+
+            $validated = $request->validate([
+                'undertone'    => 'nullable|string|in:WARM,COOL,NEUTRAL',
+                'fit_type'     => 'nullable|string|in:SLIM,REGULAR,LOOSE',
+                'body_shapes'  => 'nullable|array',
+                'body_shapes.*'=> 'string',
+                'occasions'    => 'nullable|array',
+                'occasions.*'  => 'string',
+                'ai_tags'      => 'nullable|array',
+            ]);
+
+            // Merge into the existing tags so a partial payload (e.g. only
+            // body_shapes) never wipes the other AI attributes.
+            $merged = $this->prepareAiTags(
+                $validated,
+                is_array($product->ai_tags) ? $product->ai_tags : []
+            );
+
+            $product->update(['ai_tags' => $merged['ai_tags'] ?? $product->ai_tags]);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $product->fresh(),
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error updating AI tags: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        $product = Product::find($id);
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
+        }
+
+        /*
+         * IMAGE CLEANUP IS BEST-EFFORT AND MUST NEVER BLOCK THE DELETE.
+         *
+         * The product row is the thing the admin asked to remove; the bucket
+         * objects are an optimisation that keeps the store from accumulating
+         * orphans. These two are NOT coupled, and the original code coupled them:
+         * it called `deleteProductImage()` first, with no guard, so ANY failure in
+         * the storage layer aborted the whole request BEFORE `$product->delete()`.
+         *
+         * The observed failure was a transport error reaching Supabase
+         * (`cURL error 60: unable to get local issuer certificate` on a host whose
+         * PHP has no CA bundle). Every delete answered 500 and removed nothing — a
+         * row that could not be deleted for as long as the network misbehaved.
+         *
+         * Each slot is wrapped on its own so one bad reference cannot skip the
+         * others, and the row deletion below is deliberately outside the attempt:
+         * the product is gone even if the bucket is unreachable. Any object left
+         * behind is a cosmetic orphan, recoverable later, never a user-facing error.
+         */
+        foreach ([$product->image_url, $product->display_image_url, $product->ghost_mannequin_url] as $reference) {
+            try {
+                $this->deleteProductImage($reference);
+            } catch (\Throwable $e) {
+                Log::warning('Product delete: image cleanup skipped.', [
+                    'product_id' => $product->id,
+                    'reference'  => $reference,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
+        }
+
+        try {
+            $product->delete();
+        } catch (\Throwable $e) {
+            Log::error('Error deleting product: ' . $e->getMessage());
+
+            return response()->json(['message' => 'Could not delete the product. Please try again.'], 500);
+        }
+
+        return response()->json(['message' => 'Product deleted successfully'], 200);
+    }
+
+    /**
+     * Persist the uploaded image files and map them onto the two URL columns.
+     *
+     * THE TWO SLOTS
+     * -------------
+     * The admin modal sends the uploads in one multipart request:
+     *
+     *   image_file         -> the original upload          -> `image_url`
+     *   display_image_file -> the AI cut-out on the frame  -> `display_image_url`
+     *   tryon_image_file   -> the BARE cut-out (no frame,  -> `ghost_mannequin_url`
+     *                         no wordmark, no caption)
+     *
+     * `image` is kept as a legacy alias for the original so older clients (and any
+     * direct API call) keep working.
+     *
+     * WHY THE THIRD SLOT EXISTS
+     * -------------------------
+     * `display_image_file` is a MARKETING CARD — the cut-out composited onto a
+     * black frame with gold borders, a reflection and the HIRAYA wordmark. That is
+     * right for the shop grid, but it is a terrible input to virtual try-on: the
+     * try-on must recover the garment's own pixels from it, and the frame,
+     * reflection and wordmark share the card's tones, so the recovery is lossy and
+     * the product-name caption welded to the garment's shoulder is unremovable.
+     *
+     * `ghost_mannequin_url` is the column `TryOnController` already prefers as "the
+     * cleanest VTON input", and until now nothing populated it. `tryon_image_file`
+     * fills it with the bare transparent cut-out, so try-on receives clean fabric
+     * and needs no recovery guesswork at all.
+     *
+     * WHY THIS WAS BROKEN
+     * -------------------
+     * Only `image` was handled. The admin UI has never sent `image` — it sends
+     * `image_file` + `display_image_file` — so NEITHER upload was ever stored and
+     * `display_image_url` stayed NULL for every product. Every customer surface
+     * resolves its image as `display_image_url || image_url`, so they all showed
+     * the raw original photo instead of the finished catalog image.
+     */
+    private function handleImageUpload(Request $request, array $validated, ?Product $product = null): array
+    {
+        // The ORIGINAL upload. `image` is a legacy alias of `image_file`.
+        $originalFile = $request->file('image_file') ?? $request->file('image');
+
+        if ($originalFile) {
+            if ($product && $product->image_url) {
+                $this->deleteProductImage($product->image_url);
+            }
+
+            /*
+             * Stored in the Supabase `products` bucket, NOT on the local disk.
+             *
+             * The local `public` disk was the original target and it cannot work
+             * here: `storage/app/public` is gitignored, so every deploy produced
+             * an empty tree while the database kept a valid-looking
+             * `display_image_url` — the reported "403 then NO IMAGE" bug, with the
+             * rows intact and the bytes simply absent. See App\Support\SupabaseStorage
+             * for the full reasoning (and why this is the REST API rather than the
+             * S3 driver).
+             */
+            $validated['image_url'] = SupabaseStorage::putUploadedFile($originalFile, 'products');
+        }
+
+        /*
+         * The AI cut-out that every customer-facing surface should display.
+         *
+         * It is replaced on a new upload and preserved otherwise: an edit that
+         * does not re-run auto-fill must not wipe an existing cut-out.
+         */
+        if ($request->hasFile('display_image_file')) {
+            if ($product && $product->display_image_url) {
+                $this->deleteProductImage($product->display_image_url);
+            }
+
+            $validated['display_image_url'] = SupabaseStorage::putUploadedFile(
+                $request->file('display_image_file'),
+                'catalog'
+            );
+        } elseif ($request->file('display_image_file') !== null) {
+            /*
+             * A file WAS posted but is not a valid upload — almost always a
+             * validation rejection (over the size cap, or a mime the rule does
+             * not allow). `validated()` drops invalid keys, and because
+             * `display_image_file` is nullable the whole request STILL returns
+             * 200, so this used to be completely silent: the admin saw
+             * "success" and the shop kept rendering the uncut original.
+             *
+             * Log it loudly so the cause is visible in `storage/logs` instead of
+             * having to be reverse-engineered from an empty column.
+             */
+            Log::warning('display_image_file was posted but discarded before storage', [
+                'product_id'    => optional($product)->id,
+                'original_name' => $request->file('display_image_file')?->getClientOriginalName(),
+                'client_size'   => $request->file('display_image_file')?->getSize(),
+                'upload_error'  => $request->file('display_image_file')?->getError(),
+            ]);
+        }
+
+        /*
+         * The BARE cut-out for virtual try-on (see the header note).
+         *
+         * Stored under `catalog/` alongside the framed card. Replaced on a new
+         * upload and preserved otherwise, exactly like the display slot.
+         */
+        if ($request->hasFile('tryon_image_file')) {
+            if ($product && $product->ghost_mannequin_url) {
+                $this->deleteProductImage($product->ghost_mannequin_url);
+            }
+
+            $validated['ghost_mannequin_url'] = SupabaseStorage::putUploadedFile(
+                $request->file('tryon_image_file'),
+                'catalog'
+            );
+        } elseif ($request->file('tryon_image_file') !== null) {
+            // Same silent-drop hazard as the display slot above.
+            Log::warning('tryon_image_file was posted but discarded before storage', [
+                'product_id'    => optional($product)->id,
+                'original_name' => $request->file('tryon_image_file')?->getClientOriginalName(),
+                'client_size'   => $request->file('tryon_image_file')?->getSize(),
+                'upload_error'  => $request->file('tryon_image_file')?->getError(),
+            ]);
+        }
+
+        // No slot should ever be written as a raw attribute.
+        unset(
+            $validated['image'],
+            $validated['image_file'],
+            $validated['display_image_file'],
+            $validated['tryon_image_file'],
+        );
+
+        return $validated;
+    }
+
+    /**
+     * Delete a previously stored product image, but ONLY when it is a file this
+     * application owns — in the Supabase `products` bucket, or (for rows written
+     * before the move) on the local `public` disk.
+     *
+     * THE OLD IMPLEMENTATION WAS UNSAFE
+     * ---------------------------------
+     * It did `str_replace('/storage/', '', parse_url($url, PHP_URL_PATH))` and
+     * deleted whatever came out. Two ways that goes wrong:
+     *
+     *  1. A REMOTE image (Supabase / S3), e.g.
+     *     `https://<proj>.supabase.co/storage/v1/object/public/products/a.jpg`
+     *     parses to the path `/storage/v1/object/public/products/a.jpg`; the
+     *     replace strips `/storage/` leaving
+     *     `v1/object/public/products/a.jpg`, which does not exist locally, so the
+     *     delete is a silent no-op — the real asset leaks forever.
+     *
+     *  2. More seriously, ANY path whose shape happened to match a local file
+     *     would be deleted, so a URL from a different host could remove an
+     *     unrelated local asset.
+     *
+     * EVERY REFERENCE IS MATCHED AGAINST A KNOWN PREFIX, never parsed apart. A
+     * reference that matches neither prefix is left strictly alone: it may be a
+     * data URI, a CDN, or a host this app does not own, and none of those are
+     * ours to delete.
+     */
+    private function deleteProductImage(?string $imageUrl): void
+    {
+        if (!$imageUrl) {
+            return;
+        }
+
+        /*
+         * 1. A Supabase object. `keyFromReference` recognises every shape a row
+         *    can hold (absolute bucket URL, the `/supabase-storage/...` proxy
+         *    path, or a bare `catalog/x.png` key) and returns null for anything
+         *    that is not one of our objects.
+         */
+        $objectKey = SupabaseStorage::keyFromReference($imageUrl);
+        if ($objectKey !== null) {
+            SupabaseStorage::delete($objectKey);
+
+            return;
+        }
+
+        /*
+         * 2. A LEGACY local-disk reference, e.g.
+         *    `http://127.0.0.1:8000/storage/catalog/x.png`. These rows predate the
+         *    move to Supabase and their files are usually already gone, so this is
+         *    a best-effort cleanup that must never throw.
+         *
+         *    Anchored on the PUBLIC disk's OWN base URL with a trailing slash, so
+         *    a lookalike host such as `.../storage-evil/...` cannot pass the test.
+         */
+        $disk = Storage::disk('public');
+        $baseUrl = rtrim($disk->url(''), '/').'/';
+
+        if (!str_starts_with($imageUrl, $baseUrl)) {
+            // Not ours (data URI, external CDN, …). Leave it alone.
+            return;
+        }
+
+        $relativePath = ltrim(substr($imageUrl, strlen($baseUrl)), '/');
+        if ($relativePath !== '' && $disk->exists($relativePath)) {
+            $disk->delete($relativePath);
+        }
+    }
+
+    private function prepareAiTags(array $validated, array $existingAiTags = []): array
+    {
+        $aiKeys = ['undertone', 'fit_type', 'body_shapes', 'occasions'];
+        $aiTags = $validated['ai_tags'] ?? $existingAiTags;
+
+        foreach ($aiKeys as $key) {
+            if (array_key_exists($key, $validated)) {
+                $aiTags[$key] = $validated[$key];
+            }
+        }
+
+        if (!empty($aiTags)) {
+            $validated['ai_tags'] = $aiTags;
+        }
+
+        return $validated;
+    }
+
+    private function processProductInventoryAndMeasurements(array $validated, Request $request): array
+    {
+        if ($request->has('stock')) {
+            $validated['stock'] = $request->input('stock');
+        }
+
+        $sizeStocks = $request->input('size_stocks', $request->input('stocks', null));
+        if ($sizeStocks) {
+            $validated['size_stocks'] = is_string($sizeStocks) ? json_decode($sizeStocks, true) : $sizeStocks;
+        }
+
+        $incomingMeasurements = $request->input('size_measurements', null);
+        if ($incomingMeasurements) {
+            $validated['size_measurements'] = is_string($incomingMeasurements) ? json_decode($incomingMeasurements, true) : $incomingMeasurements;
+        } else {
+            /*
+             * No measurements supplied -> fall back to the standard chart for
+             * each size the garment actually comes in. `sizes` may be the
+             * intended LIST of labels or a legacy label=>qty MAP, so the label
+             * is resolved from either shape before the lookup.
+             */
+            $sizesInput = $validated['sizes'] ?? [];
+            if (is_array($sizesInput)) {
+                $sizeMeasurements = [];
+                foreach ($sizesInput as $key => $value) {
+                    $sizeLabel = is_array($value)
+                        ? ($value['size_label'] ?? $value['size'] ?? $key)
+                        : (is_string($key) ? $key : $value);
+
+                    $chartEntry = SizeChart::measurementsFor((string) $sizeLabel);
+
+                    if ($chartEntry !== null) {
+                        $sizeMeasurements[$sizeLabel] = $chartEntry;
+                    }
+                }
+                if (!empty($sizeMeasurements)) {
+                    $validated['size_measurements'] = $sizeMeasurements;
+                }
+            }
+        }
+
+        return $validated;
+    }
+
+    private function hasValidMeasurements($m): bool
+    {
+        return !empty($m->chest_bust) && !empty($m->waist) && !empty($m->hips);
+    }
+
+    private function getPersonalizedSpotlight($userM)
+    {
+        $tolerance = 3.0;
+
+        return Product::latest()->get()->filter(function ($product) use ($userM, $tolerance) {
+            $sizeMeasurements = $product->size_measurements;
+
+            if (!is_array($sizeMeasurements)) {
+                return false;
+            }
+
+            foreach ($sizeMeasurements as $sizeLabel => $measurements) {
+                $chest = $measurements['chest_bust'] ?? $measurements['chest_bust_min'] ?? null;
+                $waist = $measurements['waist'] ?? $measurements['waist_min'] ?? null;
+                $hips  = $measurements['hips'] ?? $measurements['hips_min'] ?? null;
+
+                if ($chest && $waist && $hips) {
+                    $chestMatch = abs($chest - $userM->chest_bust) <= $tolerance;
+                    $waistMatch = abs($waist - $userM->waist) <= $tolerance;
+                    $hipsMatch  = abs($hips - $userM->hips) <= $tolerance;
+
+                    if ($chestMatch && $waistMatch && $hipsMatch) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        })->values()->take(8);
+    }
+}

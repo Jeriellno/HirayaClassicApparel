@@ -1,0 +1,406 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/superadmin/tabs/DashboardTab.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=3878a93a"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=3878a93a"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react;
+import { RefreshCw, Sparkles, MessageSquare, Layers, Activity, ShieldCheck } from "/node_modules/.vite/deps/lucide-react.js?v=21856c4b";
+const DashboardTab = ({
+  products = [],
+  activeSessions = 0,
+  feedbacks = [],
+  analyticsLogs = [],
+  onSync,
+  onRefresh,
+  loading
+}) => {
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-6 animate-fadeIn", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-[#0D1017] border border-white/10 rounded-2xl relative overflow-hidden", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "absolute top-0 right-0 w-64 h-64 bg-[#E9C46A]/5 rounded-full blur-3xl pointer-events-none" }, void 0, false, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+        lineNumber: 36,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "flex items-center gap-2 mb-1", children: [
+          /* @__PURE__ */ jsxDEV(ShieldCheck, { size: 16, className: "text-[#E9C46A]" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 39,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-mono uppercase tracking-widest text-[#E9C46A]", children: "SuperAdmin Control Center" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 40,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 38,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("h2", { className: "text-xl font-light uppercase tracking-[0.2em] text-white", children: "System Executive Dashboard" }, void 0, false, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 42,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-gray-400 mt-1", children: "Real-time system health, research analytics, and live AI pipeline metrics." }, void 0, false, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 45,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+        lineNumber: 37,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          onClick: onSync || onRefresh,
+          disabled: loading,
+          title: "Re-read the data this tab shows",
+          className: "px-5 py-2.5 bg-[#E9C46A]/10 hover:bg-[#E9C46A]/20 border border-[#E9C46A]/30 rounded-xl text-xs font-mono uppercase tracking-wider text-[#E9C46A] flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 shrink-0",
+          children: [
+            /* @__PURE__ */ jsxDEV(RefreshCw, { size: 14, className: loading ? "animate-spin text-[#E9C46A]" : "" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 56,
+              columnNumber: 11
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: "Refresh Dashboard" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 57,
+              columnNumber: 11
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 50,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+      lineNumber: 35,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 lg:grid-cols-3 gap-6", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "lg:col-span-2 space-y-6", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-white/10 pb-3", children: [
+            /* @__PURE__ */ jsxDEV("h3", { className: "text-xs font-mono uppercase tracking-wider text-gray-200 flex items-center gap-2", children: [
+              /* @__PURE__ */ jsxDEV(Sparkles, { size: 16, className: "text-[#E9C46A]" }, void 0, false, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                lineNumber: 71,
+                columnNumber: 17
+              }, this),
+              " Recent Try-On Activity"
+            ] }, void 0, true, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 70,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[9px] font-mono text-[#E9C46A] bg-[#E9C46A]/10 px-2.5 py-0.5 rounded border border-[#E9C46A]/20", children: "Live Stream" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 73,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 69,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "space-y-2.5", children: analyticsLogs && analyticsLogs.length > 0 ? analyticsLogs.slice(0, 5).map(
+            (log, idx) => /* @__PURE__ */ jsxDEV("div", { className: "flex justify-between items-center p-3 bg-black/40 border border-white/5 rounded-xl text-xs transition hover:border-[#E9C46A]/40", children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "space-y-0.5", children: [
+                /* @__PURE__ */ jsxDEV("p", { className: "font-mono text-white text-xs", children: log.item_name || "Garment Item" }, void 0, false, {
+                  fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                  lineNumber: 83,
+                  columnNumber: 23
+                }, this),
+                /* @__PURE__ */ jsxDEV("p", { className: "text-[10px] text-gray-400 font-mono", children: [
+                  "Paired with: ",
+                  /* @__PURE__ */ jsxDEV("span", { className: "text-gray-300", children: log.paired_item || "None" }, void 0, false, {
+                    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                    lineNumber: 85,
+                    columnNumber: 38
+                  }, this)
+                ] }, void 0, true, {
+                  fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                  lineNumber: 84,
+                  columnNumber: 23
+                }, this)
+              ] }, void 0, true, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                lineNumber: 82,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "span",
+                {
+                  className: `px-2.5 py-1 rounded text-[10px] border font-mono uppercase ${log.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : log.status === "failed" ? "bg-red-500/10 text-red-400 border-red-500/30" : "bg-[#E9C46A]/10 text-[#E9C46A] border-[#E9C46A]/20"}`,
+                  children: log.status || "queued"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                  lineNumber: 98,
+                  columnNumber: 21
+                },
+                this
+              )
+            ] }, log.id || idx, true, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 81,
+              columnNumber: 15
+            }, this)
+          ) : /* @__PURE__ */ jsxDEV("div", { className: "py-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest", children: "No recent AI try-on activity recorded" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 112,
+            columnNumber: 15
+          }, this) }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 78,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 68,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between border-b border-white/10 pb-3", children: /* @__PURE__ */ jsxDEV("h3", { className: "text-xs font-mono uppercase tracking-wider text-gray-200 flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxDEV(MessageSquare, { size: 16, className: "text-emerald-400" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 123,
+              columnNumber: 17
+            }, this),
+            " Recent User Responses"
+          ] }, void 0, true, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 122,
+            columnNumber: 15
+          }, this) }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 121,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-3", children: feedbacks && feedbacks.length > 0 ? feedbacks.slice(0, 4).map(
+            (fb, idx) => /* @__PURE__ */ jsxDEV("div", { className: "p-3.5 bg-black/40 rounded-xl border border-white/5 text-xs space-y-2 flex flex-col justify-between", children: [
+              /* @__PURE__ */ jsxDEV("p", { className: "text-gray-300 italic text-[11px]", children: [
+                '"',
+                fb.comment || "(no comment)",
+                '"'
+              ] }, void 0, true, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                lineNumber: 134,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("p", { className: "text-[9px] text-gray-500 font-mono border-t border-white/5 pt-2 uppercase", children: [
+                "User: ",
+                fb.user_name || fb.user_email || "Respondent"
+              ] }, void 0, true, {
+                fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+                lineNumber: 135,
+                columnNumber: 21
+              }, this)
+            ] }, fb.id || idx, true, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 130,
+              columnNumber: 15
+            }, this)
+          ) : /* @__PURE__ */ jsxDEV("div", { className: "col-span-2 py-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest", children: "No feedback responses recorded" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 141,
+            columnNumber: 15
+          }, this) }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 127,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 120,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+        lineNumber: 65,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "space-y-4", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "p-4 bg-[#E9C46A]/10 border border-[#E9C46A]/30 rounded-2xl space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("p", { className: "text-[9px] uppercase tracking-widest text-[#E9C46A] font-mono", children: "System Integrity" }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 153,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-gray-300 font-light", children: "All core database pipelines and AI canvas modules operating at optimal status." }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 154,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 152,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between text-gray-400", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-mono uppercase tracking-wider", children: "Active Items" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 159,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(Layers, { size: 16, className: "text-gray-500" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 160,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 158,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-3xl font-mono font-bold text-white pt-1", children: products.length }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 162,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 157,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between text-gray-400", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-mono uppercase tracking-wider", children: "Canvas Sessions" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 167,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(Activity, { size: 16, className: "text-[#E9C46A]" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 168,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 166,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-3xl font-mono font-bold text-[#E9C46A] pt-1", children: activeSessions }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 170,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 165,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between text-gray-400", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-mono uppercase tracking-wider", children: "Survey Feedbacks" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 175,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(MessageSquare, { size: 16, className: "text-emerald-400" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 176,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 174,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-3xl font-mono font-bold text-emerald-400 pt-1", children: feedbacks.length }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 178,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 173,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "flex items-center justify-between text-gray-400", children: [
+            /* @__PURE__ */ jsxDEV("span", { className: "text-[10px] font-mono uppercase tracking-wider", children: "AI Try-On Logs" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 183,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV(Sparkles, { size: 16, className: "text-purple-400" }, void 0, false, {
+              fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+              lineNumber: 184,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 182,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { className: "text-3xl font-mono font-bold text-purple-400 pt-1", children: analyticsLogs.length }, void 0, false, {
+            fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+            lineNumber: 186,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+          lineNumber: 181,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+        lineNumber: 151,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+      lineNumber: 62,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx",
+    lineNumber: 33,
+    columnNumber: 5
+  }, this);
+};
+_c = DashboardTab;
+export default DashboardTab;
+var _c;
+$RefreshReg$(_c, "DashboardTab");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("D:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/DashboardTab.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUErQztBQUFBLGVBRmpEO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBR0E7QUFBQSxVQUNBLHVCQUFDLE9BQUUsV0FBVSxxREFBcURKLHdCQUFjSSxVQUFoRjtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUF1RjtBQUFBLGFBTHpGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFNQTtBQUFBLFdBcENGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFxQ0E7QUFBQSxTQTlIRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBZ0lBO0FBQUEsT0E3SkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQThKQTtBQUVKO0FBQUVhLEtBMUtJckI7QUE0S04sZUFBZUE7QUFBYSxJQUFBcUI7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsiUmVhY3QiLCJSZWZyZXNoQ3ciLCJTcGFya2xlcyIsIk1lc3NhZ2VTcXVhcmUiLCJMYXllcnMiLCJBY3Rpdml0eSIsIlNoaWVsZENoZWNrIiwiRGFzaGJvYXJkVGFiIiwicHJvZHVjdHMiLCJhY3RpdmVTZXNzaW9ucyIsImZlZWRiYWNrcyIsImFuYWx5dGljc0xvZ3MiLCJvblN5bmMiLCJvblJlZnJlc2giLCJsb2FkaW5nIiwibGVuZ3RoIiwic2xpY2UiLCJtYXAiLCJsb2ciLCJpZHgiLCJpdGVtX25hbWUiLCJwYWlyZWRfaXRlbSIsInN0YXR1cyIsImlkIiwiZmIiLCJjb21tZW50IiwidXNlcl9uYW1lIiwidXNlcl9lbWFpbCIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkRhc2hib2FyZFRhYi5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IFJlZnJlc2hDdywgU3BhcmtsZXMsIE1lc3NhZ2VTcXVhcmUsIExheWVycywgQWN0aXZpdHksIFNoaWVsZENoZWNrIH0gZnJvbSAnbHVjaWRlLXJlYWN0JztcblxuY29uc3QgRGFzaGJvYXJkVGFiID0gKHsgXG4gIHByb2R1Y3RzID0gW10sIFxuICBhY3RpdmVTZXNzaW9ucyA9IDAsIFxuICBmZWVkYmFja3MgPSBbXSwgXG4gIGFuYWx5dGljc0xvZ3MgPSBbXSwgXG4gIG9uU3luYywgXG4gIG9uUmVmcmVzaCxcbiAgbG9hZGluZ1xufSkgPT4ge1xuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS02IGFuaW1hdGUtZmFkZUluXCI+XG4gICAgICB7LyogSGVhZGVyIEJhbm5lciAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBmbGV4LWNvbCBzbTpmbGV4LXJvdyBzbTppdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGdhcC00IHAtNiBiZy1bIzBEMTAxN10gYm9yZGVyIGJvcmRlci13aGl0ZS8xMCByb3VuZGVkLTJ4bCByZWxhdGl2ZSBvdmVyZmxvdy1oaWRkZW5cIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJhYnNvbHV0ZSB0b3AtMCByaWdodC0wIHctNjQgaC02NCBiZy1bI0U5QzQ2QV0vNSByb3VuZGVkLWZ1bGwgYmx1ci0zeGwgcG9pbnRlci1ldmVudHMtbm9uZVwiIC8+XG4gICAgICAgIDxkaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMiBtYi0xXCI+XG4gICAgICAgICAgICA8U2hpZWxkQ2hlY2sgc2l6ZT17MTZ9IGNsYXNzTmFtZT1cInRleHQtWyNFOUM0NkFdXCIgLz5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtbW9ubyB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXN0IHRleHQtWyNFOUM0NkFdXCI+U3VwZXJBZG1pbiBDb250cm9sIENlbnRlcjwvc3Bhbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwidGV4dC14bCBmb250LWxpZ2h0IHVwcGVyY2FzZSB0cmFja2luZy1bMC4yZW1dIHRleHQtd2hpdGVcIj5cbiAgICAgICAgICAgIFN5c3RlbSBFeGVjdXRpdmUgRGFzaGJvYXJkXG4gICAgICAgICAgPC9oMj5cbiAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtZ3JheS00MDAgbXQtMVwiPlxuICAgICAgICAgICAgUmVhbC10aW1lIHN5c3RlbSBoZWFsdGgsIHJlc2VhcmNoIGFuYWx5dGljcywgYW5kIGxpdmUgQUkgcGlwZWxpbmUgbWV0cmljcy5cbiAgICAgICAgICA8L3A+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIDxidXR0b25cbiAgICAgICAgICBvbkNsaWNrPXtvblN5bmMgfHwgb25SZWZyZXNofSBcbiAgICAgICAgICBkaXNhYmxlZD17bG9hZGluZ31cbiAgICAgICAgICB0aXRsZT1cIlJlLXJlYWQgdGhlIGRhdGEgdGhpcyB0YWIgc2hvd3NcIlxuICAgICAgICAgIGNsYXNzTmFtZT1cInB4LTUgcHktMi41IGJnLVsjRTlDNDZBXS8xMCBob3ZlcjpiZy1bI0U5QzQ2QV0vMjAgYm9yZGVyIGJvcmRlci1bI0U5QzQ2QV0vMzAgcm91bmRlZC14bCB0ZXh0LXhzIGZvbnQtbW9ubyB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1bI0U5QzQ2QV0gZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgZ2FwLTIgdHJhbnNpdGlvbiBjdXJzb3ItcG9pbnRlciBkaXNhYmxlZDpvcGFjaXR5LTUwIHNocmluay0wXCJcbiAgICAgICAgPlxuICAgICAgICAgIDxSZWZyZXNoQ3cgc2l6ZT17MTR9IGNsYXNzTmFtZT17bG9hZGluZyA/XCJhbmltYXRlLXNwaW4gdGV4dC1bI0U5QzQ2QV1cIiA6XCJcIn0gLz5cbiAgICAgICAgICA8c3Bhbj5SZWZyZXNoIERhc2hib2FyZDwvc3Bhbj5cbiAgICAgICAgPC9idXR0b24+XG4gICAgICA8L2Rpdj5cblxuICAgICAgey8qIE1haW4gR3JpZCBMYXlvdXQgKi99XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgbGc6Z3JpZC1jb2xzLTMgZ2FwLTZcIj5cbiAgICAgICAgXG4gICAgICAgIHsvKiBMZWZ0IENvbHVtbiAoMiBTcGFuKTogTG9ncyAmIEZlZWRiYWNrcyAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJsZzpjb2wtc3Bhbi0yIHNwYWNlLXktNlwiPlxuICAgICAgICAgIFxuICAgICAgICAgIHsvKiBUcnktT24gQWN0aXZpdHkgQ2FyZCAqL31cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtNSBiZy1bIzBEMTAxN10gYm9yZGVyIGJvcmRlci13aGl0ZS8xMCByb3VuZGVkLTJ4bCBzcGFjZS15LTRcIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuIGJvcmRlci1iIGJvcmRlci13aGl0ZS8xMCBwYi0zXCI+XG4gICAgICAgICAgICAgIDxoMyBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtbW9ubyB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXIgdGV4dC1ncmF5LTIwMCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgICAgIDxTcGFya2xlcyBzaXplPXsxNn0gY2xhc3NOYW1lPVwidGV4dC1bI0U5QzQ2QV1cIiAvPiBSZWNlbnQgVHJ5LU9uIEFjdGl2aXR5XG4gICAgICAgICAgICAgIDwvaDM+XG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzlweF0gZm9udC1tb25vIHRleHQtWyNFOUM0NkFdIGJnLVsjRTlDNDZBXS8xMCBweC0yLjUgcHktMC41IHJvdW5kZWQgYm9yZGVyIGJvcmRlci1bI0U5QzQ2QV0vMjBcIj5cbiAgICAgICAgICAgICAgICBMaXZlIFN0cmVhbVxuICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTIuNVwiPlxuICAgICAgICAgICAgICB7YW5hbHl0aWNzTG9ncyAmJiBhbmFseXRpY3NMb2dzLmxlbmd0aCA+IDAgPyAoXG4gICAgICAgICAgICAgICAgYW5hbHl0aWNzTG9ncy5zbGljZSgwLCA1KS5tYXAoKGxvZywgaWR4KSA9PiAoXG4gICAgICAgICAgICAgICAgICA8ZGl2IGtleT17bG9nLmlkIHx8IGlkeH0gY2xhc3NOYW1lPVwiZmxleCBqdXN0aWZ5LWJldHdlZW4gaXRlbXMtY2VudGVyIHAtMyBiZy1ibGFjay80MCBib3JkZXIgYm9yZGVyLXdoaXRlLzUgcm91bmRlZC14bCB0ZXh0LXhzIHRyYW5zaXRpb24gaG92ZXI6Ym9yZGVyLVsjRTlDNDZBXS80MFwiPlxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktMC41XCI+XG4gICAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwiZm9udC1tb25vIHRleHQtd2hpdGUgdGV4dC14c1wiPntsb2cuaXRlbV9uYW1lIHx8ICdHYXJtZW50IEl0ZW0nfTwvcD5cbiAgICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LWdyYXktNDAwIGZvbnQtbW9ub1wiPlxuICAgICAgICAgICAgICAgICAgICAgICAgUGFpcmVkIHdpdGg6IDxzcGFuIGNsYXNzTmFtZT1cInRleHQtZ3JheS0zMDBcIj57bG9nLnBhaXJlZF9pdGVtIHx8ICdOb25lJ308L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICAgPC9wPlxuICAgICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAgey8qXG4gICAgICAgICAgICAgICAgICAgICAqIFNUQVRVUywgTk9UIEEgRkFLRSBNQVRDSCBTQ09SRS5cbiAgICAgICAgICAgICAgICAgICAgICpcbiAgICAgICAgICAgICAgICAgICAgICogVGhpcyBiYWRnZSB1c2VkIHRvIHJlbmRlciBgbG9nLm1hdGNoX3Njb3JlYCwgYSBmaWVsZCB0aGVcbiAgICAgICAgICAgICAgICAgICAgICogdHJ5LW9uIHBpcGVsaW5lIGhhcyBuZXZlciBwcm9kdWNlZCAoaXQgY2FtZSBmcm9tIHRoZSByZXRpcmVkXG4gICAgICAgICAgICAgICAgICAgICAqIFN1cGFiYXNlIGBjYW52YXNfYW5hbHl0aWNzYCB0YWJsZSksIHNvIGV2ZXJ5IHJvdyByZWFkXG4gICAgICAgICAgICAgICAgICAgICAqIFwiTWF0Y2g6IOKAlFwiLiBUaGUgcmVhbCwgcmVjb3JkZWQgb3V0Y29tZSBvZiBhIHNlc3Npb24gaXMgaXRzXG4gICAgICAgICAgICAgICAgICAgICAqIHN0YXR1cyDigJQgcXVldWVkIC8gcHJvY2Vzc2luZyAvIGNvbXBsZXRlZCAvIGZhaWxlZCDigJQgc28gdGhhdFxuICAgICAgICAgICAgICAgICAgICAgKiBpcyB3aGF0IGlzIHNob3duIGluc3RlYWQgb2YgYW4gaW52ZW50ZWQgcGVyY2VudGFnZS5cbiAgICAgICAgICAgICAgICAgICAgICovfVxuICAgICAgICAgICAgICAgICAgICA8c3BhblxuICAgICAgICAgICAgICAgICAgICAgIGNsYXNzTmFtZT17YHB4LTIuNSBweS0xIHJvdW5kZWQgdGV4dC1bMTBweF0gYm9yZGVyIGZvbnQtbW9ubyB1cHBlcmNhc2UgJHtcbiAgICAgICAgICAgICAgICAgICAgICAgIGxvZy5zdGF0dXMgPT09ICdjb21wbGV0ZWQnXG4gICAgICAgICAgICAgICAgICAgICAgICAgID8gJ2JnLWVtZXJhbGQtNTAwLzEwIHRleHQtZW1lcmFsZC00MDAgYm9yZGVyLWVtZXJhbGQtNTAwLzMwJ1xuICAgICAgICAgICAgICAgICAgICAgICAgICA6IGxvZy5zdGF0dXMgPT09ICdmYWlsZWQnXG4gICAgICAgICAgICAgICAgICAgICAgICAgID8gJ2JnLXJlZC01MDAvMTAgdGV4dC1yZWQtNDAwIGJvcmRlci1yZWQtNTAwLzMwJ1xuICAgICAgICAgICAgICAgICAgICAgICAgICA6ICdiZy1bI0U5QzQ2QV0vMTAgdGV4dC1bI0U5QzQ2QV0gYm9yZGVyLVsjRTlDNDZBXS8yMCdcbiAgICAgICAgICAgICAgICAgICAgICB9YH1cbiAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgIHtsb2cuc3RhdHVzIHx8ICdxdWV1ZWQnfVxuICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICApKVxuICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicHktOCB0ZXh0LWNlbnRlciB0ZXh0LXhzIGZvbnQtbW9ubyB0ZXh0LWdyYXktNTAwIHVwcGVyY2FzZSB0cmFja2luZy13aWRlc3RcIj5cbiAgICAgICAgICAgICAgICAgIE5vIHJlY2VudCBBSSB0cnktb24gYWN0aXZpdHkgcmVjb3JkZWRcbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgey8qIFJlY2VudCBGZWVkYmFjayBDYXJkICovfVxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC01IGJnLVsjMEQxMDE3XSBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtMnhsIHNwYWNlLXktNFwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gYm9yZGVyLWIgYm9yZGVyLXdoaXRlLzEwIHBiLTNcIj5cbiAgICAgICAgICAgICAgPGgzIGNsYXNzTmFtZT1cInRleHQteHMgZm9udC1tb25vIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciB0ZXh0LWdyYXktMjAwIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yXCI+XG4gICAgICAgICAgICAgICAgPE1lc3NhZ2VTcXVhcmUgc2l6ZT17MTZ9IGNsYXNzTmFtZT1cInRleHQtZW1lcmFsZC00MDBcIiAvPiBSZWNlbnQgVXNlciBSZXNwb25zZXNcbiAgICAgICAgICAgICAgPC9oMz5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgbWQ6Z3JpZC1jb2xzLTIgZ2FwLTNcIj5cbiAgICAgICAgICAgICAge2ZlZWRiYWNrcyAmJiBmZWVkYmFja3MubGVuZ3RoID4gMCA/IChcbiAgICAgICAgICAgICAgICBmZWVkYmFja3Muc2xpY2UoMCwgNCkubWFwKChmYiwgaWR4KSA9PiAoXG4gICAgICAgICAgICAgICAgICA8ZGl2IGtleT17ZmIuaWQgfHwgaWR4fSBjbGFzc05hbWU9XCJwLTMuNSBiZy1ibGFjay80MCByb3VuZGVkLXhsIGJvcmRlciBib3JkZXItd2hpdGUvNSB0ZXh0LXhzIHNwYWNlLXktMiBmbGV4IGZsZXgtY29sIGp1c3RpZnktYmV0d2VlblwiPlxuICAgICAgICAgICAgICAgICAgICB7LyogYGNvbW1lbnRgIGlzIHRoZSBvbmx5IHRleHQgY29sdW1uIG9uIGBmZWVkYmFja3NgOyB0aGUgb2xkXG4gICAgICAgICAgICAgICAgICAgICAgICBgZmIuY29tbWVudCB8fCBmYi5tZXNzYWdlYCBmYWxsYmFjayByZWFkIGEgZmllbGQgdGhhdCBoYXNcbiAgICAgICAgICAgICAgICAgICAgICAgIG5ldmVyIGV4aXN0ZWQuICovfVxuICAgICAgICAgICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LWdyYXktMzAwIGl0YWxpYyB0ZXh0LVsxMXB4XVwiPiZxdW90O3tmYi5jb21tZW50IHx8ICcobm8gY29tbWVudCknfSZxdW90OzwvcD5cbiAgICAgICAgICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bOXB4XSB0ZXh0LWdyYXktNTAwIGZvbnQtbW9ubyBib3JkZXItdCBib3JkZXItd2hpdGUvNSBwdC0yIHVwcGVyY2FzZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIFVzZXI6IHtmYi51c2VyX25hbWUgfHwgZmIudXNlcl9lbWFpbCB8fCAnUmVzcG9uZGVudCd9XG4gICAgICAgICAgICAgICAgICAgIDwvcD5cbiAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICkpXG4gICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJjb2wtc3Bhbi0yIHB5LTggdGV4dC1jZW50ZXIgdGV4dC14cyBmb250LW1vbm8gdGV4dC1ncmF5LTUwMCB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXN0XCI+XG4gICAgICAgICAgICAgICAgICBObyBmZWVkYmFjayByZXNwb25zZXMgcmVjb3JkZWRcbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgIDwvZGl2PlxuXG4gICAgICAgIHsvKiBSaWdodCBDb2x1bW46IFZlcnRpY2FsIE1ldHJpY3MgKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3BhY2UteS00XCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTQgYmctWyNFOUM0NkFdLzEwIGJvcmRlciBib3JkZXItWyNFOUM0NkFdLzMwIHJvdW5kZWQtMnhsIHNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC1bOXB4XSB1cHBlcmNhc2UgdHJhY2tpbmctd2lkZXN0IHRleHQtWyNFOUM0NkFdIGZvbnQtbW9ub1wiPlN5c3RlbSBJbnRlZ3JpdHk8L3A+XG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtZ3JheS0zMDAgZm9udC1saWdodFwiPkFsbCBjb3JlIGRhdGFiYXNlIHBpcGVsaW5lcyBhbmQgQUkgY2FudmFzIG1vZHVsZXMgb3BlcmF0aW5nIGF0IG9wdGltYWwgc3RhdHVzLjwvcD5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC01IGJnLVsjMEQxMDE3XSBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtMnhsIHNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gdGV4dC1ncmF5LTQwMFwiPlxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LW1vbm8gdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyXCI+QWN0aXZlIEl0ZW1zPC9zcGFuPlxuICAgICAgICAgICAgICA8TGF5ZXJzIHNpemU9ezE2fSBjbGFzc05hbWU9XCJ0ZXh0LWdyYXktNTAwXCIgLz5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC0zeGwgZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LXdoaXRlIHB0LTFcIj57cHJvZHVjdHMubGVuZ3RofTwvcD5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC01IGJnLVsjMEQxMDE3XSBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtMnhsIHNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gdGV4dC1ncmF5LTQwMFwiPlxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LW1vbm8gdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyXCI+Q2FudmFzIFNlc3Npb25zPC9zcGFuPlxuICAgICAgICAgICAgICA8QWN0aXZpdHkgc2l6ZT17MTZ9IGNsYXNzTmFtZT1cInRleHQtWyNFOUM0NkFdXCIgLz5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC0zeGwgZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LVsjRTlDNDZBXSBwdC0xXCI+e2FjdGl2ZVNlc3Npb25zfTwvcD5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC01IGJnLVsjMEQxMDE3XSBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtMnhsIHNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gdGV4dC1ncmF5LTQwMFwiPlxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LW1vbm8gdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyXCI+U3VydmV5IEZlZWRiYWNrczwvc3Bhbj5cbiAgICAgICAgICAgICAgPE1lc3NhZ2VTcXVhcmUgc2l6ZT17MTZ9IGNsYXNzTmFtZT1cInRleHQtZW1lcmFsZC00MDBcIiAvPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LTN4bCBmb250LW1vbm8gZm9udC1ib2xkIHRleHQtZW1lcmFsZC00MDAgcHQtMVwiPntmZWVkYmFja3MubGVuZ3RofTwvcD5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwicC01IGJnLVsjMEQxMDE3XSBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQtMnhsIHNwYWNlLXktMVwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gdGV4dC1ncmF5LTQwMFwiPlxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSBmb250LW1vbm8gdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVyXCI+QUkgVHJ5LU9uIExvZ3M8L3NwYW4+XG4gICAgICAgICAgICAgIDxTcGFya2xlcyBzaXplPXsxNn0gY2xhc3NOYW1lPVwidGV4dC1wdXJwbGUtNDAwXCIgLz5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPHAgY2xhc3NOYW1lPVwidGV4dC0zeGwgZm9udC1tb25vIGZvbnQtYm9sZCB0ZXh0LXB1cnBsZS00MDAgcHQtMVwiPnthbmFseXRpY3NMb2dzLmxlbmd0aH08L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IERhc2hib2FyZFRhYjsiXSwiZmlsZSI6IkQ6L0hpcmF5YWFhLW1haW4vaGlyYXlhLWZyb250ZW5kL3NyYy9jb21wb25lbnRzL3N1cGVyYWRtaW4vdGFicy9EYXNoYm9hcmRUYWIuanN4In0=

@@ -1,0 +1,494 @@
+Re-optimizing dependencies because vite config has changed
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m5375[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2m12:37:43 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AdminsTab.jsx, /src/index.css[22m
+[2m12:37:44 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:37:47 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AdminsTab.jsx, /src/index.css[22m
+[2m12:37:48 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:37:48 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:37:52 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m12:37:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:37:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:38:04 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m12:38:05 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:38:13 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m12:38:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:38:20 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m12:38:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:38:30 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AdminsTab.jsx, /src/index.css[22m
+[2m12:38:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:38:46 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m12:38:46 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:38:46 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:39:00 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AdminsTab.jsx, /src/index.css[22m
+[2m12:39:01 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m12:39:01 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:01:53 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperadminLayout.jsx, /src/index.css[22m
+[2m1:01:54 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:01:54 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/superadmin/SuperadminLayout.jsx[22m Could not Fast Refresh ("superAdminNavLinks" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m1:01:54 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m1:01:54 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:01:54 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:01:58 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m1:01:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:01:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:01:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:01:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:01:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:15 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:27 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:02:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:35 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:35 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:35 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:35 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:02:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:02:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:17 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/CanvasAssetsTab.jsx, /src/index.css[22m
+[2m1:03:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:20 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:22 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:22 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:22 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:22 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:22 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:22 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:23 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:23 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:23 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:23 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:23 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:23 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:25 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:25 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:25 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:25 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:03:25 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:03:25 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:02 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:02 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:05 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:05 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:05 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:05 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AiEngineTab.jsx, /src/index.css[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:04:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:04:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:07 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:05:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:05:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:10 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:10 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/OrdersTab.jsx, /src/index.css[22m
+[2m1:05:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:05:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:05:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:07:17 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:07:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m1:07:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:08:10 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:08:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:08:51 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/FeedbackTab.jsx, /src/index.css[22m
+[2m1:08:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:09:16 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AnalyticsTab.jsx, /src/index.css[22m
+[2m1:09:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:09:56 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/CustomersTab.jsx, /src/index.css[22m
+[2m1:09:57 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:23:13 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/AuthContext.jsx, /src/pages/Home.jsx, /src/components/superadmin/SuperAdmin.jsx, /src/pages/Login.jsx, /src/pages/AccountSettings.jsx, /src/pages/ForgotPassword.jsx, /src/pages/MainDashboard.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Checkout.jsx, /src/pages/Cart.jsx, /src/components/common/Navbar.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/pages/Shop.jsx, /src/components/tryon/StyleStack.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\common\PaymentInstructions.jsx, /src/components/account/OrdersTab.jsx, /src/components/product/SpotlightSection.jsx, /src/components/superadmin/tabs/ApiStatusTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\orders\OrdersTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\dashboard\DashboardTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\canvass-lookup\CanvassLookupTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\inventory\modal\ProductModal.jsx, /src/components/superadmin/tabs/OrdersTab.jsx, /src/components/superadmin/tabs/CustomersTab.jsx[22m
+[2m1:23:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:23:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:23:14 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m1:23:14 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/Home.jsx, /src/components/common/Navbar.jsx, /src/routes/ProtectedRoute.jsx, /src/pages/Login.jsx, /src/pages/Shop.jsx, /src/pages/AccountSettings.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Cart.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/components/tryon/StyleStack.jsx, /src/components/product/SpotlightSection.jsx, /src/components/common/NotificationBell.jsx[22m
+[2m1:23:14 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:24:00 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m1:24:01 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:24:06 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m1:24:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:24:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:27:51 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m1:27:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:27:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:27:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:30 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/AuthContext.jsx, /src/pages/Home.jsx, /src/components/superadmin/SuperAdmin.jsx, /src/pages/Login.jsx, /src/pages/AccountSettings.jsx, /src/pages/ForgotPassword.jsx, /src/pages/MainDashboard.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Checkout.jsx, /src/pages/Cart.jsx, /src/components/common/Navbar.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/pages/Shop.jsx, /src/components/tryon/StyleStack.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\common\PaymentInstructions.jsx, /src/components/account/OrdersTab.jsx, /src/components/product/SpotlightSection.jsx, /src/components/superadmin/tabs/ApiStatusTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\orders\OrdersTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\dashboard\DashboardTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\canvass-lookup\CanvassLookupTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\inventory\modal\ProductModal.jsx, /src/components/superadmin/tabs/OrdersTab.jsx, /src/components/superadmin/tabs/CustomersTab.jsx[22m
+[2m1:47:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:31 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/context/AuthContext.jsx[22m Could not Fast Refresh ("useAuth" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m1:47:31 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/pages/Home.jsx, /src/components/common/Navbar.jsx, /src/routes/ProtectedRoute.jsx, /src/pages/Login.jsx, /src/pages/Shop.jsx, /src/pages/AccountSettings.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Cart.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/components/tryon/StyleStack.jsx, /src/components/product/SpotlightSection.jsx, /src/components/common/NotificationBell.jsx[22m
+[2m1:47:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:47:35 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:57:05 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:57:05 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:57:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:57:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:57:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m1:57:39 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m1:57:40 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:33 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/InventoryTab.jsx, /src/index.css[22m
+[2m2:08:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:12:29 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/AuthContext.jsx, /src/pages/Home.jsx, /src/components/superadmin/SuperAdmin.jsx, /src/pages/Login.jsx, /src/pages/AccountSettings.jsx, /src/pages/ForgotPassword.jsx, /src/pages/MainDashboard.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Checkout.jsx, /src/pages/Cart.jsx, /src/components/common/Navbar.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/pages/Shop.jsx, /src/components/tryon/StyleStack.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\common\PaymentInstructions.jsx, /src/components/account/OrdersTab.jsx, /src/components/product/SpotlightSection.jsx, /src/components/superadmin/tabs/ApiStatusTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\orders\OrdersTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\dashboard\DashboardTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\canvass-lookup\CanvassLookupTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\inventory\modal\ProductModal.jsx, /src/components/superadmin/tabs/OrdersTab.jsx, /src/components/superadmin/tabs/CustomersTab.jsx[22m
+[2m2:12:29 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:12:30 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:12:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/AuthContext.jsx, /src/pages/Home.jsx, /src/components/superadmin/SuperAdmin.jsx, /src/pages/Login.jsx, /src/pages/AccountSettings.jsx, /src/pages/ForgotPassword.jsx, /src/pages/MainDashboard.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Checkout.jsx, /src/pages/Cart.jsx, /src/components/common/Navbar.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/pages/Shop.jsx, /src/components/tryon/StyleStack.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\common\PaymentInstructions.jsx, /src/components/account/OrdersTab.jsx, /src/components/product/SpotlightSection.jsx, /src/components/superadmin/tabs/ApiStatusTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\orders\OrdersTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\dashboard\DashboardTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\canvass-lookup\CanvassLookupTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\inventory\modal\ProductModal.jsx, /src/components/superadmin/tabs/OrdersTab.jsx, /src/components/superadmin/tabs/CustomersTab.jsx[22m
+[2m2:12:41 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:31:45 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m2:31:45 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m2:31:45 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:32:11 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m2:32:29 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:33:07 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m2:33:07 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:33:34 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m2:33:35 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:35:01 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:35:02 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:35:26 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:35:26 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:35:26 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:35:50 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:35:50 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:36:58 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:36:58 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:37:15 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:37:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:37:35 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:37:36 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:37:43 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:37:44 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:38:13 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m2:38:13 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:03:51 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AuditLogsTab.jsx, /src/index.css[22m
+[2m3:03:51 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AuditLogsTab.jsx, /src/index.css[22m
+[2m3:03:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:04:05 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AuditLogsTab.jsx, /src/index.css[22m
+[2m3:04:06 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:04:26 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AuditLogsTab.jsx, /src/index.css[22m
+[2m3:04:26 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:08:42 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:08:42 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:08:42 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:08:56 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AnalyticsTab.jsx, /src/index.css[22m
+[2m3:08:56 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:09:17 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:09:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:09:58 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/FeedbackTab.jsx, /src/index.css[22m
+[2m3:09:58 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:10:11 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:10:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:10:48 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m3:10:48 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:11:08 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:11:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:11:42 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/InventoryTab.jsx, /src/index.css[22m
+[2m3:11:42 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:17:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:17:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:17:41 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:24:02 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m3:24:02 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/SettingsTab.jsx, /src/index.css[22m
+[2m3:24:02 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:24:16 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:24:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:24:26 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m3:24:26 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:24:57 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m3:24:57 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:26:29 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:26:29 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:28:53 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:28:53 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:28:54 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:29:19 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:29:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:29:30 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/DashboardTab.jsx, /src/index.css[22m
+[2m3:29:30 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:41:15 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/AdminsTab.jsx, /src/index.css[22m
+[2m3:41:15 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:55:49 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:55:49 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:55:49 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:56:03 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:56:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:56:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:56:18 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:56:19 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:56:41 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:56:41 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:56:47 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:56:48 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m4:45:40 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css, /src/context/AuthContext.jsx, /src/pages/Home.jsx, /src/components/superadmin/SuperAdmin.jsx, /src/pages/Login.jsx, /src/pages/AccountSettings.jsx, /src/pages/ForgotPassword.jsx, /src/pages/MainDashboard.jsx, /src/pages/Register.jsx, /src/pages/ProductDetail.jsx, /src/pages/Feedback.jsx, /src/pages/Checkout.jsx, /src/pages/Cart.jsx, /src/components/common/Navbar.jsx, /src/components/shop/QuickViewModal.jsx, /src/pages/AiTryOn.jsx, /src/pages/Shop.jsx, /src/components/tryon/StyleStack.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\common\PaymentInstructions.jsx, /src/components/account/OrdersTab.jsx, /src/components/product/SpotlightSection.jsx, /src/components/superadmin/tabs/ApiStatusTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\orders\OrdersTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\dashboard\DashboardTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\canvass-lookup\CanvassLookupTab.jsx, /@fs/D:\Hirayaaa-main\hiraya-frontend\src\components\admin\tabs\inventory\modal\ProductModal.jsx, /src/components/superadmin/tabs/OrdersTab.jsx, /src/components/superadmin/tabs/CustomersTab.jsx[22m
+[2m4:45:40 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m6:36:08 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m6:36:11 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m7:06:15 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m7:06:15 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:07:56 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:07:57 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:07:57 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:48:42 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/tryon/StylistChat.jsx, /src/index.css[22m
+[2m8:48:42 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/tryon/StylistChat.jsx, /src/index.css[22m
+[2m8:48:43 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:48:43 AM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/tryon/StylistChat.jsx[22m Could not Fast Refresh (new export)
+[2m8:48:43 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m8:48:43 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:48:50 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/tryon/StylistChat.jsx, /src/index.css[22m
+[2m8:49:03 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:49:13 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/tryon/StylistChat.jsx, /src/index.css[22m
+[2m8:49:14 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:49:40 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m8:49:40 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m8:49:40 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:49:41 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m8:49:58 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m8:49:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:37:48 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/InventoryTab.jsx, /src/index.css[22m
+[2m9:37:48 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/tabs/InventoryTab.jsx, /src/index.css[22m
+[2m9:37:49 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:04 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m9:48:04 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m9:48:04 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:17 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/tryon/StylistChat.jsx, /src/index.css[22m
+[2m9:48:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m9:48:18 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:22 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/tryon/StylistChat.jsx, /src/index.css[22m
+[2m9:48:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:24 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:33 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m9:48:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:48:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:55:15 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m9:55:16 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m9:55:16 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:55:31 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m9:55:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m9:55:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:02:53 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/admin/tabs/inventory/modal/forms/GarmentSizingForm.jsx[22m
+[2m10:02:54 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:02:54 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:16:31 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:16:31 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:16:31 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:16:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:16:46 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:16:46 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:16:46 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:17:01 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:17:01 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:17:12 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:17:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:17:12 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:21:26 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:21:27 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:29:08 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:29:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:29:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:29:36 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:29:37 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:29:37 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:31:59 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:31:59 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/AiTryOn.jsx, /src/index.css[22m
+[2m10:32:00 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:32:00 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:45:43 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:45:43 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:45:44 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:45:44 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:46:57 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:46:57 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:46:57 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m10:47:21 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m10:47:21 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:02:13 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:02:14 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:02:15 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:02:15 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:19:50 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:19:50 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:19:52 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:20:16 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:20:17 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:36:33 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:36:34 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:43:30 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:43:30 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:43:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:43:32 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:43:52 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/AiTryOn.jsx[22m
+[2m11:43:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:43:59 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m11:54:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-err.txt[22m
+[2m11:54:09 AM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:19 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:08:19 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:08:20 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:20 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:21 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:21 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:28 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:08:42 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:08:43 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:44 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:54 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:08:55 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:08:56 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:09:37 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:09:38 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:09:45 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:09:45 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:09:46 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:09:50 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:10:03 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:10:03 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:10:03 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:10:11 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:10:12 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:10:12 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:10:12 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:14:58 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m2:15:01 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:15:01 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:15:01 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m2:15:01 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:32:01 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:32:02 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:32:02 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:32:02 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:32:02 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m
+[2m3:33:07 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/superadmin/SuperAdmin.jsx, /src/index.css[22m
+[2m3:33:08 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mvite-out.txt[22m

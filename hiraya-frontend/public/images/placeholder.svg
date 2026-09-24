@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Local "no image" placeholder.
+
+  Deliberately an SVG served from the app's OWN origin. The previous remote
+  placeholder (placeholder.com / thenounproject) was cross-origin and sent no
+  Cross-Origin-Resource-Policy, so the document's
+  `Cross-Origin-Embedder-Policy: require-corp` blocked it with
+  ERR_BLOCKED_BY_RESPONSE.NotSameOriginAfterDefaultedToSameOriginByCoep — the
+  fallback image was itself broken, so a product with no photo rendered as an
+  empty grey tile with no explanation. Same-origin assets are exempt from COEP,
+  so this one always paints.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500" role="img" aria-label="No image available">
+ <rect width="400" height="500" fill="#111"/>
+ <g transform="translate(200 215)" fill="none" stroke="#52525b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="-70" y="-80" width="140" height="160" rx="10"/>
+    <circle cx="-26" cy="-42" r="14"/>
+    <path d="M-70 46 L-18 -6 L20 30 L44 10 L70 36"/>
+    <line x1="-70" y1="-80" x2="70" y2="80"/>
+ </g>
+ <text x="200" y="360" fill="#71717a" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="20" font-weight="600" letter-spacing="4" text-anchor="middle">NO IMAGE</text>
+</svg>

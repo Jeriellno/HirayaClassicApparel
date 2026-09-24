@@ -1,0 +1,224 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/superadmin/tabs/AuditLogsTab.jsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=4638f4c2"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=4638f4c2"; const React = __vite__cjsImport3_react.__esModule ? __vite__cjsImport3_react.default : __vite__cjsImport3_react; const useState = __vite__cjsImport3_react["useState"];
+import { History, Search } from "/node_modules/.vite/deps/lucide-react.js?v=4638f4c2";
+export default function AuditLogsTab({ auditLogs = [] }) {
+  _s();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterAction, setFilterAction] = useState("ALL");
+  const actorOf = (log) => log.admin_email || log.performed_by || log.user_email || "";
+  const filteredLogs = auditLogs.filter((log) => {
+    const matchesSearch = (log.action || "").toLowerCase().includes(searchTerm.toLowerCase()) || (actorOf(log) || "").toLowerCase().includes(searchTerm.toLowerCase()) || (log.target || "").toLowerCase().includes(searchTerm.toLowerCase()) || (log.details || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterAction === "ALL" || log.action === filterAction;
+    return matchesSearch && matchesFilter;
+  });
+  return /* @__PURE__ */ jsxDEV("div", { className: "space-y-6 animate-fadeIn font-mono text-xs", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10", children: [
+      /* @__PURE__ */ jsxDEV("div", { children: [
+        /* @__PURE__ */ jsxDEV("h2", { className: "text-2xl font-light uppercase tracking-[0.2em] text-[#E9C46A] flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxDEV(History, { size: 22 }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 55,
+            columnNumber: 13
+          }, this),
+          " SYSTEM AUDIT LOGS"
+        ] }, void 0, true, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 54,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("p", { className: "text-xs text-gray-400 mt-1", children: "Real-time security audit trails and administrative action tracking." }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 57,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 53,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "flex flex-wrap items-center gap-2", children: /* @__PURE__ */ jsxDEV("div", { className: "relative", children: [
+        /* @__PURE__ */ jsxDEV(Search, { size: 14, className: "absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 65,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            type: "text",
+            placeholder: "Search logs...",
+            value: searchTerm,
+            onChange: (e) => setSearchTerm(e.target.value),
+            className: "pl-8 pr-3 py-1.5 bg-[#0A0D14] border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#E9C46A] text-xs"
+          },
+          void 0,
+          false,
+          {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 66,
+            columnNumber: 13
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 64,
+        columnNumber: 11
+      }, this) }, void 0, false, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 63,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+      lineNumber: 52,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "bg-[#0A0D14] border border-white/10 rounded-2xl overflow-hidden shadow-2xl", children: /* @__PURE__ */ jsxDEV("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsxDEV("table", { className: "w-full text-left border-collapse", children: [
+      /* @__PURE__ */ jsxDEV("thead", { className: "bg-[#111622] border-b border-white/10 uppercase tracking-widest text-[10px] text-gray-400", children: /* @__PURE__ */ jsxDEV("tr", { children: [
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "TIMESTAMP" }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 83,
+          columnNumber: 17
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "PERFORMED BY" }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 84,
+          columnNumber: 17
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "ACTION" }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 85,
+          columnNumber: 17
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "TARGET" }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 86,
+          columnNumber: 17
+        }, this),
+        /* @__PURE__ */ jsxDEV("th", { className: "p-4", children: "DETAILS" }, void 0, false, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 87,
+          columnNumber: 17
+        }, this)
+      ] }, void 0, true, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 82,
+        columnNumber: 15
+      }, this) }, void 0, false, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 81,
+        columnNumber: 13
+      }, this),
+      /* @__PURE__ */ jsxDEV("tbody", { className: "divide-y divide-white/5 text-gray-300", children: filteredLogs && filteredLogs.length > 0 ? filteredLogs.map(
+        (log, idx) => /* @__PURE__ */ jsxDEV("tr", { className: "hover:bg-white/5 transition", children: [
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 text-gray-400 whitespace-nowrap", children: log.created_at ? new Date(log.created_at).toLocaleString() : (/* @__PURE__ */ new Date()).toLocaleString() }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 94,
+            columnNumber: 21
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 font-semibold text-white", children: actorOf(log) || "System" }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 97,
+            columnNumber: 21
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4", children: /* @__PURE__ */ jsxDEV("span", { className: "px-2 py-0.5 bg-[#E9C46A]/10 border border-[#E9C46A]/30 text-[#E9C46A] text-[10px] rounded font-bold uppercase", children: log.action || "SETTINGS_TOGGLE" }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 101,
+            columnNumber: 23
+          }, this) }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 100,
+            columnNumber: 21
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 text-gray-400 uppercase text-[10px] tracking-wider", children: log.target ? /* @__PURE__ */ jsxDEV("span", { className: "px-2 py-0.5 bg-white/5 border border-white/10 rounded", children: log.target }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 107,
+            columnNumber: 19
+          }, this) : /* @__PURE__ */ jsxDEV("span", { className: "text-gray-600", children: "—" }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 111,
+            columnNumber: 19
+          }, this) }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 105,
+            columnNumber: 21
+          }, this),
+          /* @__PURE__ */ jsxDEV("td", { className: "p-4 text-gray-400 max-w-md truncate", children: typeof log.details === "object" ? JSON.stringify(log.details) : log.details || "System configuration updated." }, void 0, false, {
+            fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+            lineNumber: 114,
+            columnNumber: 21
+          }, this)
+        ] }, log.id || idx, true, {
+          fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+          lineNumber: 93,
+          columnNumber: 15
+        }, this)
+      ) : /* @__PURE__ */ jsxDEV("tr", { children: /* @__PURE__ */ jsxDEV("td", { colSpan: "5", className: "py-20 text-center text-gray-500 uppercase tracking-[0.25em] font-light", children: "NO AUDIT LOGS RECORDED" }, void 0, false, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 121,
+        columnNumber: 19
+      }, this) }, void 0, false, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 120,
+        columnNumber: 15
+      }, this) }, void 0, false, {
+        fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+        lineNumber: 90,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+      lineNumber: 80,
+      columnNumber: 11
+    }, this) }, void 0, false, {
+      fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+      lineNumber: 79,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+      lineNumber: 78,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx",
+    lineNumber: 50,
+    columnNumber: 5
+  }, this);
+}
+_s(AuditLogsTab, "uMF0j0ydiaIx73N+BiPohLHDC60=");
+_c = AuditLogsTab;
+var _c;
+$RefreshReg$(_c, "AuditLogsTab");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("d:/Hirayaaa-main/hiraya-frontend/src/components/superadmin/tabs/AuditLogsTab.jsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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LElBQUl1QixNQUFNTixLQUFuQjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBd0JBO0FBQUEsTUFDRCxJQUVELHVCQUFDLFFBQ0MsaUNBQUMsUUFBRyxTQUFRLEtBQUksV0FBVSwwRUFBd0Usc0NBQWxHO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFFQSxLQUhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFJQSxLQWxDSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBb0NBO0FBQUEsU0E5Q0Y7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQStDQSxLQWhERjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBaURBLEtBbERGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FtREE7QUFBQSxPQS9FRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBZ0ZBO0FBRUo7QUFBQ3ZCLEdBN0d1QkYsY0FBWTtBQUFBLEtBQVpBO0FBQVksSUFBQWdDO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbIlJlYWN0IiwidXNlU3RhdGUiLCJIaXN0b3J5IiwiU2VhcmNoIiwiQXVkaXRMb2dzVGFiIiwiYXVkaXRMb2dzIiwiX3MiLCJzZWFyY2hUZXJtIiwic2V0U2VhcmNoVGVybSIsImZpbHRlckFjdGlvbiIsInNldEZpbHRlckFjdGlvbiIsImFjdG9yT2YiLCJsb2ciLCJhZG1pbl9lbWFpbCIsInBlcmZvcm1lZF9ieSIsInVzZXJfZW1haWwiLCJmaWx0ZXJlZExvZ3MiLCJmaWx0ZXIiLCJtYXRjaGVzU2VhcmNoIiwiYWN0aW9uIiwidG9Mb3dlckNhc2UiLCJpbmNsdWRlcyIsInRhcmdldCIsImRldGFpbHMiLCJtYXRjaGVzRmlsdGVyIiwiZSIsInZhbHVlIiwibGVuZ3RoIiwibWFwIiwiaWR4IiwiY3JlYXRlZF9hdCIsIkRhdGUiLCJ0b0xvY2FsZVN0cmluZyIsIkpTT04iLCJzdHJpbmdpZnkiLCJpZCIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkF1ZGl0TG9nc1RhYi5qc3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7IHVzZVN0YXRlIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IHsgSGlzdG9yeSwgU2VhcmNoIH0gZnJvbSAnbHVjaWRlLXJlYWN0JztcblxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gQXVkaXRMb2dzVGFiKHsgYXVkaXRMb2dzID0gW10gfSkge1xuICBjb25zdCBbc2VhcmNoVGVybSwgc2V0U2VhcmNoVGVybV0gPSB1c2VTdGF0ZSgnJyk7XG4gIGNvbnN0IFtmaWx0ZXJBY3Rpb24sIHNldEZpbHRlckFjdGlvbl0gPSB1c2VTdGF0ZSgnQUxMJyk7XG5cbiAgLypcbiAgICogVGhlIGFjdG9yIGNvbHVtbiBvbiBgYXVkaXRfbG9nc2AgaXMgYGFkbWluX2VtYWlsYCAoc2VlIHRoZSBtaWdyYXRpb24gYW5kXG4gICAqIEF1ZGl0TG9nOjokZmlsbGFibGUpLiBUaGlzIGNvbXBvbmVudCBzZWFyY2hlZCBhbmQgcmVuZGVyZWRcbiAgICogYHBlcmZvcm1lZF9ieWAgLyBgdXNlcl9lbWFpbGAg4oCUIGZpZWxkcyB0aGUgdGFibGUgaGFzIE5FVkVSIGhhZCDigJQgc28gdGhlXG4gICAqIFwiUGVyZm9ybWVkIEJ5XCIgY2VsbCBmZWxsIHRocm91Z2ggdG8gaXRzICdTdXBlckFkbWluJyBwbGFjZWhvbGRlciBvbiBldmVyeVxuICAgKiByb3cgYW5kIHRoZSBhdWRpdCB0cmFpbCBjb3VsZCBub3QgbmFtZSB0aGUgcmVhbCBhY3Rvci4gVGhhdCBpcyB0aGUgZXhhY3RcbiAgICogYnVnIHRoZSBTdXBlckFkbWluQ29udHJvbGxlciB3cml0ZXMgYW4gYWN0b3IgdG8gZml4LCBzbyB0aGUgcmVhZCBzaWRlIGhhc1xuICAgKiB0byB1c2UgdGhlIHNhbWUgZmllbGQgbmFtZS5cbiAgICovXG4gIGNvbnN0IGFjdG9yT2YgPSAobG9nKSA9PiBsb2cuYWRtaW5fZW1haWwgfHwgbG9nLnBlcmZvcm1lZF9ieSB8fCBsb2cudXNlcl9lbWFpbCB8fCAnJztcblxuICBjb25zdCBmaWx0ZXJlZExvZ3MgPSBhdWRpdExvZ3MuZmlsdGVyKChsb2cpID0+IHtcbiAgICBjb25zdCBtYXRjaGVzU2VhcmNoID1cbiAgICAgIChsb2cuYWN0aW9uIHx8ICcnKS50b0xvd2VyQ2FzZSgpLmluY2x1ZGVzKHNlYXJjaFRlcm0udG9Mb3dlckNhc2UoKSkgfHxcbiAgICAgIChhY3Rvck9mKGxvZykgfHwgJycpLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXMoc2VhcmNoVGVybS50b0xvd2VyQ2FzZSgpKSB8fFxuICAgICAgKGxvZy50YXJnZXQgfHwgJycpLnRvTG93ZXJDYXNlKCkuaW5jbHVkZXMoc2VhcmNoVGVybS50b0xvd2VyQ2FzZSgpKSB8fFxuICAgICAgKGxvZy5kZXRhaWxzIHx8ICcnKS50b0xvd2VyQ2FzZSgpLmluY2x1ZGVzKHNlYXJjaFRlcm0udG9Mb3dlckNhc2UoKSk7XG4gICAgICBcbiAgICBjb25zdCBtYXRjaGVzRmlsdGVyID0gZmlsdGVyQWN0aW9uID09PSAnQUxMJyB8fCBsb2cuYWN0aW9uID09PSBmaWx0ZXJBY3Rpb247XG4gICAgcmV0dXJuIG1hdGNoZXNTZWFyY2ggJiYgbWF0Y2hlc0ZpbHRlcjtcbiAgfSk7XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cInNwYWNlLXktNiBhbmltYXRlLWZhZGVJbiBmb250LW1vbm8gdGV4dC14c1wiPlxuICAgICAgey8qIEhFQURFUiBTRUNUSU9OICovfVxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtY29sIHNtOmZsZXgtcm93IHNtOml0ZW1zLWNlbnRlciBqdXN0aWZ5LWJldHdlZW4gZ2FwLTQgcGItMiBib3JkZXItYiBib3JkZXItd2hpdGUvMTBcIj5cbiAgICAgICAgPGRpdj5cbiAgICAgICAgICA8aDIgY2xhc3NOYW1lPVwidGV4dC0yeGwgZm9udC1saWdodCB1cHBlcmNhc2UgdHJhY2tpbmctWzAuMmVtXSB0ZXh0LVsjRTlDNDZBXSBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMlwiPlxuICAgICAgICAgICAgPEhpc3Rvcnkgc2l6ZT17MjJ9IC8+IFNZU1RFTSBBVURJVCBMT0dTXG4gICAgICAgICAgPC9oMj5cbiAgICAgICAgICA8cCBjbGFzc05hbWU9XCJ0ZXh0LXhzIHRleHQtZ3JheS00MDAgbXQtMVwiPlxuICAgICAgICAgICAgUmVhbC10aW1lIHNlY3VyaXR5IGF1ZGl0IHRyYWlscyBhbmQgYWRtaW5pc3RyYXRpdmUgYWN0aW9uIHRyYWNraW5nLlxuICAgICAgICAgIDwvcD5cbiAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgey8qIFNFQVJDSCBDT05UUk9MUyAqL31cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4IGZsZXgtd3JhcCBpdGVtcy1jZW50ZXIgZ2FwLTJcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlXCI+XG4gICAgICAgICAgICA8U2VhcmNoIHNpemU9ezE0fSBjbGFzc05hbWU9XCJhYnNvbHV0ZSBsZWZ0LTMgdG9wLTEvMiAtdHJhbnNsYXRlLXktMS8yIHRleHQtZ3JheS01MDBcIiAvPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcbiAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJTZWFyY2ggbG9ncy4uLlwiXG4gICAgICAgICAgICAgIHZhbHVlPXtzZWFyY2hUZXJtfVxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFNlYXJjaFRlcm0oZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgICBjbGFzc05hbWU9XCJwbC04IHByLTMgcHktMS41IGJnLVsjMEEwRDE0XSBib3JkZXIgYm9yZGVyLXdoaXRlLzEwIHJvdW5kZWQteGwgdGV4dC13aGl0ZSBwbGFjZWhvbGRlci1ncmF5LTYwMCBmb2N1czpvdXRsaW5lLW5vbmUgZm9jdXM6Ym9yZGVyLVsjRTlDNDZBXSB0ZXh0LXhzXCJcbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9kaXY+XG5cbiAgICAgIHsvKiBBVURJVCBMT0dTIFRBQkxFICovfVxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJiZy1bIzBBMEQxNF0gYm9yZGVyIGJvcmRlci13aGl0ZS8xMCByb3VuZGVkLTJ4bCBvdmVyZmxvdy1oaWRkZW4gc2hhZG93LTJ4bFwiPlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm92ZXJmbG93LXgtYXV0b1wiPlxuICAgICAgICAgIDx0YWJsZSBjbGFzc05hbWU9XCJ3LWZ1bGwgdGV4dC1sZWZ0IGJvcmRlci1jb2xsYXBzZVwiPlxuICAgICAgICAgICAgPHRoZWFkIGNsYXNzTmFtZT1cImJnLVsjMTExNjIyXSBib3JkZXItYiBib3JkZXItd2hpdGUvMTAgdXBwZXJjYXNlIHRyYWNraW5nLXdpZGVzdCB0ZXh0LVsxMHB4XSB0ZXh0LWdyYXktNDAwXCI+XG4gICAgICAgICAgICAgIDx0cj5cbiAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+VElNRVNUQU1QPC90aD5cbiAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+UEVSRk9STUVEIEJZPC90aD5cbiAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+QUNUSU9OPC90aD5cbiAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+VEFSR0VUPC90aD5cbiAgICAgICAgICAgICAgICA8dGggY2xhc3NOYW1lPVwicC00XCI+REVUQUlMUzwvdGg+XG4gICAgICAgICAgICAgIDwvdHI+XG4gICAgICAgICAgICA8L3RoZWFkPlxuICAgICAgICAgICAgPHRib2R5IGNsYXNzTmFtZT1cImRpdmlkZS15IGRpdmlkZS13aGl0ZS81IHRleHQtZ3JheS0zMDBcIj5cbiAgICAgICAgICAgICAge2ZpbHRlcmVkTG9ncyAmJiBmaWx0ZXJlZExvZ3MubGVuZ3RoID4gMCA/IChcbiAgICAgICAgICAgICAgICBmaWx0ZXJlZExvZ3MubWFwKChsb2csIGlkeCkgPT4gKFxuICAgICAgICAgICAgICAgICAgPHRyIGtleT17bG9nLmlkIHx8IGlkeH0gY2xhc3NOYW1lPVwiaG92ZXI6Ymctd2hpdGUvNSB0cmFuc2l0aW9uXCI+XG4gICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTQgdGV4dC1ncmF5LTQwMCB3aGl0ZXNwYWNlLW5vd3JhcFwiPlxuICAgICAgICAgICAgICAgICAgICAgIHtsb2cuY3JlYXRlZF9hdCA/IG5ldyBEYXRlKGxvZy5jcmVhdGVkX2F0KS50b0xvY2FsZVN0cmluZygpIDogbmV3IERhdGUoKS50b0xvY2FsZVN0cmluZygpfVxuICAgICAgICAgICAgICAgICAgICA8L3RkPlxuICAgICAgICAgICAgICAgICAgICA8dGQgY2xhc3NOYW1lPVwicC00IGZvbnQtc2VtaWJvbGQgdGV4dC13aGl0ZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIHthY3Rvck9mKGxvZykgfHwgJ1N5c3RlbSd9XG4gICAgICAgICAgICAgICAgICAgIDwvdGQ+XG4gICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTRcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJweC0yIHB5LTAuNSBiZy1bI0U5QzQ2QV0vMTAgYm9yZGVyIGJvcmRlci1bI0U5QzQ2QV0vMzAgdGV4dC1bI0U5QzQ2QV0gdGV4dC1bMTBweF0gcm91bmRlZCBmb250LWJvbGQgdXBwZXJjYXNlXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICB7bG9nLmFjdGlvbiB8fCAnU0VUVElOR1NfVE9HR0xFJ31cbiAgICAgICAgICAgICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgIDwvdGQ+XG4gICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTQgdGV4dC1ncmF5LTQwMCB1cHBlcmNhc2UgdGV4dC1bMTBweF0gdHJhY2tpbmctd2lkZXJcIj5cbiAgICAgICAgICAgICAgICAgICAgICB7bG9nLnRhcmdldCA/IChcbiAgICAgICAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInB4LTIgcHktMC41IGJnLXdoaXRlLzUgYm9yZGVyIGJvcmRlci13aGl0ZS8xMCByb3VuZGVkXCI+XG4gICAgICAgICAgICAgICAgICAgICAgICAgIHtsb2cudGFyZ2V0fVxuICAgICAgICAgICAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LWdyYXktNjAwXCI+4oCUPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAgICAgIDwvdGQ+XG4gICAgICAgICAgICAgICAgICAgIDx0ZCBjbGFzc05hbWU9XCJwLTQgdGV4dC1ncmF5LTQwMCBtYXgtdy1tZCB0cnVuY2F0ZVwiPlxuICAgICAgICAgICAgICAgICAgICAgIHt0eXBlb2YgbG9nLmRldGFpbHMgPT09ICdvYmplY3QnID8gSlNPTi5zdHJpbmdpZnkobG9nLmRldGFpbHMpIDogbG9nLmRldGFpbHMgfHwgJ1N5c3RlbSBjb25maWd1cmF0aW9uIHVwZGF0ZWQuJ31cbiAgICAgICAgICAgICAgICAgICAgPC90ZD5cbiAgICAgICAgICAgICAgICAgIDwvdHI+XG4gICAgICAgICAgICAgICAgKSlcbiAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICA8dHI+XG4gICAgICAgICAgICAgICAgICA8dGQgY29sU3Bhbj1cIjVcIiBjbGFzc05hbWU9XCJweS0yMCB0ZXh0LWNlbnRlciB0ZXh0LWdyYXktNTAwIHVwcGVyY2FzZSB0cmFja2luZy1bMC4yNWVtXSBmb250LWxpZ2h0XCI+XG4gICAgICAgICAgICAgICAgICAgIE5PIEFVRElUIExPR1MgUkVDT1JERURcbiAgICAgICAgICAgICAgICAgIDwvdGQ+XG4gICAgICAgICAgICAgICAgPC90cj5cbiAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgIDwvdGJvZHk+XG4gICAgICAgICAgPC90YWJsZT5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbn0iXSwiZmlsZSI6ImQ6L0hpcmF5YWFhLW1haW4vaGlyYXlhLWZyb250ZW5kL3NyYy9jb21wb25lbnRzL3N1cGVyYWRtaW4vdGFicy9BdWRpdExvZ3NUYWIuanN4In0=
