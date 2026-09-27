@@ -8,6 +8,7 @@ use App\Models\TryOnSession;
 use App\Jobs\ProcessTryOnJob;
 use App\Services\SizeChart;
 use App\Services\TryOnPreProcessor;
+use App\Services\GeminiKeyPool;
 use App\Support\LocalAsset;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -234,9 +235,18 @@ TXT;
         // stack server-side straight from My Bag (cart_items) so the render
         // always has real pixels to work with.
         $this->droppedNonWearables = [];
-        [$garmentPhotos, $garmentCategories] = $this->normaliseGarmentPhotos(
-            $validated['garments'] ?? $validated['garment_photos_base64'] ?? []
-        );
+        $submittedGarments = $validated['garments'] ?? $validated['garment_photos_base64'] ?? [];
+        [$garmentPhotos, $garmentCategories] = $this->normaliseGarmentPhotos($submittedGarments);
+        $garmentMetadata = collect(is_array($submittedGarments) ? $submittedGarments : [])
+            ->filter(fn ($garment) => is_array($garment) && !empty($garment['image']))
+            ->map(fn ($garment) => [
+                'name' => $garment['name'] ?? 'Garment',
+                'category' => $garment['category'] ?? 'top',
+                'product_id' => $garment['product_id'] ?? null,
+            ])
+            ->values()
+            ->all();
+        $historyTitle = collect($garmentMetadata)->pluck('name')->filter()->unique()->join(' + ');
 
         /*
          * Non-fatal input-quality notices, surfaced in the 202 response so the
@@ -331,9 +341,12 @@ TXT;
             'user_photo_base64' => $userPhoto,
             'garment_photos_json' => $garmentPhotos,
             'garment_categories_json' => $garmentCategories ?: null,
+            'garment_metadata_json' => $garmentMetadata ?: null,
+            'history_title' => $historyTitle ?: null,
             'measurements_json' => $measurements,
             'render_plan_json' => $renderPlan,
             'status' => TryOnSession::STATUS_QUEUED,
+            'is_favorite' => false,
         ]);
 
         /*
@@ -411,7 +424,7 @@ TXT;
             // fitting when the Gemini image key is actually configured. Without
             // it the request will fail and the customer is told so, instead of
             // being shown a canvas drawing captioned as an AI render.
-            'gemini_configured' => (bool) config('services.gemini.key'),
+            'gemini_configured' => GeminiKeyPool::current() !== null,
             // Surface the geometry the render will use so the UI (and QA) can
             // confirm the garment is being sized from real measurements rather
             // than guessed.
@@ -1022,11 +1035,84 @@ TXT;
      */
     public function history(Request $request): JsonResponse
     {
-        $sessions = TryOnSession::where('user_id', $request->user()->id)
-            ->latest()
-            ->paginate(20);
+        $query = TryOnSession::where('user_id', $request->user()->id)
+            ->where('status', TryOnSession::STATUS_COMPLETED)
+            ->whereNotNull('result_image_base64');
+
+        if ($request->boolean('favorites')) {
+            $query->where('is_favorite', true);
+        }
+
+        $sessions = $query->latest()->paginate(min(max($request->integer('per_page', 20), 1), 50));
+
+        $sessions->through(function (TryOnSession $session) {
+            $names = collect(is_array($session->garment_metadata_json) ? $session->garment_metadata_json : [])
+                ->map(fn ($garment) => is_array($garment) ? ($garment['name'] ?? null) : null)
+                ->filter()
+                ->unique()
+                ->values();
+
+            $session->setAttribute('title', $session->history_title ?: ($names->isNotEmpty() ? $names->join(' + ') : 'Virtual Try-On'));
+            $session->setAttribute('garment_count', $names->count());
+            $session->setAttribute('original_image_base64', $session->user_photo_base64);
+            $session->setAttribute('result_image_base64', $session->result_image_base64);
+            $session->makeHidden(['user_photo_base64', 'garment_photos_json', 'garment_categories_json', 'garment_metadata_json', 'measurements_json', 'render_plan_json', 'history_title']);
+        });
 
         return response()->json($sessions);
+    }
+
+    public function updateFavorite(Request $request, string $sessionId): JsonResponse
+    {
+        $validated = $request->validate(['is_favorite' => 'required|boolean']);
+        $session = TryOnSession::where('session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->where('status', TryOnSession::STATUS_COMPLETED)
+            ->firstOrFail();
+
+        $session->update(['is_favorite' => $validated['is_favorite']]);
+
+        return response()->json(['id' => $session->session_id, 'is_favorite' => $session->is_favorite]);
+    }
+
+    public function destroyHistory(Request $request, string $sessionId): JsonResponse
+    {
+        $session = TryOnSession::where('session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $session->delete();
+
+        return response()->json(status: 204);
+    }
+
+    public function reusableOutfit(Request $request, string $sessionId): JsonResponse
+    {
+        $session = TryOnSession::where('session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->where('status', TryOnSession::STATUS_COMPLETED)
+            ->firstOrFail();
+
+        $images = collect(is_array($session->garment_photos_json) ? $session->garment_photos_json : [])
+            ->filter(fn ($image) => is_string($image) && trim($image) !== '')
+            ->values();
+        $metadata = collect(is_array($session->garment_metadata_json) ? $session->garment_metadata_json : [])
+            ->values();
+        $garments = $images->map(function ($image, $index) use ($metadata) {
+            $item = is_array($metadata->get($index)) ? $metadata->get($index) : [];
+            return [
+                'id' => $item['product_id'] ?? null,
+                'name' => $item['name'] ?? 'Saved garment',
+                'category' => $item['category'] ?? 'top',
+                'image_url' => $image,
+            ];
+        });
+
+        if ($garments->isEmpty()) {
+            return response()->json(['message' => 'The garments from this try-on are no longer available.'], 409);
+        }
+
+        return response()->json(['garments' => $garments]);
     }
 
     /**
@@ -1217,7 +1303,13 @@ TXT;
         ?string $size,
         array $products,
     ): ?string {
-        $apiKey = config('services.gemini.key');
+        /*
+         * POOL, NOT A SINGLE KEY — the key that answers comes from
+         * App\Services\GeminiKeyPool, which rotates to the next key when the
+         * current one's daily quota is drained (429). With no GEMINI_API_KEYS
+         * configured this behaves exactly as a single GEMINI_API_KEY.
+         */
+        $apiKey = GeminiKeyPool::current();
 
         if (empty($apiKey)) {
             return null;
@@ -1309,6 +1401,17 @@ TXT;
 
             if (! $response->successful()) {
                 Log::info('Stylist chat Gemini non-2xx: ' . $response->status());
+
+                /*
+                 * REPORT THE OUTCOME TO THE KEY POOL: a 429 puts THIS key on
+                 * daily cooldown (the pool serves the NEXT call from the next
+                 * key); a 401/403 sits the key out the same way (invalid key).
+                 */
+                if ($response->status() === 429) {
+                    GeminiKeyPool::markRateLimited($apiKey);
+                } elseif (in_array($response->status(), [401, 403], true)) {
+                    GeminiKeyPool::markInvalid($apiKey);
+                }
 
                 return null;
             }

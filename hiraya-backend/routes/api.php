@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\OutfitRecommendationController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\AdminOrderController;
+use App\Http\Controllers\Api\AdminStockMovementController;
 use App\Http\Controllers\Api\AdminAccountController;
 use App\Http\Controllers\Api\AdminCustomerController;
 use App\Http\Controllers\Api\SuperAdminController;
@@ -33,7 +34,26 @@ use App\Http\Controllers\Api\UploadController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/check-email', [AuthController::class, 'checkEmail']);
-Route::post('/reset-password-direct', [AuthController::class, 'resetPasswordDirect']);
+
+/*
+ * PASSWORD RESET — three steps, all PUBLIC (the customer is locked out by
+ * definition, so none of these can require a session).
+ *
+ *   forgot-password       issue + email a link
+ *   validate-reset-token  is that link still usable? (asked before submitting)
+ *   reset-password-direct consume the token and set the new password
+ *
+ * All three are throttled. Without a limit, `forgot-password` is a free way to
+ * use this server as a mail bomb against any address, and the other two are free
+ * guesses at a token. The limits are generous enough for a real human who
+ * mistypes and retries, and tight enough to make automation pointless.
+ */
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
+    ->middleware('throttle:5,1');
+Route::post('/validate-reset-token', [AuthController::class, 'validateResetToken'])
+    ->middleware('throttle:20,1');
+Route::post('/reset-password-direct', [AuthController::class, 'resetPasswordDirect'])
+    ->middleware('throttle:10,1');
 
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/spotlight', [ProductController::class, 'spotlight']);
@@ -172,6 +192,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     // AI auto-fill AND the Save/Edit/Delete all work without an admin login.
 
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboardMetrics']);
+    Route::get('/stock-adjustments', [AdminStockMovementController::class, 'index']);
 
     Route::post('/garments', [GarmentController::class, 'storeOrUpdate']);
     Route::put('/garments/{id}', [GarmentController::class, 'storeOrUpdate']);
@@ -289,6 +310,17 @@ Route::prefix('admin')->group(function () {
     Route::post('/api-status/{key}/probe', [ApiStatusController::class, 'probe']);
 
     /*
+     * MANUAL COOLDOWN RESET (the "ligaw rotate" button).
+     *
+     * Clears the daily 429 cooldown on ONE pool key, identified by its MASKED
+     * label. It writes no key, touches no .env — it only clears the rotation
+     * cache, so a key marked 429 in error can answer again. Registered BEFORE
+     * the probe route is unnecessary: Laravel matches the more specific path
+     * segment count the same way, but this sits above for clarity.
+     */
+    Route::post('/api-status/gemini/rotate', [ApiStatusController::class, 'rotateGemini']);
+
+    /*
      * SUPER ADMIN CUSTOMER MANAGEMENT.
      *
      * The console had NO way to see or act on customers — only admin accounts
@@ -349,6 +381,15 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
 
     Route::get('/measurements', [UserController::class, 'getMeasurements']);
     Route::put('/measurements', [UserController::class, 'updateMeasurements']);
+    Route::put('/password', [UserController::class, 'changePassword']);
+
+    /*
+     * Danger Zone — permanent self-service account deletion. Sits inside the
+     * same auth:sanctum group so only the token owner can delete their own
+     * account; the controller re-verifies the CURRENT password as proof of
+     * ownership and revokes every token after deleting the row.
+     */
+    Route::delete('/account', [UserController::class, 'deleteAccount']);
 });
 
 /*
@@ -395,6 +436,9 @@ foreach (['tryon', 'try-on'] as $tryOnPrefix) {
         Route::get('/status/{sessionId}', [TryOnController::class, 'checkStatus']);
         Route::post('/retry/{sessionId}', [TryOnController::class, 'retry']);
         Route::get('/history', [TryOnController::class, 'history']);
+        Route::patch('/history/{sessionId}/favorite', [TryOnController::class, 'updateFavorite']);
+        Route::delete('/history/{sessionId}', [TryOnController::class, 'destroyHistory']);
+        Route::get('/history/{sessionId}/outfit', [TryOnController::class, 'reusableOutfit']);
         Route::post('/chat', [TryOnController::class, 'chat']);
     });
 }

@@ -48,10 +48,10 @@ const FitMatchBadge = ({
     }
 
     const palette = {
-        gold:    'bg-[#E9C46A] text-black border-[#E9C46A]',
-        emerald: 'bg-emerald-500/95 text-black border-emerald-400',
-        subtle:  'bg-white/10 text-white border-white/20 backdrop-blur-md',
-    }[variant] || 'bg-[#E9C46A] text-black border-[#E9C46A]';
+        gold:    'bg-[#CB997E] text-hiraya-olive border-[#CB997E]',
+        emerald: 'bg-emerald-500/95 text-hiraya-olive border-emerald-400',
+        subtle:  'bg-hiraya-cream/60 text-hiraya-ink border-hiraya-olive/20 backdrop-blur-md',
+    }[variant] || 'bg-[#CB997E] text-hiraya-olive border-[#CB997E]';
 
     const sizeText = recommendedSize || size;
 
@@ -74,7 +74,7 @@ const FitMatchBadge = ({
             {sizeText && (
                 <span
                     className={`ml-1 px-1.5 py-[1px] rounded-full text-[8px] tracking-widest ${
-                        recommendedSize ? 'bg-black/15' : 'bg-black/10'
+                        recommendedSize ? 'bg-hiraya-olive/15' : 'bg-hiraya-cream/60'
                     }`}
                 >
                     Size {sizeText}

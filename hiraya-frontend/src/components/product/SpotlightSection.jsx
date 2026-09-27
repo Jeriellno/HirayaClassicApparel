@@ -69,12 +69,12 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
     return (
         <section className="px-8 md:px-20 py-12">
             {/* Section Header */}
-            <div className="flex justify-between items-end mb-8 border-l-[3px] border-[#E9C46A] pl-6">
+            <div className="flex justify-between items-end mb-8 border-l-[3px] border-[#CB997E] pl-6">
                 <div>
-                    <span className="text-[10px] text-[#E9C46A] uppercase tracking-[0.3em] font-bold block mb-1">
+                    <span className="text-[10px] text-hiraya-ink uppercase tracking-[0.3em] font-bold block mb-1">
                         {user ? 'Personalized for You' : 'Featured'}
                     </span>
-                    <h2 className="text-2xl md:text-3xl font-light uppercase tracking-[0.25em] text-white">
+                    <h2 className="text-2xl md:text-3xl font-light uppercase tracking-[0.25em] text-hiraya-ink">
                         {user ? 'Your Size Spotlight' : 'Curated Spotlight'}
                     </h2>
                     {/*
@@ -86,7 +86,7 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                      * personalization that no card in it had. Each count is now
                      * named explicitly.
                      */}
-                    <span className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mt-1 block">
+                    <span className="text-[10px] text-hiraya-sand uppercase tracking-[0.3em] mt-1 block">
                         {!user
                             ? 'Handselected pieces ready for AI virtual try-on'
                             : !hasMeasurements
@@ -98,7 +98,7 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                 </div>
                 <Link
                     to="/shop"
-                    className="hidden sm:flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-gray-500 hover:text-[#E9C46A] transition-all group"
+                    className="hidden sm:flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-hiraya-sand hover:text-hiraya-ink transition-all group"
                 >
                     View Full Shop <PlusCircle size={15} className="group-hover:rotate-90 transition-transform" />
                 </Link>
@@ -109,24 +109,24 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-[#E9C46A]/10 via-[#E9C46A]/5 to-transparent border border-[#E9C46A]/30 flex flex-col md:flex-row items-center justify-between gap-5"
+                    className="mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-[#CB997E]/10 via-[#CB997E]/5 to-transparent border border-[#CB997E]/30 flex flex-col md:flex-row items-center justify-between gap-5"
                 >
                     <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 shrink-0 rounded-2xl bg-[#E9C46A]/15 text-[#E9C46A] flex items-center justify-center">
+                        <div className="w-12 h-12 shrink-0 rounded-2xl bg-[#CB997E]/15 text-hiraya-ink flex items-center justify-center">
                             <Ruler size={20} />
                         </div>
                         <div>
-                            <h3 className="text-sm md:text-base font-bold uppercase tracking-widest text-white">
+                            <h3 className="text-sm md:text-base font-bold uppercase tracking-widest text-hiraya-ink">
                                 Unlock Personalized Recommendations
                             </h3>
-                            <p className="text-[11px] md:text-xs text-gray-400 mt-1 leading-relaxed max-w-2xl">
+                            <p className="text-[11px] md:text-xs text-hiraya-ink mt-1 leading-relaxed max-w-2xl">
                                 Add your 5 Core Body Measurements — chest/bust, waist, hips, shoulder width, and sleeve length — and our engine will surface outfits that fit your exact size in the spotlight feed.
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={() => navigate('/account-settings')}
-                        className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-[#E9C46A] text-black rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] hover:bg-[#D4A94F] transition"
+                        className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-[#CB997E] text-hiraya-ink rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] hover:bg-hiraya-cream-deep transition"
                     >
                         Set My Measurements <ArrowRight size={14} />
                     </button>
@@ -135,7 +135,7 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
 
             {/* Grid */}
             {recLoading || (usingFallback && isFallbackLoading) ? (
-                <div className="py-20 text-center text-[#E9C46A] uppercase tracking-[0.4em] text-xs font-semibold">
+                <div className="py-20 text-center text-hiraya-ink uppercase tracking-[0.4em] text-xs font-semibold">
                     Loading Spotlight Pieces...
                 </div>
             ) : visibleProducts.length > 0 ? (
@@ -167,8 +167,8 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                     ))}
                 </motion.div>
             ) : (
-                <div className="text-center py-16 text-gray-500 uppercase tracking-widest text-xs border border-white/5 rounded-2xl bg-white/[0.02]">
-                    <Sparkles size={18} className="mx-auto mb-2 text-[#E9C46A]/60" />
+                <div className="text-center py-16 text-hiraya-sand uppercase tracking-widest text-xs border border-hiraya-olive/15 rounded-2xl bg-white/[0.02]">
+                    <Sparkles size={18} className="mx-auto mb-2 text-hiraya-olive/70" />
                     No spotlight garments currently available for your size.
                     <br />
                     Try browsing the full shop or updating your measurements.

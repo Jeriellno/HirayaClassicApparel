@@ -29,27 +29,27 @@ const SizeTable = ({ category }) => {
     return (
         <div className="mt-10 animate-fade-in">
             <div className="flex justify-between items-center mb-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-white">
+                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-ink">
                     Size Guide (cm)
                 </p>
-                <span className="text-[9px] text-zinc-500 italic">*Measured flat-lay</span>
+                <span className="text-[9px] text-hiraya-sand italic">*Measured flat-lay</span>
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px] uppercase tracking-wider border-t border-zinc-900">
+                <table className="w-full text-left text-[11px] uppercase tracking-wider border-t border-hiraya-sand">
                     <thead>
-                        <tr className="text-zinc-500">
+                        <tr className="text-hiraya-sand">
                             {headers.map((header) => (
-                                <th key={header} className="py-3 font-medium border-b border-zinc-900">
+                                <th key={header} className="py-3 font-medium border-b border-hiraya-sand">
                                     {header}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="text-zinc-400">
+                    <tbody className="text-hiraya-sand">
                         {activeData.map((row) => (
-                            <tr key={row.size} className="border-b border-zinc-900 hover:bg-zinc-950 transition-colors">
-                                <td className="py-3 font-semibold text-stone-200">{row.size}</td>
+                            <tr key={row.size} className="border-b border-hiraya-sand hover:bg-hiraya-olive transition-colors">
+                                <td className="py-3 font-semibold text-hiraya-ink">{row.size}</td>
                                 <td className="py-3 font-normal">{row.col1}</td>
                                 <td className="py-3 font-normal">{row.col2}</td>
                                 <td className="py-3 font-normal">{row.col3}</td>
@@ -59,7 +59,7 @@ const SizeTable = ({ category }) => {
                 </table>
             </div>
 
-            <p className="mt-3 text-[10px] text-zinc-500 leading-relaxed">
+            <p className="mt-3 text-[10px] text-hiraya-sand leading-relaxed">
                 Tip: If you're between sizes, we recommend sizing up for a more relaxed, Hiraya-style fit.
             </p>
         </div>

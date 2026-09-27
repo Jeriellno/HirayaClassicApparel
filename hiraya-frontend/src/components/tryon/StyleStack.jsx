@@ -78,10 +78,10 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between px-0.5">
-        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#E9C46A]">
+        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-hiraya-ink">
           <Icon size={14} />
           {label}
-          <span className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-[8px] font-bold text-zinc-500">
+          <span className="rounded-full bg-hiraya-sand px-1.5 py-0.5 text-[8px] font-bold text-hiraya-sand">
             {items.length}
           </span>
         </h4>
@@ -91,7 +91,7 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
             type="button"
             onClick={() => scrollBy(-1)}
             aria-label={`Scroll ${label} left`}
-            className="flex h-6 w-6 items-center justify-center rounded-full border-zinc-800 text-zinc-500 transition-colors hover:border-[#E9C46A]/50 hover:text-[#E9C46A]"
+            className="flex h-6 w-6 items-center justify-center rounded-full border-hiraya-sand/30 text-hiraya-sand transition-colors hover:border-[#CB997E]/50 hover:text-hiraya-ink"
           >
             <ChevronLeft size={12} />
           </button>
@@ -99,7 +99,7 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
             type="button"
             onClick={() => scrollBy(1)}
             aria-label={`Scroll ${label} right`}
-            className="flex h-6 w-6 items-center justify-center rounded-full border-zinc-800 text-zinc-500 transition-colors hover:border-[#E9C46A]/50 hover:text-[#E9C46A]"
+            className="flex h-6 w-6 items-center justify-center rounded-full border-hiraya-sand/30 text-hiraya-sand transition-colors hover:border-[#CB997E]/50 hover:text-hiraya-ink"
           >
             <ChevronRight size={12} />
           </button>
@@ -107,8 +107,8 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border-dashed border-zinc-800 bg-zinc-900/20 px-4 py-6 text-center">
-          <p className="text-[10px] italic text-zinc-600">No {label.toLowerCase()} in your bag yet</p>
+        <div className="rounded-2xl border-dashed border-hiraya-sand/30 bg-hiraya-sand/20 px-4 py-6 text-center">
+          <p className="text-[10px] italic text-hiraya-sand">No {label.toLowerCase()} in your bag yet</p>
         </div>
       ) : (
         /* Rendered as a wrapper so the exclusion hint can sit above the scroller
@@ -238,20 +238,20 @@ export const StyleStack = ({
   );
 
   return (
-    <aside className="relative z-10 flex w-[380px] shrink-0 flex-col justify-between overflow-hidden border-r border-zinc-800 bg-black/70 p-5 backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+    <aside className="relative z-10 flex w-[380px] shrink-0 flex-col justify-between overflow-hidden border-r border-hiraya-sand/30 bg-hiraya-olive/60 p-5 backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b border-hiraya-sand/30 pb-3">
         <div>
-          <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.3em] text-stone-200">
-            <Layers size={16} className="text-[#E9C46A]" /> My Bag Style Stack
+          <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.3em] text-hiraya-ink">
+            <Layers size={16} className="text-hiraya-ink" /> My Bag Style Stack
           </h3>
-          <p className="mt-0.5 text-[10px] text-zinc-500">
+          <p className="mt-0.5 text-[10px] text-hiraya-sand">
             {locked ? 'Step 1 — add your photo, then pick pieces' : 'Tap a piece to wear it · scroll each row for more'}
           </p>
         </div>
         <button
           onClick={() => navigate('/cart')}
           title="Go to My Bag"
-          className="rounded-xl border-zinc-800 bg-zinc-900/60 p-2 text-zinc-400 transition-colors duration-200 hover:bg-[#E9C46A]/15 hover:text-[#E9C46A]"
+          className="rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 p-2 text-hiraya-sand transition-colors duration-200 hover:bg-[#CB997E]/15 hover:text-hiraya-ink"
         >
           <ShoppingBag size={15} />
         </button>
@@ -267,8 +267,8 @@ export const StyleStack = ({
       <div className="scrollbar-none flex-1 space-y-5 overflow-y-auto py-4">
         {isBusy ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <Loader2 size={22} className="animate-spin text-[#E9C46A]" />
-            <span className="text-[10px] uppercase tracking-widest text-zinc-500">
+            <Loader2 size={22} className="animate-spin text-hiraya-ink" />
+            <span className="text-[10px] uppercase tracking-widest text-hiraya-sand">
               Loading your bag…
             </span>
           </div>
@@ -302,7 +302,7 @@ export const StyleStack = ({
                   <button
                     type="button"
                     onClick={() => clearLayer(meta.key)}
-                    className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-[#E9C46A] hover:underline"
+                    className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-hiraya-ink hover:underline"
                   >
                     <Trash2 size={10} /> Remove {meta.label} layer
                   </button>
@@ -320,13 +320,13 @@ export const StyleStack = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="border-t border-zinc-800 bg-black/80 pt-3 backdrop-blur-md"
+            className="border-t border-hiraya-sand/30 bg-hiraya-cream-deep/80 pt-3 backdrop-blur-md"
           >
-            <div className="mb-2 flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-zinc-500">
-              <Sparkles size={10} className="text-[#E9C46A]" /> Active outfit
+            <div className="mb-2 flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-hiraya-sand">
+              <Sparkles size={10} className="text-hiraya-ink" /> Active outfit
             </div>
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-zinc-400">
+              <span className="font-mono text-[10px] text-hiraya-sand">
                 {selectedCount} item(s) layered
               </span>
               <button

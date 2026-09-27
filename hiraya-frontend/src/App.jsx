@@ -12,9 +12,11 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword'; //  1. IMPORT FORGOT PASSWORD PAGE HERE
+import ResetPassword from './pages/ResetPassword'; //  The page the emailed link opens.
 import ProductDetail from './pages/ProductDetail';
 import Shop from './pages/Shop';
 import AiTryOn from './pages/AiTryOn';
+import TryOnHistory from './pages/TryOnHistory';
 import MainDashboard from './pages/MainDashboard';
 import AccountSettings from './pages/AccountSettings';
 import Checkout from './pages/Checkout';
@@ -82,7 +84,7 @@ const AppRoutes = () => {
   const isAppLoading = authLoading;
 
   //  2. IDAGDAG ANG '/forgot-password' SA hideNavbarRoutes KUNG AYAW MO RING IPAKITA ANG NAVBAR DITO
-  const hideNavbarRoutes = ['/login', '/register', '/forgot-password', '/superadmin', '/admin'];
+  const hideNavbarRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/superadmin', '/admin'];
   const currentPath = location.pathname.toLowerCase();
   const shouldHideNavbar = hideNavbarRoutes.some(route => currentPath.startsWith(route));
 
@@ -97,7 +99,7 @@ const AppRoutes = () => {
 
   if (isAppLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-[#E9C46A]">
+      <div className="min-h-screen flex items-center justify-center bg-black text-hiraya-ink">
         <div className="animate-pulse tracking-[0.3em] uppercase text-xs">
           Hiraya is Loading...
         </div>
@@ -106,7 +108,7 @@ const AppRoutes = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-hiraya-ink">
       {!shouldHideNavbar && <Navbar />}
       <ScrollToTop />
 
@@ -137,10 +139,10 @@ const AppRoutes = () => {
             registrationsOpen ? (
               <GuestRoute><Register /></GuestRoute>
             ) : (
-              <div className="min-h-screen flex items-center justify-center bg-black text-white tracking-widest uppercase text-center p-4">
+              <div className="min-h-screen flex items-center justify-center bg-black text-hiraya-ink tracking-widest uppercase text-center p-4">
                 <div>
-                  <h1 className="text-xl text-[#E9C46A] mb-2 font-serif">Hiraya Studio</h1>
-                  <p className="text-xs text-gray-400">
+                  <h1 className="text-xl text-hiraya-ink mb-2 font-serif">Hiraya Studio</h1>
+                  <p className="text-xs text-hiraya-ink">
                     Registration is currently closed. Please check back later.
                   </p>
                 </div>
@@ -151,6 +153,13 @@ const AppRoutes = () => {
 
         {/*  4. DAGDAG ROUTE DITO */}
         <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+
+        {/*
+          * The emailed reset link opens HERE. It must stay PUBLIC — the customer
+          * is locked out, so a GuestRoute wrapper is correct — and it must be
+          * registered BEFORE the wildcard, or the link silently bounces Home.
+          */}
+        <Route path="/reset-password" element={<GuestRoute><ResetPassword /></GuestRoute>} />
 
         {/* Protected Member Routes */}
         {/*
@@ -168,10 +177,10 @@ const AppRoutes = () => {
               <ProtectedRoute><AiTryOn /></ProtectedRoute>
             ) : (
               <ProtectedRoute>
-                <div className="min-h-screen flex items-center justify-center bg-black text-white tracking-widest uppercase text-center p-4">
+                <div className="min-h-screen flex items-center justify-center bg-black text-hiraya-ink tracking-widest uppercase text-center p-4">
                   <div>
-                    <h1 className="text-xl text-[#E9C46A] mb-2 font-serif">Hiraya Studio</h1>
-                    <p className="text-xs text-gray-400">
+                    <h1 className="text-xl text-hiraya-ink mb-2 font-serif">Hiraya Studio</h1>
+                    <p className="text-xs text-hiraya-ink">
                       The virtual fitting room is temporarily unavailable. Please check back later.
                     </p>
                   </div>
@@ -180,6 +189,7 @@ const AppRoutes = () => {
             )
           }
         />
+        <Route path="/try-on/history" element={<ProtectedRoute><TryOnHistory /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
         <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />

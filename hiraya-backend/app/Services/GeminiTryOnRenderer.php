@@ -81,7 +81,13 @@ class GeminiTryOnRenderer
         ?array $renderPlan = null,
         array $categories = []
     ): array {
-        $apiKey = config('services.gemini.key');
+        /*
+         * POOL, NOT A SINGLE KEY — the key that answers comes from
+         * App\Services\GeminiKeyPool, which rotates to the next key when the
+         * current one's daily quota is drained (429). With no GEMINI_API_KEYS
+         * configured this behaves exactly as a single GEMINI_API_KEY.
+         */
+        $apiKey = GeminiKeyPool::current();
 
         if (empty($apiKey)) {
             return ['success' => false, 'error' => 'Gemini API key is not configured.'];
@@ -278,6 +284,19 @@ class GeminiTryOnRenderer
              * response modality, which is exactly the `gemini-2.5-flash` case
              * ("image generation: Not supported").
              */
+            /*
+             * REPORT THE OUTCOME TO THE POOL. A 429 puts THIS key on daily
+             * cooldown and the pool serves the NEXT call from the next key; a
+             * 401/403 sits the key out the same way (it is invalid, not merely
+             * drained). Without these the renderer would re-429 on the same
+             * drained key on every call until midnight.
+             */
+            if (in_array($status, [401, 403], true)) {
+                GeminiKeyPool::markInvalid($apiKey);
+            } elseif ($status === 429) {
+                GeminiKeyPool::markRateLimited($apiKey);
+            }
+
             $code = match (true) {
                 $status === 404 => 'model_unavailable',
                 $status === 400 => 'model_no_image',

@@ -89,10 +89,10 @@ export const SizeMeasurementPanel = ({ sizeKey, sizeData, category = 'TOPS', onC
   const measurements = sizeData?.measurements || {};
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 border-t border-white/5">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pt-2 border-t border-hiraya-olive/15">
       {fieldsToRender.map((field) => (
         <div key={field} className="flex flex-col gap-1">
-          <label className="text-[9px] font-mono uppercase text-gray-400">
+          <label className="text-[9px] font-mono uppercase text-hiraya-ink">
             {FIELD_LABELS[field] || field.replace(/_/g, ' ')}
           </label>
           <input
@@ -102,7 +102,7 @@ export const SizeMeasurementPanel = ({ sizeKey, sizeData, category = 'TOPS', onC
             placeholder="0.0"
             value={measurements[field] ?? ''}
             onChange={(e) => onChange(sizeKey, field, e.target.value)}
-            className="w-full px-2 py-1 bg-black/40 border border-white/10 rounded text-xs font-mono text-white focus:outline-none focus:border-[#E9C46A]"
+            className="w-full px-2 py-1 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded text-xs font-mono text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
           />
         </div>
       ))}

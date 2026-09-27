@@ -33,7 +33,7 @@ const AiTryOn = () => {
   const hasBodyPhoto = !!userPhotoPreview;
 
   return (
-    <div className="flex h-screen w-full bg-black text-stone-200 overflow-hidden pt-16">
+    <div className="flex h-screen w-full bg-black text-hiraya-ink overflow-hidden pt-16">
       {/* 1. LEFT PANEL: MY BAG STYLE STACK (locked until a body photo exists) */}
       <StyleStack
         garmentsByCategory={garmentsByCategory}

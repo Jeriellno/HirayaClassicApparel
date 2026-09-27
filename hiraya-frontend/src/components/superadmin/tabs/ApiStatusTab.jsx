@@ -79,6 +79,11 @@ const ApiStatusTab = () => {
     try {
       const res = await api.post(`/admin/api-status/${key}/probe`);
       setProbes((p) => ({ ...p, [key]: res.data }));
+      // A probe result may reflect a cooldown change; refresh the pool list.
+      if (key === 'gemini') {
+        const fresh = await api.get('/admin/api-status');
+        setPayload(fresh.data);
+      }
     } catch (err) {
       setProbes((p) => ({
         ...p,
@@ -91,6 +96,30 @@ const ApiStatusTab = () => {
       }));
     } finally {
       setProbing((p) => ({ ...p, [key]: false }));
+    }
+  };
+
+  /*
+   * MANUAL COOLDOWN RESET — the "ligaw rotate" button.
+   *
+   * Clears the daily 429 cooldown on ONE pool key, by its masked label. No
+   * secret is involved: the endpoint only clears the rotation cache, so a key
+   * marked 429 in error can answer again without an .env edit.
+   */
+  const [resetting, setResetting] = useState(null);
+  const resetKey = async (label) => {
+    setResetting(label);
+    try {
+      const res = await api.post('/admin/api-status/gemini/rotate', { label });
+      if (res.data?.gemini_key_pool) {
+        setPayload((p) => ({ ...p, gemini_key_pool: res.data.gemini_key_pool }));
+      }
+    } catch (err) {
+      setError(
+        err?.response?.data?.message || 'Could not reset the key cooldown.'
+      );
+    } finally {
+      setResetting(null);
     }
   };
 
@@ -176,12 +205,12 @@ const ApiStatusTab = () => {
   return (
     <div className="space-y-6 animate-fadeIn font-mono text-xs">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
         <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-[#E9C46A] flex items-center gap-2">
+          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-hiraya-ink flex items-center gap-2">
             <KeyRound size={22} /> API & AI STATUS
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Live status of every external key the platform depends on. Secrets are
             shown masked — full values stay in the backend <code>.env</code>.
           </p>
@@ -190,7 +219,7 @@ const ApiStatusTab = () => {
         <button
           onClick={loadStatus}
           disabled={loading}
-          className="px-4 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] disabled:opacity-50 text-black font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-4 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep disabled:opacity-50 text-hiraya-olive font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           {loading ? 'Refreshing' : 'Refresh'}
@@ -226,7 +255,7 @@ const ApiStatusTab = () => {
                   ? 'Virtual Try-On is configured'
                   : 'Virtual Try-On is NOT configured'}
               </p>
-              <p className="text-gray-400 normal-case tracking-normal mt-1">
+              <p className="text-hiraya-ink normal-case tracking-normal mt-1">
                 {payload.tryon_ready
                   ? 'The PixelAPI token is present. Use "Test" below to confirm it is accepted right now.'
                   : 'The PixelAPI token (VTON_API_TOKEN) is missing, so every fitting will fail.'}
@@ -234,7 +263,7 @@ const ApiStatusTab = () => {
             </div>
           </div>
 
-          <span className="text-[10px] uppercase tracking-widest text-gray-500 shrink-0">
+          <span className="text-[10px] uppercase tracking-widest text-hiraya-sand shrink-0">
             {readyCount}/{totalCount} configured
           </span>
         </div>
@@ -281,7 +310,7 @@ const ApiStatusTab = () => {
                 >
                   {healthCopy.title}
                 </p>
-                <p className="text-gray-400 normal-case tracking-normal mt-1">
+                <p className="text-hiraya-ink normal-case tracking-normal mt-1">
                   {healthCopy.body}
                 </p>
               </div>
@@ -296,30 +325,30 @@ const ApiStatusTab = () => {
 
           {/* THE MEASUREMENTS BEHIND THE VERDICT — never a bare colour. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+            <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+              <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                 Last checked
               </p>
-              <p className="text-gray-300">{fmtWhen(health.last_checked_at)}</p>
+              <p className="text-hiraya-ink">{fmtWhen(health.last_checked_at)}</p>
               {health.minutes_since_check != null && (
-                <p className="text-gray-500">{health.minutes_since_check} min ago</p>
+                <p className="text-hiraya-sand">{health.minutes_since_check} min ago</p>
               )}
             </div>
 
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+            <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+              <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                 Outages ({health.window_hours}h)
               </p>
-              <p className={health.outages_in_window > 0 ? 'text-amber-400' : 'text-gray-300'}>
+              <p className={health.outages_in_window > 0 ? 'text-amber-400' : 'text-hiraya-ink'}>
                 {health.outages_in_window}
               </p>
             </div>
 
-            <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+            <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+              <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                 Last result
               </p>
-              <p className="text-gray-300 break-all">
+              <p className="text-hiraya-ink break-all">
                 {health.last_code || '—'}
                 {health.last_http_status != null ? ` · HTTP ${health.last_http_status}` : ''}
               </p>
@@ -329,7 +358,7 @@ const ApiStatusTab = () => {
           {/* OUTAGE TIMELINE — "when did this start" is the first question asked. */}
           {health.recent_events?.length > 0 && (
             <details className="group">
-              <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-gray-500 hover:text-[#E9C46A] transition list-none flex items-center gap-1.5">
+              <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-hiraya-sand hover:text-hiraya-ink transition list-none flex items-center gap-1.5">
                 <Clock size={12} />
                 Recent observations ({health.recent_events.length})
               </summary>
@@ -337,7 +366,7 @@ const ApiStatusTab = () => {
                 {[...health.recent_events].reverse().map((e, i) => (
                   <li
                     key={i}
-                    className="flex items-start gap-2 text-gray-400 normal-case tracking-normal border-l-2 pl-3 py-0.5"
+                    className="flex items-start gap-2 text-hiraya-ink normal-case tracking-normal border-l-2 pl-3 py-0.5"
                     style={{
                       borderColor:
                         e.state === 'ok'
@@ -347,10 +376,10 @@ const ApiStatusTab = () => {
                             : 'rgba(239,68,68,0.4)',
                     }}
                   >
-                    <span className="text-gray-500 shrink-0">{fmtWhen(e.at)}</span>
+                    <span className="text-hiraya-sand shrink-0">{fmtWhen(e.at)}</span>
                     <span className="uppercase tracking-wider shrink-0">{e.state}</span>
-                    <span className="text-gray-500 shrink-0">· {e.source}</span>
-                    {e.code && <span className="text-gray-500 shrink-0">· {e.code}</span>}
+                    <span className="text-hiraya-sand shrink-0">· {e.source}</span>
+                    {e.code && <span className="text-hiraya-sand shrink-0">· {e.code}</span>}
                     {e.message && <span className="break-words">{e.message}</span>}
                   </li>
                 ))}
@@ -360,10 +389,79 @@ const ApiStatusTab = () => {
         </div>
       )}
 
+
+      {/* GEMINI KEY POOL */}
+      {payload?.gemini_key_pool?.length > 0 && (
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+              <KeyRound size={14} className="text-hiraya-ink" /> Gemini key pool
+              {payload?.gemini_key_pool_summary && (
+                <span
+                  className={`text-[9px] px-2 py-0.5 rounded border uppercase tracking-widest ${
+                    payload.gemini_key_pool_summary.available > 0
+                      ? 'bg-green-500/20 text-green-400 border-green-500/40'
+                      : 'bg-red-500/20 text-red-400 border-red-500/40'
+                  }`}
+                >
+                  {payload.gemini_key_pool_summary.available}/{payload.gemini_key_pool_summary.total} available
+                </span>
+              )}
+            </h3>
+            <p className="text-hiraya-ink normal-case tracking-normal mt-1">
+              Each key carries its OWN 20/day free bucket. A key that answers 429 sits out the
+              rest of the day and the next key answers automatically — no .env rotation needed.
+              Values are masked; full keys stay in the backend .env.
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {payload.gemini_key_pool.map((k, i) => (
+              <li
+                key={i}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl"
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`font-bold flex items-center gap-1.5 ${
+                      k.state === 'drained' ? 'text-amber-400' : 'text-green-400'
+                    }`}
+                  >
+                    {k.state === 'drained' ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
+                    {k.state === 'drained' ? 'Drained today' : 'Available'}
+                  </span>
+                  {k.preferred && (
+                    <span className="text-[9px] bg-[#CB997E]/20 text-hiraya-ink px-2 py-0.5 rounded border border-[#CB997E]/40 uppercase tracking-widest">
+                      Answering now
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-hiraya-ink break-all">
+                  <span>{k.label}</span>
+                  {k.cooldown_until && (
+                    <span className="text-hiraya-sand shrink-0 flex items-center gap-1">
+                      <Clock size={11} /> until {fmtWhen(k.cooldown_until)}
+                    </span>
+                  )}
+                  {k.state === 'drained' && (
+                    <button
+                      onClick={() => resetKey(k.label)}
+                      disabled={resetting === k.label}
+                      title="Clear this key's 429 cooldown — use only if the 429 was reported in error"
+                      className="px-2.5 py-1 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 disabled:opacity-40 border border-hiraya-olive/15 rounded-lg text-[10px] uppercase tracking-wider shrink-0 transition cursor-pointer"
+                    >
+                      {resetting === k.label ? 'Resetting…' : 'Reset cooldown'}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* SERVICE CARDS */}
       {loading && !payload ? (
-        <div className="py-16 flex flex-col items-center gap-3 text-gray-500">
-          <Loader2 size={26} className="animate-spin text-[#E9C46A]" />
+        <div className="py-16 flex flex-col items-center gap-3 text-hiraya-sand">
+          <Loader2 size={26} className="animate-spin text-hiraya-ink" />
           <span className="uppercase tracking-widest text-[10px]">Reading configuration…</span>
         </div>
       ) : (
@@ -375,21 +473,21 @@ const ApiStatusTab = () => {
             return (
               <div
                 key={svc.key}
-                className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4"
+                className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-hiraya-ink">
                         {svc.label}
                       </h3>
                       {svc.required && (
-                        <span className="text-[9px] bg-[#E9C46A]/20 text-[#E9C46A] px-2 py-0.5 rounded border border-[#E9C46A]/40 uppercase tracking-widest">
+                        <span className="text-[9px] bg-[#CB997E]/20 text-hiraya-ink px-2 py-0.5 rounded border border-[#CB997E]/40 uppercase tracking-widest">
                           Required
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-400 normal-case tracking-normal mt-1">
+                    <p className="text-hiraya-ink normal-case tracking-normal mt-1">
                       {svc.purpose}
                     </p>
                   </div>
@@ -402,7 +500,7 @@ const ApiStatusTab = () => {
                         ? 'Make a real request to this service'
                         : 'Set the key first'
                     }
-                    className="px-3.5 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/10 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0 uppercase tracking-wider text-[10px]"
+                    className="px-3.5 py-2 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 disabled:opacity-40 disabled:cursor-not-allowed border border-hiraya-olive/15 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0 uppercase tracking-wider text-[10px]"
                   >
                     {isProbing ? (
                       <Loader2 size={13} className="animate-spin" />
@@ -415,8 +513,8 @@ const ApiStatusTab = () => {
 
                 {/* CONFIGURATION ROW */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                       Status
                     </p>
                     <p
@@ -432,28 +530,28 @@ const ApiStatusTab = () => {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                       Key
                     </p>
-                    <p className="text-gray-300 break-all">
+                    <p className="text-hiraya-ink break-all">
                       {svc.masked || '—'}
                     </p>
                   </div>
 
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                       Variable
                     </p>
-                    <p className="text-[#E9C46A] break-all">{svc.env}</p>
+                    <p className="text-hiraya-ink break-all">{svc.env}</p>
                   </div>
 
                   {svc.endpoint && (
-                    <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                      <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                    <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                      <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                         Endpoint
                       </p>
-                      <p className="text-gray-300 break-all">{svc.endpoint}</p>
+                      <p className="text-hiraya-ink break-all">{svc.endpoint}</p>
                     </div>
                   )}
                 </div>
@@ -478,32 +576,61 @@ const ApiStatusTab = () => {
                       {probe.summary}
                     </p>
                     {probe.http_status != null && (
-                      <p className="text-gray-500 mt-1">
+                      <p className="text-hiraya-olive/70 mt-1">
                         HTTP {probe.http_status}
                         {probe.reachable === false ? ' · unreachable' : ''}
                       </p>
                     )}
                     {probe.detail && (
-                      <p className="text-gray-400 normal-case tracking-normal mt-1 break-words">
+                      <p className="text-hiraya-ink normal-case tracking-normal mt-1 break-words">
                         {probe.detail}
                       </p>
                     )}
                   </div>
                 )}
 
+                {/* PER-KEY GEMINI PROBE RESULTS — one verdict per pool key. */}
+                {svc.key === 'gemini' && probe?.per_key?.length > 0 && (
+                  <ul className="space-y-1.5">
+                    {probe.per_key.map((k, i) => (
+                      <li
+                        key={i}
+                        className={`flex flex-wrap items-center gap-2 p-2.5 rounded-xl border ${
+                          k.ok
+                            ? 'bg-green-500/5 border-green-500/20'
+                            : k.http_status === 429
+                              ? 'bg-amber-500/5 border-amber-500/20'
+                              : 'bg-red-500/5 border-red-500/20'
+                        }`}
+                      >
+                        {k.ok ? (
+                          <CheckCircle2 size={13} className="text-green-400 shrink-0" />
+                        ) : k.http_status === 429 ? (
+                          <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+                        ) : (
+                          <XCircle size={13} className="text-red-400 shrink-0" />
+                        )}
+                        <span className="text-hiraya-ink shrink-0">{k.label}</span>
+                        <span className="text-hiraya-sand shrink-0">HTTP {k.http_status}</span>
+                        <span className="text-hiraya-ink normal-case tracking-normal">{k.summary}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
                 {svc.notes && (
-                  <p className="text-gray-500 normal-case tracking-normal border-l-2 border-[#E9C46A]/30 pl-3">
+                  <p className="text-hiraya-sand normal-case tracking-normal border-l-2 border-[#CB997E]/30 pl-3">
                     {svc.notes}
                   </p>
                 )}
 
                 {/* HOW TO ROTATE — the actionable half of this screen. */}
                 <details className="group">
-                  <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-gray-500 hover:text-[#E9C46A] transition list-none flex items-center gap-1.5">
+                  <summary className="cursor-pointer text-[10px] uppercase tracking-widest text-hiraya-sand hover:text-hiraya-ink transition list-none flex items-center gap-1.5">
                     <ShieldCheck size={12} />
                     How to replace this key
                   </summary>
-                  <ol className="mt-3 space-y-1.5 pl-4 list-decimal text-gray-400 normal-case tracking-normal">
+                  <ol className="mt-3 space-y-1.5 pl-4 list-decimal text-hiraya-ink normal-case tracking-normal">
                     {(svc.instructions ?? []).map((step, i) => (
                       <li key={i}>{step}</li>
                     ))}
@@ -515,7 +642,7 @@ const ApiStatusTab = () => {
         </div>
       )}
 
-      <p className="text-gray-600 normal-case tracking-normal text-[11px] border-t border-white/10 pt-4">
+      <p className="text-hiraya-sand normal-case tracking-normal text-[11px] border-t border-hiraya-olive/15 pt-4">
         Secrets are never sent to the browser in full. To rotate a key, edit the
         backend <code>.env</code> and run <code>php artisan config:clear</code> —
         then use <strong>Test</strong> above to confirm the new value is accepted.

@@ -1,13 +1,13 @@
 // hiraya-frontend/src/components/admin/tabs/alerts/AlertItem.jsx
 import React from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowUpRight } from 'lucide-react';
 // Every image on this surface goes through the ONE resolver, so a legacy row that
 // stores an absolute Supabase URL is rewritten onto the same-origin
 // `/supabase-storage` proxy instead of being blocked by the document's COEP.
 import { getProductImageUrl } from '../../../../utils/imageHelper';
 
-const AlertItem = ({ product, defaultImageUrl }) => {
-  const stockLevel = product.stock || 0;
+const AlertItem = ({ product, size, stock, defaultImageUrl, onOpenProduct }) => {
+  const stockLevel = stock;
   const isCritical = stockLevel === 0;
   const isWarning = stockLevel > 0 && stockLevel < 3;
 
@@ -31,7 +31,7 @@ const AlertItem = ({ product, defaultImageUrl }) => {
     `}>
       <div className="flex items-center gap-4">
         {/* Product Image */}
-        <div className="w-14 h-14 rounded-lg bg-[#1A1D24] overflow-hidden flex-shrink-0 border border-gray-700">
+        <div className="w-14 h-14 rounded-lg bg-[#1A1D24] overflow-hidden flex-shrink-0 border border-hiraya-sand/35">
           {/* Prefer the AI cut-out so admin lists match what customers see. */}
           <img
             src={getProductImageUrl(product.display_image_url || product.image_url || defaultImageUrl) || '/images/placeholder.svg'}
@@ -47,19 +47,26 @@ const AlertItem = ({ product, defaultImageUrl }) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h4 className="text-sm font-medium text-white truncate">
+              <h4 className="text-sm font-medium text-hiraya-ink truncate">
                 {product.name}
               </h4>
-              <p className="text-xs text-gray-400">{product.category}</p>
+              <p className="text-xs text-hiraya-ink">{product.category} · Size {size}</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-[#E9C46A]">
+                <span className="text-xs text-hiraya-ink">
                   ₱{Number(product.price).toLocaleString()}
                 </span>
                 {product.gender && (
-                  <span className="text-[10px] px-2 py-0.5 bg-[#1A1D24] text-gray-400 rounded">
+                  <span className="text-[10px] px-2 py-0.5 bg-[#1A1D24] text-hiraya-ink rounded">
                     {product.gender}
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => onOpenProduct?.(product)}
+                  className="mt-3 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-hiraya-ink hover:text-hiraya-olive"
+                >
+                  Edit inventory <ArrowUpRight size={12} />
+                </button>
               </div>
             </div>
             
@@ -76,7 +83,7 @@ const AlertItem = ({ product, defaultImageUrl }) => {
               `}>
                 {stockLevel} Left
               </span>
-              <span className="text-[10px] text-gray-500 flex items-center gap-1">
+              <span className="text-[10px] text-hiraya-sand flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
                 {status.label}
               </span>

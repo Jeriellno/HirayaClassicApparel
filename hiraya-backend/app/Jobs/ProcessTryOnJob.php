@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\TryOnSession;
 use App\Services\GeminiTryOnRenderer;
 use App\Services\HuggingFaceVtonRenderer;
+use App\Services\GeminiKeyPool;
 use App\Services\SizeChart;
 use App\Services\TryOnPreProcessor;
 use App\Services\VtonApiRenderer;
@@ -429,7 +430,7 @@ class ProcessTryOnJob implements ShouldQueue
         }
 
         // Gemini is tried when its image key is configured (it is billed-only).
-        if (config('services.gemini.key') && config('services.gemini.image_model')) {
+        if (GeminiKeyPool::current() && config('services.gemini.image_model')) {
             $chain['Gemini'] = fn () => $this->callGeminiVton($session);
         }
 

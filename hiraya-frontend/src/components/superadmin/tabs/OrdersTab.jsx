@@ -24,7 +24,7 @@ import api from '../../../api/axios';
  */
 
 const PAYMENT_STATUS = {
-  pending: { label: 'DP Pending', className: 'bg-[#E9C46A]/12 text-stone-200 border-stone-300/30' },
+  pending: { label: 'DP Pending', className: 'bg-[#CB997E]/12 text-hiraya-ink border-hiraya-olive/20' },
   '50_paid': { label: '50% Paid', className: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
   fully_paid: { label: 'Fully Paid', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
   rejected: { label: 'DP Rejected', className: 'bg-red-500/15 text-red-400 border-red-500/30' },
@@ -104,12 +104,12 @@ const OrdersTab = () => {
   return (
     <div className="space-y-6 animate-fadeIn font-mono text-xs">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
         <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-[#E9C46A] flex items-center gap-2">
+          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-hiraya-ink flex items-center gap-2">
             <Package size={22} /> ORDER OVERSIGHT
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Read-only view of every order across the platform. Fulfilment happens in
             the Admin console.
           </p>
@@ -118,7 +118,7 @@ const OrdersTab = () => {
         <button
           onClick={fetchOrders}
           disabled={fetching}
-          className="px-4 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] disabled:opacity-50 text-black font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-4 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep disabled:opacity-50 text-hiraya-olive font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           <RefreshCw size={16} className={fetching ? 'animate-spin' : ''} />
           {fetching ? 'Loading' : 'Refresh'}
@@ -127,17 +127,17 @@ const OrdersTab = () => {
 
       {/* SUMMARY METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400">Total Orders</p>
-          <p className="text-3xl font-bold text-white pt-1">{totals.count}</p>
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Total Orders</p>
+          <p className="text-3xl font-bold text-hiraya-ink pt-1">{totals.count}</p>
         </div>
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400">Fully Paid Revenue</p>
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Fully Paid Revenue</p>
           <p className="text-3xl font-bold text-emerald-400 pt-1">{peso(totals.revenue)}</p>
         </div>
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400">Awaiting Down Payment</p>
-          <p className={`text-3xl font-bold pt-1 ${totals.awaitingDp > 0 ? 'text-[#E9C46A]' : 'text-white'}`}>
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Awaiting Down Payment</p>
+          <p className={`text-3xl font-bold pt-1 ${totals.awaitingDp > 0 ? 'text-hiraya-ink' : 'text-hiraya-ink'}`}>
             {totals.awaitingDp}
           </p>
         </div>
@@ -156,8 +156,8 @@ const OrdersTab = () => {
             key={tab.id}
             onClick={() => setFilter(tab.id)}
             className={`px-4 py-2 rounded-lg text-[10px] uppercase tracking-widest border transition cursor-pointer ${filter === tab.id
-                ? 'bg-[#E9C46A]/15 text-[#E9C46A] border-[#E9C46A]/40 font-medium'
-                : 'text-gray-400 border-white/10 hover:text-white hover:border-white/30'
+                ? 'bg-[#CB997E]/15 text-hiraya-ink border-[#CB997E]/40 font-medium'
+                : 'text-hiraya-ink border-hiraya-olive/15 hover:text-hiraya-ink hover:border-hiraya-olive/30'
               }`}
           >
             {tab.label}
@@ -165,13 +165,13 @@ const OrdersTab = () => {
         ))}
 
         <div className="relative ml-auto">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-hiraya-sand" />
           <input
             type="text"
             placeholder="Search id, customer, tracking..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 pr-3 py-2 bg-[#0A0D14] border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#E9C46A] text-xs w-full sm:w-64"
+            className="pl-8 pr-3 py-2 bg-[#0A0D14] border border-hiraya-olive/15 rounded-xl text-hiraya-ink placeholder-gray-600 focus:outline-none focus:border-[#CB997E] text-xs w-full sm:w-64"
           />
         </div>
       </div>
@@ -184,79 +184,99 @@ const OrdersTab = () => {
 
       {/* LIST */}
       {fetching ? (
-        <div className="py-20 text-center text-[10px] uppercase tracking-[0.3em] text-[#E9C46A] animate-pulse">
+        <div className="py-20 text-center text-[10px] uppercase tracking-[0.3em] text-hiraya-ink animate-pulse">
           Loading Orders...
         </div>
       ) : visibleOrders.length === 0 ? (
-        <div className="bg-[#0D1017] border border-white/10 rounded-2xl py-20 text-center">
-          <Package className="w-10 h-10 text-gray-700 mx-auto mb-4" />
-          <p className="text-xs text-gray-500 uppercase tracking-widest">No orders in this view.</p>
+        <div className="bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl py-20 text-center">
+          <Package className="w-10 h-10 text-hiraya-sand mx-auto mb-4" />
+          <p className="text-xs text-hiraya-sand uppercase tracking-widest">No orders in this view.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {visibleOrders.map((order) => {
             const payment = PAYMENT_STATUS[order.payment_status] || {
               label: order.payment_status,
-              className: 'bg-gray-500/15 text-gray-400 border-gray-500/30',
+              className: 'bg-hiraya-sand/20 text-hiraya-ink border-hiraya-sand/40',
             };
             return (
-              <div key={order.id} className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4">
-                <div className="flex flex-wrap items-start justify-between gap-4 pb-3 border-b border-white/10">
+              <div key={order.id} className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4">
+                <div className="flex flex-wrap items-start justify-between gap-4 pb-3 border-b border-hiraya-olive/15">
                   <div>
                     <div className="flex items-center gap-3 mb-1 flex-wrap">
-                      <span className="text-xs font-bold text-white uppercase tracking-widest">
+                      <span className="text-xs font-bold text-hiraya-ink uppercase tracking-widest">
                         Order #{order.id}
                       </span>
                       <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${payment.className}`}>
                         {payment.label}
                       </span>
-                      <span className="px-2.5 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] uppercase tracking-wider text-gray-300">
+                      <span className="px-2.5 py-1 rounded-full border border-hiraya-olive/15 bg-hiraya-cream/60 text-[10px] uppercase tracking-wider text-hiraya-ink">
                         {ORDER_STATUS[order.order_status] || order.order_status}
                       </span>
                     </div>
-                    <p className="text-[11px] text-gray-500">
+                    <p className="text-[11px] text-hiraya-sand">
                       {order.customer_name} · {order.contact_number}
                     </p>
+                    {order.user?.email && <p className="mt-1 text-[10px] text-hiraya-olive">{order.user.email}</p>}
                   </div>
 
                   {order.courier && (
-                    <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-gray-300">
-                      <Truck size={14} className="text-[#E9C46A]" /> {order.courier}
+                    <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-hiraya-ink">
+                      <Truck size={14} className="text-hiraya-ink" /> {order.courier}
                     </span>
                   )}
                 </div>
 
+                {(order.order_items || order.orderItems || []).length > 0 && (
+                  <div className="border-b border-hiraya-olive/15 py-4">
+                    <p className="mb-3 text-[9px] uppercase tracking-widest text-hiraya-sand">Items in this order</p>
+                    <div className="space-y-2">
+                      {(order.order_items || order.orderItems).map((item) => (
+                        <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-black/5 px-3 py-2 text-[11px]">
+                          <div>
+                            <p className="font-semibold text-hiraya-ink">{item.product_name_snapshot || item.product?.name || 'Product'}</p>
+                            <p className="mt-0.5 text-[10px] text-hiraya-olive">
+                              Size {item.selected_size || '—'} · {item.selected_color || '—'} · Qty {item.quantity}
+                            </p>
+                          </div>
+                          <span className="text-hiraya-ink">₱{Number(item.line_total ?? Number(item.unit_price || 0) * Number(item.quantity || 0)).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="md:col-span-2 space-y-3 text-[11px]">
                     <div>
-                      <p className="text-[9px] uppercase tracking-widest text-gray-500 mb-1">Delivery Address</p>
-                      <p className="text-gray-300 leading-relaxed">{order.delivery_address}</p>
+                      <p className="text-[9px] uppercase tracking-widest text-hiraya-sand mb-1">Delivery Address</p>
+                      <p className="text-hiraya-ink leading-relaxed">{order.delivery_address}</p>
                     </div>
                     {order.tracking_booking_details && (
                       <div>
-                        <p className="text-[9px] uppercase tracking-widest text-gray-500 mb-1">Tracking / Booking</p>
-                        <p className="text-gray-300">{order.tracking_booking_details}</p>
+                        <p className="text-[9px] uppercase tracking-widest text-hiraya-sand mb-1">Tracking / Booking</p>
+                        <p className="text-hiraya-ink">{order.tracking_booking_details}</p>
                       </div>
                     )}
                   </div>
 
                   <div className="space-y-2 text-[11px]">
                     <div className="flex justify-between">
-                      <span className="text-gray-500 uppercase tracking-widest text-[9px]">Total</span>
-                      <span className="text-white">{peso(order.total_amount)}</span>
+                      <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">Total</span>
+                      <span className="text-hiraya-ink">{peso(order.total_amount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 uppercase tracking-widest text-[9px]">Down Payment</span>
-                      <span className="text-[#E9C46A]">{peso(order.dp_amount)}</span>
+                      <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">Down Payment</span>
+                      <span className="text-hiraya-ink">{peso(order.dp_amount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500 uppercase tracking-widest text-[9px]">Balance</span>
-                      <span className="text-white">{peso(order.balance_amount)}</span>
+                      <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">Balance</span>
+                      <span className="text-hiraya-ink">{peso(order.balance_amount)}</span>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-[9px] text-gray-600 flex items-center gap-1.5 pt-1 border-t border-white/10">
+                <p className="text-[9px] text-hiraya-sand flex items-center gap-1.5 pt-1 border-t border-hiraya-olive/15">
                   <Clock size={11} />
                   Placed {order.created_at ? new Date(order.created_at).toLocaleString() : '—'}
                 </p>

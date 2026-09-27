@@ -5,6 +5,10 @@ import CategoryDistributionChart from './CategoryDistributionChart';
 import TrendingGarmentsList from './TrendingGarmentsList';
 
 const DashboardTab = ({ products = [] }) => {
+  const [period, setPeriod] = useState('month');
+  const [operations, setOperations] = useState(null);
+  const [operationsLoading, setOperationsLoading] = useState(true);
+  const [operationsError, setOperationsError] = useState('');
   /*
    * SERVER-AUTHORITATIVE METRICS.
    *
@@ -18,19 +22,31 @@ const DashboardTab = ({ products = [] }) => {
 
   useEffect(() => {
     let isMounted = true;
+    setOperationsLoading(true);
+    setOperationsError('');
     api
-      .get('/admin/analytics/dashboard')
+      .get('/admin/analytics/dashboard', { params: { period } })
       .then((res) => {
-        if (isMounted) setMetrics(res.data || null);
+        if (isMounted) {
+          setMetrics(res.data || null);
+          setOperations(res.data?.operations || null);
+        }
       })
       .catch((err) => {
         console.warn('Admin: dashboard metrics unavailable, using local product list.', err);
-        if (isMounted) setMetrics(null);
+        if (isMounted) {
+          setMetrics(null);
+          setOperations(null);
+          setOperationsError(err.response?.data?.message || 'Unable to load order and sales metrics.');
+        }
+      })
+      .finally(() => {
+        if (isMounted) setOperationsLoading(false);
       });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [period]);
 
   // Local fallbacks (used only until/unless the endpoint answers).
   const localStock = useMemo(
@@ -47,7 +63,7 @@ const DashboardTab = ({ products = [] }) => {
   const lowStockItemsCount = metrics?.low_stock_count ?? localLowStock;
 
   const categoryStats = useMemo(() => {
-    const colors = ['#E9C46A', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#F2D89B'];
+    const colors = ['#CB997E', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#FFE8D6'];
 
     // Prefer the server's distribution; otherwise derive it from the list.
     const distribution = metrics?.category_distribution;
@@ -99,6 +115,49 @@ const DashboardTab = ({ products = [] }) => {
 
   return (
     <div className="space-y-8 pb-12">
+      <section className="space-y-4 rounded-2xl border border-[#CB997E]/20 bg-[#0A0D14] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-hiraya-ink">Operations Snapshot</h2>
+            <p className="mt-1 text-[10px] text-hiraya-olive">Revenue follows verified payments; outstanding excludes rejected orders.</p>
+          </div>
+          <label className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-hiraya-olive">
+            Period
+            <select
+              value={period}
+              onChange={(event) => setPeriod(event.target.value)}
+              className="rounded-lg border border-hiraya-olive/20 bg-[#07090D] px-3 py-2 text-xs text-hiraya-ink outline-none focus:border-[#CB997E]"
+            >
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </label>
+        </div>
+
+        {operationsError && (
+          <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{operationsError}</p>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[
+            { label: 'Verified Revenue', value: `₱${Number(operations?.revenue || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, note: `${operations?.period_order_count ?? 0} orders in period`, color: 'text-emerald-400' },
+            { label: 'Outstanding Balance', value: `₱${Number(operations?.outstanding_balance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, note: 'Unpaid order amounts', color: 'text-hiraya-ink' },
+            { label: 'Awaiting Down Payment', value: operations?.awaiting_dp_count ?? 0, note: 'Orders needing payment review', color: 'text-amber-300' },
+            { label: 'Processing', value: operations?.processing_count ?? 0, note: 'Orders being prepared', color: 'text-blue-400' },
+            { label: 'Ready / Shipped', value: operations?.shipping_count ?? 0, note: 'Orders in shipping stages', color: 'text-violet-400' },
+          ].map((metric) => (
+            <div key={metric.label} className="rounded-xl border border-hiraya-olive/15 bg-black/20 p-4" aria-busy={operationsLoading}>
+              <p className="text-[9px] font-mono uppercase tracking-widest text-hiraya-olive">{metric.label}</p>
+              <p className={`mt-2 text-2xl font-mono font-bold ${metric.color}`}>
+                {operationsLoading ? '—' : metric.value}
+              </p>
+              <p className="mt-1 text-[10px] text-hiraya-olive">{metric.note}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <DashboardMetrics
         totalProducts={totalProducts}
         totalInventoryStock={totalInventoryStock}

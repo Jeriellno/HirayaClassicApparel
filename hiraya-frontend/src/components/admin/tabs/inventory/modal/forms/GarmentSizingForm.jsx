@@ -50,21 +50,21 @@ export default function GarmentSizingForm({ initialData, onChange }) {
   ];
 
   return (
-    <div className="bg-[#121621] border border-white/10 rounded-xl p-5 text-white font-mono text-xs">
+    <div className="bg-[#121621] border border-hiraya-olive/15 rounded-xl p-5 text-hiraya-ink font-mono text-xs">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
-        <div className="flex items-center gap-2 text-[#E9C46A] font-bold">
+      <div className="flex items-center justify-between pb-3 mb-4 border-b border-hiraya-olive/15">
+        <div className="flex items-center gap-2 text-hiraya-ink font-bold">
           <Ruler size={16} />
           <span className="uppercase tracking-wider">Garment Core Measurements (cm)</span>
         </div>
-        <span className="text-[10px] bg-[#E9C46A]/10 text-[#E9C46A] px-2.5 py-0.5 rounded border border-[#E9C46A]/30 font-bold">
+        <span className="text-[10px] bg-[#CB997E]/10 text-hiraya-ink px-2.5 py-0.5 rounded border border-[#CB997E]/30 font-bold">
           5 Core Base Specs
         </span>
       </div>
 
       {/* Step 1: Select Baseline Size */}
       <div className="mb-4">
-        <label className="block text-gray-400 font-bold mb-2 text-[10px] uppercase tracking-wider">
+        <label className="block text-hiraya-ink font-bold mb-2 text-[10px] uppercase tracking-wider">
           1. Select Base Size Reference:
         </label>
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -75,8 +75,8 @@ export default function GarmentSizingForm({ initialData, onChange }) {
               onClick={() => handleSelectBaseline(sizeKey)}
               className={`py-2 rounded-lg text-xs font-bold transition border flex items-center justify-center gap-1 ${
                 selectedBase === sizeKey
-                  ? 'bg-[#E9C46A] text-black border-[#E9C46A] shadow-md'
-                  : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                  ? 'bg-[#CB997E] text-hiraya-olive border-[#CB997E] shadow-md'
+                  : 'bg-hiraya-cream/60 border-hiraya-olive/15 text-hiraya-ink hover:bg-hiraya-cream/60'
               }`}
             >
               {sizeKey}
@@ -88,13 +88,13 @@ export default function GarmentSizingForm({ initialData, onChange }) {
 
       {/* Step 2: Set/Fine-Tune Core Measurements */}
       <div className="mb-2">
-        <label className="block text-gray-400 font-bold mb-2 text-[10px] uppercase tracking-wider">
+        <label className="block text-hiraya-ink font-bold mb-2 text-[10px] uppercase tracking-wider">
           2. Core Measurement Values (cm):
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {coreFields.map((field) => (
-            <div key={field.key} className="bg-black/40 border border-white/10 p-3 rounded-lg">
-              <label className="block text-[11px] font-bold text-gray-200 mb-1.5">
+            <div key={field.key} className="bg-hiraya-cream/30 border border-hiraya-olive/15 p-3 rounded-lg">
+              <label className="block text-[11px] font-bold text-hiraya-ink mb-1.5">
                 {field.label}
               </label>
               <div className="relative flex items-center">
@@ -105,10 +105,10 @@ export default function GarmentSizingForm({ initialData, onChange }) {
                   placeholder="0.0"
                   value={measurements[field.key] ?? ''}
                   onChange={(e) => handleValueChange(field.key, e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-[#E9C46A] transition pr-8"
+                  className="w-full bg-hiraya-cream/60 border border-hiraya-olive/15 rounded px-2.5 py-1.5 text-xs text-hiraya-ink font-bold focus:outline-none focus:border-[#CB997E] transition pr-8"
                   required
                 />
-                <span className="absolute right-2.5 text-[10px] font-bold text-gray-500 pointer-events-none">
+                <span className="absolute right-2.5 text-[10px] font-bold text-hiraya-sand pointer-events-none">
                   cm
                 </span>
               </div>

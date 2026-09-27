@@ -47,7 +47,7 @@ const PaymentInstructions = ({ amount = null, amountLabel = 'Amount to send', cl
 
   if (loading) {
     return (
-      <div className={`flex items-center gap-2 text-[11px] text-gray-500 ${className}`}>
+      <div className={`flex items-center gap-2 text-[11px] text-hiraya-sand ${className}`}>
         <Loader2 size={13} className="animate-spin" /> Loading payment details...
       </div>
     );
@@ -60,20 +60,20 @@ const PaymentInstructions = ({ amount = null, amountLabel = 'Amount to send', cl
   }
 
   return (
-    <div className={`rounded-xl border-[#E9C46A]/25 bg-[#E9C46A]/5 p-4 ${className}`}>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#E9C46A] mb-2">
+    <div className={`rounded-xl border-[#CB997E]/25 bg-[#CB997E]/5 p-4 ${className}`}>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-hiraya-ink mb-2">
         How to Pay
       </p>
 
       {amount != null && (
-        <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/10">
-          <span className="text-[9px] uppercase tracking-widest text-gray-400">{amountLabel}</span>
-          <span className="text-sm font-bold text-[#E9C46A]">₱{Number(amount).toFixed(2)}</span>
+        <div className="flex items-center justify-between mb-3 pb-3 border-b border-hiraya-olive/15">
+          <span className="text-[9px] uppercase tracking-widest text-hiraya-ink">{amountLabel}</span>
+          <span className="text-sm font-bold text-hiraya-ink">₱{Number(amount).toFixed(2)}</span>
         </div>
       )}
 
       {data.instructions && (
-        <p className="text-[11px] text-gray-300 leading-relaxed mb-3">{data.instructions}</p>
+        <p className="text-[11px] text-hiraya-ink leading-relaxed mb-3">{data.instructions}</p>
       )}
 
       <div className="space-y-2">
@@ -82,19 +82,19 @@ const PaymentInstructions = ({ amount = null, amountLabel = 'Amount to send', cl
           return (
             <div
               key={`${account.type}-${index}`}
-              className="flex items-start gap-3 bg-black/30 rounded-lg px-3 py-2.5"
+              className="flex items-start gap-3 bg-hiraya-cream/30 rounded-lg px-3 py-2.5"
             >
-              <Icon size={15} className="text-[#E9C46A] mt-0.5 shrink-0" />
+              <Icon size={15} className="text-hiraya-ink mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-widest text-gray-400">
+                <p className="text-[10px] uppercase tracking-widest text-hiraya-ink">
                   {account.type}
                 </p>
-                <p className="text-[11px] text-white font-bold tracking-wide">
+                <p className="text-[11px] text-hiraya-ink font-bold tracking-wide">
                   {account.number}
                 </p>
-                <p className="text-[10px] text-gray-400">{account.name}</p>
+                <p className="text-[10px] text-hiraya-ink">{account.name}</p>
                 {account.note && (
-                  <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{account.note}</p>
+                  <p className="text-[10px] text-hiraya-sand mt-0.5 leading-relaxed">{account.note}</p>
                 )}
               </div>
             </div>
@@ -103,17 +103,17 @@ const PaymentInstructions = ({ amount = null, amountLabel = 'Amount to send', cl
       </div>
 
       {data.qr_image_url && (
-        <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-3">
-          <QrCode size={15} className="text-[#E9C46A] shrink-0" />
+        <div className="mt-3 pt-3 border-t border-hiraya-olive/15 flex items-center gap-3">
+          <QrCode size={15} className="text-hiraya-ink shrink-0" />
           <img
             src={data.qr_image_url}
             alt="Payment QR code"
-            className="w-28 h-28 rounded-lg border-white/10 object-contain bg-white"
+            className="w-28 h-28 rounded-lg border-hiraya-olive/15 object-contain bg-white"
           />
         </div>
       )}
 
-      <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">
+      <p className="text-[10px] text-hiraya-sand mt-3 leading-relaxed">
         After sending, upload your receipt below. Keep the reference number until your payment is confirmed.
       </p>
     </div>

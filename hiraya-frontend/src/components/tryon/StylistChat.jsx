@@ -39,7 +39,7 @@ const renderRich = (text) => {
   return parts.map((part, i) => {
     if (/^\*\*[^*]+\*\*$/.test(part)) {
       return (
-        <strong key={i} className="font-semibold text-white">
+        <strong key={i} className="font-semibold text-hiraya-ink">
           {part.slice(2, -2)}
         </strong>
       );
@@ -71,8 +71,8 @@ const ProductCard = ({ product, onSelectProduct }) => {
       type="button"
       disabled={!clickable}
       onClick={() => clickable && onSelectProduct(product)}
-      className={`w-full flex items-center gap-2 rounded-xl border-white/10 bg-white/5 p-2 text-left transition ${
-        clickable ? 'hover:border-[#E9C46A]/40 hover:bg-white/10' : 'cursor-default'
+      className={`w-full flex items-center gap-2 rounded-xl border-hiraya-olive/15 bg-hiraya-cream/60 p-2 text-left transition ${
+        clickable ? 'hover:border-[#CB997E]/40 hover:bg-hiraya-cream/60' : 'cursor-default'
       }`}
     >
       {product.image_url ? (
@@ -85,13 +85,13 @@ const ProductCard = ({ product, onSelectProduct }) => {
           }}
         />
       ) : (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5">
-          <ShoppingBag size={14} className="text-gray-500" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-hiraya-cream/60">
+          <ShoppingBag size={14} className="text-hiraya-sand" />
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[11px] font-medium text-gray-200">{product.name}</p>
-        <p className="text-[10px] text-gray-500">
+        <p className="truncate text-[11px] font-medium text-hiraya-ink">{product.name}</p>
+        <p className="text-[10px] text-hiraya-sand">
           {product.category}
           {product.price ? ` · ₱${Number(product.price).toLocaleString()}` : ''}
           {product.in_stock === false ? ' · out of stock' : ''}
@@ -128,11 +128,11 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
   const links = showSuggestions ? last?.links ?? [] : [];
 
   return (
-    <aside className="w-[340px] border-l border-white/10 bg-black/60 backdrop-blur-2xl flex flex-col z-10 shrink-0">
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+    <aside className="w-[340px] border-l border-hiraya-olive/15 bg-hiraya-cream/50 backdrop-blur-2xl flex flex-col z-10 shrink-0">
+      <div className="p-4 border-b border-hiraya-olive/15 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HirayaMark size={18} />
-          <span className="text-xs font-black uppercase tracking-[0.2em] text-[#E9C46A]">
+          <span className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink">
             AI Stylist &amp; Size Suggester
           </span>
         </div>
@@ -143,14 +143,14 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
-              <div className="w-6 h-6 rounded-full bg-[#E9C46A]/20 border border-[#E9C46A]/40 text-[#E9C46A] flex items-center justify-center shrink-0 mt-1">
+              <div className="w-6 h-6 rounded-full bg-[#CB997E]/20 border border-[#CB997E]/40 text-hiraya-ink flex items-center justify-center shrink-0 mt-1">
                 <HirayaMark size={14} />
               </div>
             )}
             <div className={`p-3 rounded-2xl text-[11px] leading-relaxed border max-w-[85%] whitespace-pre-line ${
               msg.role === 'user'
-                ? 'bg-[#E9C46A] text-black border-[#E9C46A] font-medium self-end'
-                : 'bg-white/5 text-gray-300 border-white/10'
+                ? 'bg-[#CB997E] text-hiraya-olive border-[#CB997E] font-medium self-end'
+                : 'bg-hiraya-cream/60 text-hiraya-ink border-hiraya-olive/15'
             }`}>
               {msg.role === 'assistant' ? renderRich(msg.text) : msg.text}
             </div>
@@ -160,7 +160,7 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         {/* Catalog matches for the size just recommended — a shopping surface. */}
         {products.length > 0 && (
           <div className="space-y-1.5 pl-8">
-            <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-[#E9C46A]/70">
+            <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-hiraya-olive/70">
               <Sparkles size={10} /> Available in your size
             </p>
             {products.map((p) => (
@@ -178,7 +178,7 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
          */}
         {links.length > 0 && (
           <div className="space-y-1.5 pl-8">
-            <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-[#E9C46A]/70">
+            <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-hiraya-olive/70">
               <ArrowUpRight size={10} /> See the full details
             </p>
             {links.map((l) => (
@@ -187,8 +187,8 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
                 type="button"
                 disabled={typeof onNavigate !== 'function'}
                 onClick={() => typeof onNavigate === 'function' && onNavigate(l.url)}
-                className={`flex w-full items-center justify-between gap-2 rounded-xl border-[#E9C46A]/20 bg-[#E9C46A]/5 px-3 py-2 text-left text-[11px] text-[#E9C46A] transition ${
-                  typeof onNavigate === 'function' ? 'hover:bg-[#E9C46A]/15' : 'cursor-default opacity-70'
+                className={`flex w-full items-center justify-between gap-2 rounded-xl border-[#CB997E]/20 bg-[#CB997E]/5 px-3 py-2 text-left text-[11px] text-hiraya-ink transition ${
+                  typeof onNavigate === 'function' ? 'hover:bg-[#CB997E]/15' : 'cursor-default opacity-70'
                 }`}
               >
                 <span className="truncate">{l.label}</span>
@@ -199,8 +199,8 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         )}
 
         {isTyping && (
-          <div className="flex items-center gap-2 text-gray-500 text-[10px] italic">
-            <Loader2 size={12} className="animate-spin text-[#E9C46A]" /> Hiraya stylist is calculating your fit…
+          <div className="flex items-center gap-2 text-hiraya-sand text-[10px] italic">
+            <Loader2 size={12} className="animate-spin text-hiraya-ink" /> Hiraya stylist is calculating your fit…
           </div>
         )}
         <div ref={chatBottomRef} />
@@ -208,13 +208,13 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
 
       {/* Quick-reply chips — the fastest path from question to answer. */}
       {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-white/10 px-3 pt-2.5">
+        <div className="flex flex-wrap gap-1.5 border-t border-hiraya-olive/15 px-3 pt-2.5">
           {suggestions.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => onSendMessage(s)}
-              className="rounded-full border-[#E9C46A]/30 bg-[#E9C46A]/10 px-2.5 py-1 text-[10px] text-[#E9C46A] transition hover:bg-[#E9C46A]/20"
+              className="rounded-full border-[#CB997E]/30 bg-[#CB997E]/10 px-2.5 py-1 text-[10px] text-hiraya-ink transition hover:bg-[#CB997E]/20"
             >
               {s}
             </button>
@@ -222,15 +222,15 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="p-3 border-t border-white/10 flex gap-2">
+      <form onSubmit={handleSubmit} className="p-3 border-t border-hiraya-olive/15 flex gap-2">
         <input
           type="text"
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           placeholder="Ask AI about fit, sizing, or styling..."
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#E9C46A]"
+          className="flex-1 bg-hiraya-cream/60 border border-hiraya-olive/15 rounded-xl px-3 py-2 text-xs text-hiraya-ink outline-none focus:border-[#CB997E]"
         />
-        <button type="submit" className="p-2 bg-[#E9C46A] text-black rounded-xl hover:bg-[#D4A94F] transition font-bold">
+        <button type="submit" className="p-2 bg-[#CB997E] text-hiraya-ink rounded-xl hover:bg-hiraya-cream-deep transition font-bold">
           <Send size={14} />
         </button>
       </form>

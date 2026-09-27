@@ -158,8 +158,8 @@ const ProductDetail = () => {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center space-y-3">
-          <Loader2 className="w-6 h-6 text-stone-200 animate-spin mx-auto" />
-          <p className="uppercase tracking-[0.35em] text-[10px] text-zinc-500 font-semibold">
+          <Loader2 className="w-6 h-6 text-hiraya-ink animate-spin mx-auto" />
+          <p className="uppercase tracking-[0.35em] text-[10px] text-hiraya-sand font-semibold">
             Loading Details
           </p>
         </div>
@@ -170,13 +170,13 @@ const ProductDetail = () => {
   if (isError || !product) {
     return (
       <div className="flex min-h-screen bg-black flex-col items-center justify-center gap-4 px-6 text-center">
-        <AlertCircle className="w-7 h-7 text-stone-200" />
-        <p className="uppercase tracking-[0.25em] text-zinc-400 text-xs font-semibold">
+        <AlertCircle className="w-7 h-7 text-hiraya-ink" />
+        <p className="uppercase tracking-[0.25em] text-hiraya-sand text-xs font-semibold">
           Product not found
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="text-[10px] underline uppercase tracking-[0.2em] font-semibold text-zinc-500 hover:text-stone-200 transition"
+          className="text-[10px] underline uppercase tracking-[0.2em] font-semibold text-hiraya-sand hover:text-hiraya-ink transition"
         >
           Go Back
         </button>
@@ -291,7 +291,7 @@ const ProductDetail = () => {
         {/* Back link */}
         <button
           onClick={() => navigate(-1)}
-          className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-zinc-500 hover:text-stone-200 transition mb-6"
+          className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-sand hover:text-hiraya-ink transition mb-6"
         >
           <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
           Back
@@ -309,22 +309,22 @@ const ProductDetail = () => {
           {/* ============ RIGHT: DETAILS + CONVERSION ZONE ============ */}
           <div className="space-y-6">
             {/* Title & price */}
-            <div className="border-b border-zinc-900 pb-5">
+            <div className="border-b border-hiraya-sand pb-5">
               {product.category && (
-                <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-stone-200">
+                <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-hiraya-ink">
                   {product.category}
                 </span>
               )}
-              <h1 className="text-2xl md:text-3xl font-normal tracking-tight text-[#E9C46A] uppercase leading-snug mt-1.5">
+              <h1 className="text-2xl md:text-3xl font-normal tracking-tight text-hiraya-ink uppercase leading-snug mt-1.5">
                 {product.name}
               </h1>
 
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-3">
                 <Currency
                   amount={price}
-                  className="text-xl md:text-2xl text-stone-200 font-semibold tracking-wide"
+                  className="text-xl md:text-2xl text-hiraya-ink font-semibold tracking-wide"
                 />
-                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-medium">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-hiraya-sand font-medium">
                   50% DP to secure
                 </span>
               </div>
@@ -332,10 +332,10 @@ const ProductDetail = () => {
 
             {/* Description */}
             <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.25em] font-semibold text-zinc-500">
+              <p className="text-[10px] uppercase tracking-[0.25em] font-semibold text-hiraya-sand">
                 Description
               </p>
-              <p className="text-zinc-400 font-normal leading-relaxed text-[13px]">
+              <p className="text-hiraya-sand font-normal leading-relaxed text-[13px]">
                 {product.description || 'No description provided for this piece.'}
               </p>
             </div>
@@ -392,20 +392,20 @@ const ProductDetail = () => {
             {/* Quantity */}
             {user && (
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-zinc-500">
+                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-sand">
                   Quantity
                 </p>
-                <div className="inline-flex items-center border-zinc-800 rounded-lg overflow-hidden bg-zinc-950">
+                <div className="inline-flex items-center border-hiraya-sand/30 rounded-lg overflow-hidden bg-hiraya-olive">
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     disabled={quantity <= 1}
                     aria-label="Decrease quantity"
-                    className="px-3 py-2 text-zinc-500 hover:text-stone-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="px-3 py-2 text-hiraya-sand hover:text-hiraya-ink transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Minus size={13} />
                   </button>
-                  <span className="px-4 text-[13px] font-semibold min-w-[2.5rem] text-center text-white">
+                  <span className="px-4 text-[13px] font-semibold min-w-[2.5rem] text-center text-hiraya-ink">
                     {quantity}
                   </span>
                   <button
@@ -413,7 +413,7 @@ const ProductDetail = () => {
                     onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
                     disabled={quantity >= maxQuantity}
                     aria-label="Increase quantity"
-                    className="px-3 py-2 text-zinc-500 hover:text-stone-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="px-3 py-2 text-hiraya-sand hover:text-hiraya-ink transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Plus size={13} />
                   </button>
@@ -422,7 +422,7 @@ const ProductDetail = () => {
             )}
 
             {/* ========== CONVERSION ZONE ========== */}
-            <div className="pt-5 border-t border-zinc-900 space-y-3">
+            <div className="pt-5 border-t border-hiraya-sand space-y-3">
               {/* Feedback (replaces alert()) */}
               {feedback && (
                 <div
@@ -442,7 +442,7 @@ const ProductDetail = () => {
 
               {/* Helper text when a variant is still missing */}
               {user && !isVariantSelected && (
-                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-medium text-center">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-hiraya-sand font-medium text-center">
                   Please select a size and colour
                 </p>
               )}
@@ -465,8 +465,8 @@ const ProductDetail = () => {
                     onClick={handleAddToCart}
                     disabled={!canPurchase || addToCartMutation.isPending}
                     className={`w-full py-4 rounded-lg uppercase text-[11px] tracking-[0.2em] font-bold transition duration-300 flex items-center justify-center gap-2 ${!canPurchase || addToCartMutation.isPending
-                        ? 'bg-zinc-900 text-zinc-600 cursor-not-allowed'
-                        : 'bg-[#E9C46A] text-black hover:bg-[#D4A94F] active:scale-[0.98] shadow-lg shadow-stone-200/10'
+                        ? 'bg-hiraya-sand text-hiraya-sand cursor-not-allowed'
+                        : 'bg-[#CB997E] text-hiraya-olive hover:bg-hiraya-cream-deep active:scale-[0.98] shadow-lg shadow-stone-200/10'
                       }`}
                   >
                     {addToCartMutation.isPending ? (
@@ -488,8 +488,8 @@ const ProductDetail = () => {
                     onClick={handleAiTryOn}
                     disabled={!canPurchase || isTryingOn}
                     className={`w-full py-4 rounded-lg uppercase text-[11px] tracking-[0.2em] font-bold transition duration-300 flex items-center justify-center gap-2 border ${!canPurchase || isTryingOn
-                        ? 'border-zinc-900 text-zinc-600 cursor-not-allowed'
-                        : 'border-stone-300/50 text-stone-200 hover:bg-[#E9C46A] hover:text-black active:scale-[0.98]'
+                        ? 'border-hiraya-sand text-hiraya-sand cursor-not-allowed'
+                        : 'border-hiraya-gold/50 text-hiraya-ink hover:bg-[#CB997E] hover:text-hiraya-olive active:scale-[0.98]'
                       }`}
                   >
                     {isTryingOn ? (
@@ -520,21 +520,21 @@ const ProductDetail = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="w-full py-4 rounded-lg bg-[#E9C46A] text-black uppercase text-[11px] tracking-[0.25em] font-bold transition duration-300 hover:bg-[#D4A94F] active:scale-[0.98]"
+                  className="w-full py-4 rounded-lg bg-[#CB997E] text-hiraya-olive uppercase text-[11px] tracking-[0.25em] font-bold transition duration-300 hover:bg-hiraya-cream-deep active:scale-[0.98]"
                 >
                   Sign in to Purchase
                 </button>
               )}
 
               {!user && (
-                <p className="text-center text-[10px] uppercase tracking-[0.18em] text-zinc-600 font-medium pt-1">
+                <p className="text-center text-[10px] uppercase tracking-[0.18em] text-hiraya-sand font-medium pt-1">
                   Log in to unlock the AI try-on studio and your virtual wardrobe.
                 </p>
               )}
             </div>
 
             {/* ========== ACCORDIONS ========== */}
-            <div className="pt-2 border-t border-zinc-900">
+            <div className="pt-2 border-t border-hiraya-sand">
               <AccordionItem
                 title="Order Guidelines"
                 subtitle="3:00 PM cutoff · 50% DP · non-refundable"
@@ -543,28 +543,28 @@ const ProductDetail = () => {
               >
                 <ul className="space-y-2">
                   <li className="flex gap-2.5">
-                    <span className="text-stone-200">•</span>
-                    Orders placed before <strong className="text-white">3:00 PM</strong> are processed
+                    <span className="text-hiraya-ink">•</span>
+                    Orders placed before <strong className="text-hiraya-ink">3:00 PM</strong> are processed
                     the same day.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-stone-200">•</span>
-                    A <strong className="text-white">50% down payment</strong> is required to secure your
+                    <span className="text-hiraya-ink">•</span>
+                    A <strong className="text-hiraya-ink">50% down payment</strong> is required to secure your
                     order.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-stone-200">•</span>
-                    The remaining balance must be settled <strong className="text-white">before shipping</strong>.
+                    <span className="text-hiraya-ink">•</span>
+                    The remaining balance must be settled <strong className="text-hiraya-ink">before shipping</strong>.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-stone-200">•</span>
-                    Down payments are <strong className="text-white">non-refundable</strong>, and all sales
+                    <span className="text-hiraya-ink">•</span>
+                    Down payments are <strong className="text-hiraya-ink">non-refundable</strong>, and all sales
                     are final once confirmed.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-stone-200">•</span>
-                    Shipping via <strong className="text-white">LBC</strong> or{' '}
-                    <strong className="text-white">Lalamove</strong>, chosen at checkout.
+                    <span className="text-hiraya-ink">•</span>
+                    Shipping via <strong className="text-hiraya-ink">LBC</strong> or{' '}
+                    <strong className="text-hiraya-ink">Lalamove</strong>, chosen at checkout.
                   </li>
                 </ul>
               </AccordionItem>
@@ -579,8 +579,8 @@ const ProductDetail = () => {
 
               <AccordionItem title="Shipping & Payment" subtitle="Couriers, DP and balance" icon={Truck}>
                 <p>
-                  We ship nationwide. Choose <strong className="text-white">LBC</strong> for door-to-door
-                  delivery, or <strong className="text-white">Lalamove</strong> for same-day bookings you
+                  We ship nationwide. Choose <strong className="text-hiraya-ink">LBC</strong> for door-to-door
+                  delivery, or <strong className="text-hiraya-ink">Lalamove</strong> for same-day bookings you
                   arrange yourself once the piece is ready.
                 </p>
                 <p className="mt-2.5">

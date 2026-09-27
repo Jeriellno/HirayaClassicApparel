@@ -47,6 +47,8 @@ class CheckoutController extends Controller
 
                 // Cart path
                 'source'                       => 'nullable|string|in:cart,direct',
+                'cart_item_ids'                => 'nullable|array',
+                'cart_item_ids.*'              => 'integer|min:1',
                 'items'                        => 'required_without:product_id|array|min:1',
                 'items.*.product_id'           => 'required_with:items|integer|exists:products,id',
                 'items.*.quantity'             => 'required_with:items|integer|min:1',
@@ -72,8 +74,27 @@ class CheckoutController extends Controller
             $lines = $this->normaliseLines($validated);
             $fromCart = ($validated['source'] ?? null) === 'cart';
 
+            // A selected-items cart checkout is only allowed to remove the exact
+            // bag rows represented by cart_item_ids. Never trust IDs from another
+            // user's bag: filter through the authenticated user's relationship.
+            $hasCartSelection = $fromCart && array_key_exists('cart_item_ids', $validated);
+            $cartItemIds = array_values(array_unique(array_map('intval', $validated['cart_item_ids'] ?? [])));
+            if ($hasCartSelection && count($cartItemIds) !== count($validated['items'] ?? [])) {
+                return response()->json([
+                    'message' => 'One or more selected bag items could not be matched to the order.',
+                ], 422);
+            }
+            $ownedCartItems = $fromCart && $hasCartSelection
+                ? $request->user()->cartItems()->whereIn('id', $cartItemIds)->get()
+                : collect();
+            if ($hasCartSelection && $ownedCartItems->count() !== count($cartItemIds)) {
+                return response()->json([
+                    'message' => 'One or more selected bag items are no longer available.',
+                ], 422);
+            }
+
             try {
-                $order = DB::transaction(function () use ($request, $validated, $lines, $fromCart) {
+                $order = DB::transaction(function () use ($request, $validated, $lines, $fromCart, $ownedCartItems) {
                     // 1. Re-read every product inside the transaction and lock the
                     //    rows so two concurrent checkouts for the last item cannot
                     //    both pass the stock check.
@@ -158,9 +179,15 @@ class CheckoutController extends Controller
                         $this->decrementStock($row['product'], $row['size'], $row['quantity']);
                     }
 
-                    // 7. Clear the bag only for genuine cart checkouts.
+                    // 7. Remove only the selected bag rows. Legacy clients that
+                    // omit cart_item_ids still get the old full-bag behavior.
                     if ($fromCart) {
-                        $request->user()?->cartItems()->delete();
+                        if ($ownedCartItems->isNotEmpty()) {
+                            $ownedCartItems->delete();
+                        } elseif (empty($validated['cart_item_ids'])) {
+                            // Backwards-compatible full-bag checkout from an old client.
+                            $request->user()?->cartItems()->delete();
+                        }
                     }
 
                     return $order->load('orderItems');

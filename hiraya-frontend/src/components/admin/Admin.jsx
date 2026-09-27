@@ -5,6 +5,7 @@ import InventoryTab from './tabs/inventory/InventoryTab';
 import OrdersTab from './tabs/orders/OrdersTab';
 import CanvassLookupTab from './tabs/canvass-lookup/CanvassLookupTab';
 import AlertsTab from './tabs/alerts/AlertsTab';
+import { countLowStockVariants } from './tabs/alerts/stockAlerts';
 
 const Admin = ({
   products = [],
@@ -26,13 +27,19 @@ const Admin = ({
   ordersBadge = 0,
 }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [stockAlertThreshold, setStockAlertThreshold] = useState(5);
+  const [productToOpen, setProductToOpen] = useState(null);
 
-  // Count of products below the healthy threshold (< 5 total stock) — drives the
-  // badge on the navbar Stock Alerts icon.
+  // Count of size variants at or below the configured alert threshold.
   const stockAlertsCount = useMemo(
-    () => products.filter((p) => Number(p.stock || 0) < 5).length,
-    [products]
+    () => countLowStockVariants(products, stockAlertThreshold),
+    [products, stockAlertThreshold]
   );
+
+  const openProductInInventory = (product) => {
+    setProductToOpen(product);
+    setActiveTab('inventory');
+  };
 
   return (
     <AdminLayout
@@ -53,7 +60,13 @@ const Admin = ({
       {activeTab === 'canvass-lookup' && <CanvassLookupTab />}
 
       {activeTab === 'alerts' && (
-        <AlertsTab products={products} defaultImageUrl={defaultImageUrl} />
+        <AlertsTab
+          products={products}
+          defaultImageUrl={defaultImageUrl}
+          threshold={stockAlertThreshold}
+          onThresholdChange={setStockAlertThreshold}
+          onOpenProduct={openProductInInventory}
+        />
       )}
 
       {activeTab === 'inventory' && (
@@ -73,6 +86,8 @@ const Admin = ({
           onEditClick={onEditClick}
           onDelete={onDelete}
           onBulkUpdate={onBulkUpdate}
+          productToOpen={productToOpen}
+          onProductOpened={() => setProductToOpen(null)}
         />
       )}
     </AdminLayout>

@@ -11,11 +11,11 @@ export const CORE_MEASUREMENT_FIELDS = [
 ];
 
 export const VirtualTryOnSection = ({ formData, handleChange }) => (
-  <section className="space-y-4 rounded-2xl border border-white/10 bg-[#121620] p-6 shadow-xl">
-    <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E9C46A]">
+  <section className="space-y-4 rounded-2xl border border-hiraya-olive/15 bg-[#121620] p-6 shadow-xl">
+    <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-hiraya-ink">
       <Sparkles size={16} /> 5 Core Body Measurements
     </h2>
-    <p className="text-[10px] text-gray-400">
+    <p className="text-[10px] text-hiraya-ink">
       All measurements in centimeters. These five fields are the standardized
       profile used by the AI Virtual Try-On engine.
     </p>
@@ -30,19 +30,19 @@ export const VirtualTryOnSection = ({ formData, handleChange }) => (
             value={formData[key] ?? ''}
             onChange={handleChange}
             placeholder="0"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition"
+            className="w-full rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-4 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
           />
         </Field>
       ))}
     </div>
 
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2 border-t border-white/5">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2 border-t border-hiraya-olive/15">
       <Field label="Top Size">
         <select
           name="topSize"
           value={formData.topSize}
           onChange={handleChange}
-          className="w-full rounded-xl border border-white/10 bg-[#181D2A] px-3 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition"
+          className="w-full rounded-xl border border-hiraya-olive/15 bg-[#181D2A] px-3 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
         >
           <option value="XS">Extra Small (XS)</option>
           <option value="S">Small (S)</option>
@@ -58,7 +58,7 @@ export const VirtualTryOnSection = ({ formData, handleChange }) => (
           name="bottomSize"
           value={formData.bottomSize}
           onChange={handleChange}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition"
+          className="w-full rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-4 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
         />
       </Field>
 
@@ -67,7 +67,7 @@ export const VirtualTryOnSection = ({ formData, handleChange }) => (
           name="preferredFit"
           value={formData.preferredFit}
           onChange={handleChange}
-          className="w-full rounded-xl border border-white/10 bg-[#181D2A] px-3 py-2.5 text-xs text-white focus:border-[#E9C46A] focus:outline-none transition"
+          className="w-full rounded-xl border border-hiraya-olive/15 bg-[#181D2A] px-3 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
         >
           <option value="slim">Slim / Fitted</option>
           <option value="regular">Regular</option>

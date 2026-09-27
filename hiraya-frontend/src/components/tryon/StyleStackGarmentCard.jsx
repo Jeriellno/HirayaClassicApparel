@@ -38,8 +38,8 @@ const StyleStackGarmentCard = ({ garment, isSelected, onToggle, disabled = false
         'group relative flex h-[168px] w-[132px] shrink-0 flex-col items-center justify-between',
         'overflow-hidden rounded-2xl border p-2.5 text-left transition-all duration-300',
         isSelected
-          ? 'border-[#E9C46A] bg-[#E9C46A]/10 shadow-[0_0_22px_rgba(233,196,106,0.35)]'
-          : 'border-zinc-800 bg-gradient-to-b from-zinc-900/80 to-black/80 hover:border-[#E9C46A]/50',
+          ? 'border-[#CB997E] bg-[#CB997E]/10 shadow-[0_0_22px_rgba(203,153,126,0.35)]'
+          : 'border-hiraya-sand/30 bg-gradient-to-b from-hiraya-sand/80 to-hiraya-bg/80 hover:border-[#CB997E]/50',
         disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
       ].join(' ')}
     >
@@ -51,7 +51,7 @@ const StyleStackGarmentCard = ({ garment, isSelected, onToggle, disabled = false
           className={[
             'absolute left-2 top-2 z-10 rounded-full border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider',
             garment.source === 'bag'
-              ? 'border-[#E9C46A]/40 bg-[#E9C46A]/15 text-[#E9C46A]'
+              ? 'border-[#CB997E]/40 bg-[#CB997E]/15 text-hiraya-ink'
               : 'border-sky-400/40 bg-sky-400/10 text-sky-300',
           ].join(' ')}
         >
@@ -61,14 +61,14 @@ const StyleStackGarmentCard = ({ garment, isSelected, onToggle, disabled = false
 
       {/* Selected check */}
       {isSelected && (
-        <div className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#E9C46A] text-black shadow-lg shadow-[#E9C46A]/25">
+        <div className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#CB997E] text-hiraya-olive shadow-lg shadow-[#CB997E]/25">
           <Check size={13} strokeWidth={3} />
         </div>
       )}
 
       {/* Locked state — shown while no body photo has been uploaded yet. */}
       {disabled && (
-        <div className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-zinc-400">
+        <div className="absolute right-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-hiraya-olive/60 text-hiraya-sand">
           <Lock size={10} />
         </div>
       )}
@@ -87,11 +87,11 @@ const StyleStackGarmentCard = ({ garment, isSelected, onToggle, disabled = false
 
       {/* Label + price */}
       <div className="w-full text-center">
-        <p className="truncate text-[10px] font-bold text-zinc-200">{garment.name}</p>
-        <p className="mt-0.5 text-[9px] uppercase tracking-widest text-zinc-500">
+        <p className="truncate text-[10px] font-bold text-hiraya-ink">{garment.name}</p>
+        <p className="mt-0.5 text-[9px] uppercase tracking-widest text-hiraya-sand">
           {garment.selected_size || 'Size —'} · {garment.selected_color || 'Colour —'}
         </p>
-        <p className="mt-0.5 text-[10px] font-extrabold text-[#E9C46A]">
+        <p className="mt-0.5 text-[10px] font-extrabold text-hiraya-ink">
           ₱{Number(garment.price || 0).toLocaleString()}
         </p>
       </div>

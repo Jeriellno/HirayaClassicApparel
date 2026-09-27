@@ -14,7 +14,7 @@ export default function GarmentCard({
   return (
     <div
       onClick={onClick}
-      className="group relative bg-[#121212] border border-white/10 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-stone-300/50 hover:shadow-lg hover:shadow-stone-200/10 flex flex-col"
+      className="group relative bg-[#121212] border border-hiraya-olive/15 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-hiraya-gold/50 hover:shadow-lg hover:shadow-stone-200/10 flex flex-col"
     >
       {/* 1. Image Area & Top Badge */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#1a1a1a]">
@@ -26,17 +26,17 @@ export default function GarmentCard({
 
         {/* Gold Category / Status Badge */}
         {badgeText && (
-          <span className="absolute top-3 right-3 text-[10px] font-bold tracking-wider uppercase bg-black/60 backdrop-blur-md text-stone-200 border border-stone-300/30 px-2.5 py-1 rounded-full">
+          <span className="absolute top-3 right-3 text-[10px] font-bold tracking-wider uppercase bg-hiraya-cream/50 backdrop-blur-md text-hiraya-ink border border-hiraya-olive/20 px-2.5 py-1 rounded-full">
             {badgeText}
           </span>
         )}
 
         {/* Hover Action Overlay Icons (Center) */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+        <div className="absolute inset-0 bg-hiraya-cream/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
           {onTryOn && (
             <button
               onClick={(e) => { e.stopPropagation(); onTryOn(); }}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-white hover:bg-[#E9C46A] hover:border-stone-300 transition-colors"
+              className="p-3 bg-hiraya-cream/60 backdrop-blur-md border border-hiraya-olive/20 rounded-full text-hiraya-ink hover:bg-[#CB997E] hover:border-hiraya-gold transition-colors"
               title="AI Try-On"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,7 +47,7 @@ export default function GarmentCard({
           {onWishlist && (
             <button
               onClick={(e) => { e.stopPropagation(); onWishlist(); }}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-white hover:bg-rose-500 hover:border-rose-500 transition-colors"
+              className="p-3 bg-hiraya-cream/60 backdrop-blur-md border border-hiraya-olive/20 rounded-full text-hiraya-ink hover:bg-rose-500 hover:border-rose-500 transition-colors"
               title="Add to Bag"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,25 +59,25 @@ export default function GarmentCard({
       </div>
 
       {/* 2. Bottom Label / Details Section */}
-      <div className="p-4 bg-[#141414] border-t border-white/5 flex flex-col justify-between flex-1">
+      <div className="p-4 bg-[#141414] border-t border-hiraya-olive/15 flex flex-col justify-between flex-1">
         <div>
-          <p className="text-[10px] tracking-widest text-stone-200/80 uppercase font-semibold">
+          <p className="text-[10px] tracking-widest text-hiraya-ink uppercase font-semibold">
             {category || 'GARMENT'}
           </p>
-          <h3 className="text-sm font-medium text-white/90 mt-1 line-clamp-1 group-hover:text-stone-200 transition-colors">
+          <h3 className="text-sm font-medium text-hiraya-ink/90 mt-1 line-clamp-1 group-hover:text-hiraya-ink transition-colors">
             {title}
           </h3>
         </div>
 
         {price !== undefined && (
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-white/50">PRICE</span>
+            <span className="text-xs text-hiraya-olive/70">PRICE</span>
             {/* Currency pins a font stack that actually contains U+20B1, so the
                 peso sign renders instead of falling back to a "?". */}
             <Currency
               amount={price}
               decimals={false}
-              className="text-sm font-bold tracking-wide text-stone-200"
+              className="text-sm font-bold tracking-wide text-hiraya-ink"
             />
           </div>
         )}

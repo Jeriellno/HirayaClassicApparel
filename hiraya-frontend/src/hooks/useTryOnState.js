@@ -393,6 +393,29 @@ export const useTryOnState = () => {
     top: null, bottom: null, footwear: null, outerwear: null, dress: null, accessories: null
   });
 
+  // Reuse flow: the History page leaves the selected garments here, then opens the
+  // Studio once. It is intentionally consumed on mount so a refresh/Back does not
+  // silently replace a user's new Style Stack with an old fitting.
+  useEffect(() => {
+    const raw = sessionStorage.getItem('hiraya:reuse-outfit');
+    if (!raw) return;
+    sessionStorage.removeItem('hiraya:reuse-outfit');
+    try {
+      const garments = JSON.parse(raw);
+      setSelectedGarments((current) => {
+        const next = { ...current };
+        for (const garment of garments) {
+          const category = resolveCategory(garment.category);
+          if (category === 'accessories') continue;
+          next[category] = { ...garment, productId: garment.id };
+        }
+        return next;
+      });
+    } catch {
+      // Ignore malformed temporary reuse data and leave the stack untouched.
+    }
+  }, []);
+
   // The wishlist / "Saved" bookmark layer was retired end to end (UI, API and
   // the `wishlists` table). The Studio's garment picker is now fed by exactly
   // two sources: the BAG below and the recommendation feed.

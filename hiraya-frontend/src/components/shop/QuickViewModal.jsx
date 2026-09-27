@@ -111,7 +111,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/85 backdrop-blur-md"
+            className="absolute inset-0 bg-hiraya-cream-deep/85 backdrop-blur-md"
           />
 
           <motion.div
@@ -119,19 +119,19 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 24 }}
             transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-            className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border-zinc-800 bg-zinc-950 p-6 shadow-2xl md:p-8"
+            className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border-hiraya-sand/30 bg-hiraya-olive p-6 shadow-2xl md:p-8"
           >
             <button
               onClick={onClose}
               aria-label="Close quick view"
-              className="absolute right-5 top-5 rounded-full border-zinc-800 bg-zinc-900/80 p-2 text-zinc-400 transition hover:border-stone-300/30 hover:text-stone-200"
+              className="absolute right-5 top-5 rounded-full border-hiraya-sand/30 bg-hiraya-sand/80 p-2 text-hiraya-sand transition hover:border-hiraya-olive/20 hover:text-hiraya-ink"
             >
               <X size={18} />
             </button>
 
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
               {/* PRODUCT IMAGE */}
-              <div className="relative h-80 overflow-hidden rounded-2xl border-zinc-800 bg-black">
+              <div className="relative h-80 overflow-hidden rounded-2xl border-hiraya-sand/30 bg-black">
                 <img
                   /*
                    * Resolved through the shared helper, and note the product is
@@ -147,7 +147,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                   alt={product.name}
                   className="h-full w-full object-cover"
                 />
-                <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full border-stone-300/30 bg-black/80 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-stone-200 backdrop-blur-md">
+                <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full border-hiraya-olive/20 bg-hiraya-cream-deep/80 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-hiraya-ink backdrop-blur-md">
                   <Sparkles size={10} />
                   {product.category?.replace('_', ' ') || 'GARMENT'}
                 </span>
@@ -155,28 +155,28 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
 
               <div className="flex flex-col justify-between space-y-4">
                 <div>
-                  <h2 className="mt-1 text-xl font-bold text-white">{product.name}</h2>
+                  <h2 className="mt-1 text-xl font-bold text-hiraya-ink">{product.name}</h2>
                   <Currency
                     amount={product.price || 0}
                     decimals={false}
-                    className="mt-1 block text-2xl font-black text-stone-200"
+                    className="mt-1 block text-2xl font-black text-hiraya-ink"
                   />
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                  <p className="mt-2 text-xs leading-relaxed text-hiraya-sand">
                     {product.description}
                   </p>
 
                   {(product?.material || product?.gender) && (
-                    <div className="mt-3 grid-cols-2 gap-1.5 rounded-xl border-zinc-800 bg-zinc-900/60 p-2.5 font-mono text-[10px]">
+                    <div className="mt-3 grid-cols-2 gap-1.5 rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 p-2.5 font-mono text-[10px]">
                       {product?.material && (
                         <div>
-                          <span className="text-stone-200">Fabric:</span>{' '}
-                          <span className="text-zinc-300">{product.material}</span>
+                          <span className="text-hiraya-ink">Fabric:</span>{' '}
+                          <span className="text-hiraya-ink">{product.material}</span>
                         </div>
                       )}
                       {product?.gender && (
                         <div>
-                          <span className="text-stone-200">Gender:</span>{' '}
-                          <span className="text-zinc-300">{product.gender}</span>
+                          <span className="text-hiraya-ink">Gender:</span>{' '}
+                          <span className="text-hiraya-ink">{product.gender}</span>
                         </div>
                       )}
                     </div>
@@ -185,7 +185,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
 
                 {/* SIZE SELECTION */}
                 <div className="space-y-1.5">
-                  <label className="block text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-hiraya-sand">
                     Select Size
                   </label>
                   <div className="grid max-h-36 grid-cols-3 gap-2 overflow-y-auto pr-1">
@@ -206,10 +206,10 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                           onClick={() => setSelectedSize(sz)}
                           className={`rounded-xl border py-2 px-3 text-center font-mono text-xs transition-all ${
                             soldOut
-                              ? 'cursor-not-allowed border-zinc-900 bg-zinc-900/50 text-zinc-600 line-through opacity-40'
+                              ? 'cursor-not-allowed border-hiraya-sand bg-hiraya-sand/80 text-hiraya-sand line-through opacity-40'
                               : isSelected
-                                ? 'border-stone-300 bg-[#E9C46A] font-bold text-black shadow-md'
-                                : 'border-zinc-800 bg-zinc-900/60 text-white hover:border-stone-300/50'
+                                ? 'border-hiraya-gold bg-[#CB997E] font-bold text-hiraya-olive shadow-md'
+                                : 'border-hiraya-sand/30 bg-hiraya-sand/60 text-hiraya-ink hover:border-hiraya-gold/50'
                           }`}
                         >
                           {sz}
@@ -222,7 +222,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                 {/* COLOR SELECTION */}
                 {dynamicColors.length > 0 && (
                   <div className="space-y-1.5">
-                    <label className="block text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                    <label className="block text-[9px] font-bold uppercase tracking-widest text-hiraya-sand">
                       Select Color
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -236,8 +236,8 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                             onClick={() => setSelectedColor(color)}
                             className={`rounded-xl border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                               isSelected
-                                ? 'border-stone-300 bg-[#E9C46A]/12 text-stone-200'
-                                : 'border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-stone-300/40'
+                                ? 'border-hiraya-gold bg-[#CB997E]/12 text-hiraya-ink'
+                                : 'border-hiraya-sand/30 bg-hiraya-sand/60 text-hiraya-ink hover:border-hiraya-gold/50'
                             }`}
                           >
                             {color}
@@ -254,7 +254,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                     whileTap={{ scale: 0.97 }}
                     onClick={handleAddToBag}
                     disabled={isOutOfStock || isAdding}
-                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#E9C46A] py-3.5 text-xs font-extrabold uppercase tracking-widest text-black transition hover:bg-[#D4A94F] disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#CB997E] py-3.5 text-xs font-extrabold uppercase tracking-widest text-hiraya-olive transition hover:bg-hiraya-cream-deep disabled:cursor-not-allowed disabled:bg-hiraya-sand/70 disabled:text-hiraya-sand"
                   >
                     {isOutOfStock ? (
                       'Sold Out'
@@ -288,7 +288,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                           onClose?.();
                           onTryOn(product, selectedSize, selectedColor);
                         }}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border-zinc-800 bg-zinc-900/60 py-3 text-[11px] font-bold uppercase tracking-widest text-white transition hover:border-stone-300/40 hover:text-stone-200"
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 py-3 text-[11px] font-bold uppercase tracking-widest text-hiraya-ink transition hover:border-hiraya-gold/50 hover:text-hiraya-ink"
                       >
                         <Wand2 size={15} /> Try On
                       </motion.button>
@@ -300,7 +300,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                         onClose?.();
                         navigate(`/product/${product.id}`);
                       }}
-                      className="flex-1 rounded-xl border-zinc-800 bg-zinc-900/60 py-3 text-center text-[11px] font-bold uppercase tracking-widest text-white transition hover:border-stone-300/40 hover:text-stone-200"
+                      className="flex-1 rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 py-3 text-center text-[11px] font-bold uppercase tracking-widest text-hiraya-ink transition hover:border-hiraya-gold/50 hover:text-hiraya-ink"
                     >
                       Full Details
                     </button>

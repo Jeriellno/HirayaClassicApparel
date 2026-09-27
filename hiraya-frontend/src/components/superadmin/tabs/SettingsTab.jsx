@@ -75,10 +75,10 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl">
       <div>
-        <h2 className="text-xl font-light uppercase tracking-[0.2em] text-[#E9C46A]">
+        <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
           System Controls &amp; Utilities
         </h2>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-hiraya-ink mt-1">
           Manage global platform parameters and database utility operations.
         </p>
       </div>
@@ -91,13 +91,13 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
           return (
             <div
               key={toggle.key}
-              className="p-4 bg-[#0D1017] border border-white/10 rounded-2xl flex items-center justify-between gap-4"
+              className="p-4 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl flex items-center justify-between gap-4"
             >
               <div className="min-w-0">
-                <p className="text-sm text-white font-medium flex items-center gap-2">
+                <p className="text-sm text-hiraya-ink font-medium flex items-center gap-2">
                   {toggle.name}
                 </p>
-                <p className="text-[11px] text-gray-500 mt-0.5">{toggle.description}</p>
+                <p className="text-[11px] text-hiraya-sand mt-0.5">{toggle.description}</p>
               </div>
 
               <button
@@ -105,14 +105,14 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
                 onClick={() => handleToggle(toggle.key)}
                 disabled={isBusy || !onToggle}
                 title={isOn ? 'Turn off' : 'Turn on'}
-                className="shrink-0 text-[#E9C46A] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="shrink-0 text-hiraya-ink disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isBusy ? (
                   <Loader2 size={24} className="animate-spin" />
                 ) : isOn ? (
                   <ToggleRight size={32} />
                 ) : (
-                  <ToggleLeft size={32} className="text-gray-600" />
+                  <ToggleLeft size={32} className="text-hiraya-sand" />
                 )}
               </button>
             </div>
@@ -121,11 +121,11 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
       </div>
 
       {/* Utilities Section */}
-      <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4 pt-6 mt-6">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-gray-200 flex items-center gap-2">
-          <Database size={16} className="text-[#E9C46A]" /> Capstone Demo Utilities
+      <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4 pt-6 mt-6">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+          <Database size={16} className="text-hiraya-ink" /> Capstone Demo Utilities
         </h3>
-        <p className="text-[11px] text-gray-500 normal-case tracking-normal">
+        <p className="text-[11px] text-hiraya-sand normal-case tracking-normal">
           The reset zeroes the per-product canvas-drag and try-on interaction
           counters that feed the trending-garments rankings. It does NOT delete
           orders, accounts or feedback — only those two counters.
@@ -135,9 +135,9 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
           <button
             onClick={handleExportBackup}
             disabled={isExporting}
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 border-white/10 text-gray-300 text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
+            className="px-4 py-2 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 border-hiraya-olive/15 text-hiraya-ink text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
           >
-            {isExporting ? <Loader2 size={14} className="animate-spin text-[#E9C46A]" /> : <Database size={14} className="text-[#E9C46A]" />}
+            {isExporting ? <Loader2 size={14} className="animate-spin text-hiraya-ink" /> : <Database size={14} className="text-hiraya-ink" />}
             {isExporting ? 'Generating Backup...' : 'Export Full Backup'}
           </button>
 

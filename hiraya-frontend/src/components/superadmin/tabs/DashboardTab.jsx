@@ -13,17 +13,17 @@ const DashboardTab = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-[#0D1017] border border-white/10 rounded-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#E9C46A]/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#CB997E]/5 rounded-full blur-3xl pointer-events-none" />
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ShieldCheck size={16} className="text-[#E9C46A]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#E9C46A]">SuperAdmin Control Center</span>
+            <ShieldCheck size={16} className="text-hiraya-ink" />
+            <span className="text-[10px] font-mono uppercase tracking-widest text-hiraya-ink">SuperAdmin Control Center</span>
           </div>
-          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-white">
+          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
             System Executive Dashboard
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Real-time system health, research analytics, and live AI pipeline metrics.
           </p>
         </div>
@@ -32,9 +32,9 @@ const DashboardTab = ({
           onClick={onSync || onRefresh} 
           disabled={loading}
           title="Re-read the data this tab shows"
-          className="px-5 py-2.5 bg-[#E9C46A]/10 hover:bg-[#E9C46A]/20 border border-[#E9C46A]/30 rounded-xl text-xs font-mono uppercase tracking-wider text-[#E9C46A] flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 shrink-0"
+          className="px-5 py-2.5 bg-[#CB997E]/10 hover:bg-[#CB997E]/20 border border-[#CB997E]/30 rounded-xl text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 shrink-0"
         >
-          <RefreshCw size={14} className={loading ?"animate-spin text-[#E9C46A]" :""} />
+          <RefreshCw size={14} className={loading ?"animate-spin text-hiraya-ink" :""} />
           <span>Refresh Dashboard</span>
         </button>
       </div>
@@ -46,12 +46,12 @@ const DashboardTab = ({
         <div className="lg:col-span-2 space-y-6">
           
           {/* Try-On Activity Card */}
-          <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-xs font-mono uppercase tracking-wider text-gray-200 flex items-center gap-2">
-                <Sparkles size={16} className="text-[#E9C46A]" /> Recent Try-On Activity
+          <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-hiraya-olive/15 pb-3">
+              <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+                <Sparkles size={16} className="text-hiraya-ink" /> Recent Try-On Activity
               </h3>
-              <span className="text-[9px] font-mono text-[#E9C46A] bg-[#E9C46A]/10 px-2.5 py-0.5 rounded border border-[#E9C46A]/20">
+              <span className="text-[9px] font-mono text-hiraya-ink bg-[#CB997E]/10 px-2.5 py-0.5 rounded border border-[#CB997E]/20">
                 Live Stream
               </span>
             </div>
@@ -59,11 +59,11 @@ const DashboardTab = ({
             <div className="space-y-2.5">
               {analyticsLogs && analyticsLogs.length > 0 ? (
                 analyticsLogs.slice(0, 5).map((log, idx) => (
-                  <div key={log.id || idx} className="flex justify-between items-center p-3 bg-black/40 border border-white/5 rounded-xl text-xs transition hover:border-[#E9C46A]/40">
+                  <div key={log.id || idx} className="flex justify-between items-center p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl text-xs transition hover:border-[#CB997E]/40">
                     <div className="space-y-0.5">
-                      <p className="font-mono text-white text-xs">{log.item_name || 'Garment Item'}</p>
-                      <p className="text-[10px] text-gray-400 font-mono">
-                        Paired with: <span className="text-gray-300">{log.paired_item || 'None'}</span>
+                      <p className="font-mono text-hiraya-ink text-xs">{log.item_name || 'Garment Item'}</p>
+                      <p className="text-[10px] text-hiraya-ink font-mono">
+                        Paired with: <span className="text-hiraya-ink">{log.paired_item || 'None'}</span>
                       </p>
                     </div>
                     {/*
@@ -82,7 +82,7 @@ const DashboardTab = ({
                           ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                           : log.status === 'failed'
                           ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                          : 'bg-[#E9C46A]/10 text-[#E9C46A] border-[#E9C46A]/20'
+                          : 'bg-[#CB997E]/10 text-hiraya-ink border-[#CB997E]/20'
                       }`}
                     >
                       {log.status || 'queued'}
@@ -90,7 +90,7 @@ const DashboardTab = ({
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
+                <div className="py-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest">
                   No recent AI try-on activity recorded
                 </div>
               )}
@@ -98,9 +98,9 @@ const DashboardTab = ({
           </div>
 
           {/* Recent Feedback Card */}
-          <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-xs font-mono uppercase tracking-wider text-gray-200 flex items-center gap-2">
+          <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-hiraya-olive/15 pb-3">
+              <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
                 <MessageSquare size={16} className="text-emerald-400" /> Recent User Responses
               </h3>
             </div>
@@ -108,18 +108,18 @@ const DashboardTab = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {feedbacks && feedbacks.length > 0 ? (
                 feedbacks.slice(0, 4).map((fb, idx) => (
-                  <div key={fb.id || idx} className="p-3.5 bg-black/40 rounded-xl border border-white/5 text-xs space-y-2 flex flex-col justify-between">
+                  <div key={fb.id || idx} className="p-3.5 bg-hiraya-cream/30 rounded-xl border border-hiraya-olive/15 text-xs space-y-2 flex flex-col justify-between">
                     {/* `comment` is the only text column on `feedbacks`; the old
                         `fb.comment || fb.message` fallback read a field that has
                         never existed. */}
-                    <p className="text-gray-300 italic text-[11px]">&quot;{fb.comment || '(no comment)'}&quot;</p>
-                    <p className="text-[9px] text-gray-500 font-mono border-t border-white/5 pt-2 uppercase">
+                    <p className="text-hiraya-ink italic text-[11px]">&quot;{fb.comment || '(no comment)'}&quot;</p>
+                    <p className="text-[9px] text-hiraya-sand font-mono border-t border-hiraya-olive/15 pt-2 uppercase">
                       User: {fb.user_name || fb.user_email || 'Respondent'}
                     </p>
                   </div>
                 ))
               ) : (
-                <div className="col-span-2 py-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
+                <div className="col-span-2 py-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest">
                   No feedback responses recorded
                 </div>
               )}
@@ -130,37 +130,37 @@ const DashboardTab = ({
 
         {/* Right Column: Vertical Metrics */}
         <div className="space-y-4">
-          <div className="p-4 bg-[#E9C46A]/10 border border-[#E9C46A]/30 rounded-2xl space-y-1">
-            <p className="text-[9px] uppercase tracking-widest text-[#E9C46A] font-mono">System Integrity</p>
-            <p className="text-xs text-gray-300 font-light">All core database pipelines and AI canvas modules operating at optimal status.</p>
+          <div className="p-4 bg-[#CB997E]/10 border border-[#CB997E]/30 rounded-2xl space-y-1">
+            <p className="text-[9px] uppercase tracking-widest text-hiraya-ink font-mono">System Integrity</p>
+            <p className="text-xs text-hiraya-ink font-light">All core database pipelines and AI canvas modules operating at optimal status.</p>
           </div>
 
-          <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-            <div className="flex items-center justify-between text-gray-400">
+          <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+            <div className="flex items-center justify-between text-hiraya-ink">
               <span className="text-[10px] font-mono uppercase tracking-wider">Active Items</span>
-              <Layers size={16} className="text-gray-500" />
+              <Layers size={16} className="text-hiraya-sand" />
             </div>
-            <p className="text-3xl font-mono font-bold text-white pt-1">{products.length}</p>
+            <p className="text-3xl font-mono font-bold text-hiraya-ink pt-1">{products.length}</p>
           </div>
 
-          <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-            <div className="flex items-center justify-between text-gray-400">
+          <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+            <div className="flex items-center justify-between text-hiraya-ink">
               <span className="text-[10px] font-mono uppercase tracking-wider">Canvas Sessions</span>
-              <Activity size={16} className="text-[#E9C46A]" />
+              <Activity size={16} className="text-hiraya-ink" />
             </div>
-            <p className="text-3xl font-mono font-bold text-[#E9C46A] pt-1">{activeSessions}</p>
+            <p className="text-3xl font-mono font-bold text-hiraya-ink pt-1">{activeSessions}</p>
           </div>
 
-          <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-            <div className="flex items-center justify-between text-gray-400">
+          <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+            <div className="flex items-center justify-between text-hiraya-ink">
               <span className="text-[10px] font-mono uppercase tracking-wider">Survey Feedbacks</span>
               <MessageSquare size={16} className="text-emerald-400" />
             </div>
             <p className="text-3xl font-mono font-bold text-emerald-400 pt-1">{feedbacks.length}</p>
           </div>
 
-          <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-            <div className="flex items-center justify-between text-gray-400">
+          <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+            <div className="flex items-center justify-between text-hiraya-ink">
               <span className="text-[10px] font-mono uppercase tracking-wider">AI Try-On Logs</span>
               <Sparkles size={16} className="text-purple-400" />
             </div>

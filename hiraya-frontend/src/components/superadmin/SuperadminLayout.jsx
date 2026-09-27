@@ -41,10 +41,10 @@ export const superAdminNavLinks = [
 
 const SuperadminLayout = ({ activeTab, setActiveTab, onLogout, children }) => {
   return (
-    <div className="min-h-screen bg-[#07090D] text-white flex font-sans">
+    <div className="min-h-screen bg-[#07090D] text-hiraya-ink flex font-sans">
       {/* Permanent Sidebar — always visible, no burger menu */}
-      <aside className="fixed inset-y-0 left-0 z-40 w-64 bg-[#0A0D14] border-r border-[#E9C46A]/20 pt-24 px-4 overflow-y-auto">
-        <p className="text-[10px] text-[#E9C46A]/70 uppercase tracking-widest px-3 mb-4 font-semibold">
+      <aside className="fixed inset-y-0 left-0 z-40 w-64 bg-[#0A0D14] border-r border-[#CB997E]/20 pt-24 px-4 overflow-y-auto">
+        <p className="text-[10px] text-hiraya-olive/70 uppercase tracking-widest px-3 mb-4 font-semibold">
           Control Panel Subsystems
         </p>
         <nav className="space-y-1">
@@ -57,11 +57,11 @@ const SuperadminLayout = ({ activeTab, setActiveTab, onLogout, children }) => {
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#E9C46A]/15 text-[#E9C46A] border border-[#E9C46A]/40 font-medium'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-[#CB997E]/15 text-hiraya-ink border border-[#CB997E]/40 font-medium'
+                    : 'text-hiraya-ink hover:text-hiraya-ink hover:bg-hiraya-cream/60'
                 }`}
               >
-                <Icon size={16} className={isActive ? 'text-[#E9C46A]' : 'text-gray-400'} />
+                <Icon size={16} className={isActive ? 'text-hiraya-ink' : 'text-hiraya-ink'} />
                 {item.name}
               </button>
             );
@@ -72,18 +72,18 @@ const SuperadminLayout = ({ activeTab, setActiveTab, onLogout, children }) => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header — fixed, no burger toggle */}
-        <header className="fixed top-0 left-0 w-full bg-[#07090D]/95 backdrop-blur-md border-b border-[#E9C46A]/30 z-50 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3">
+        <header className="fixed top-0 left-0 w-full bg-[#07090D]/95 backdrop-blur-md border-b border-[#CB997E]/30 z-50 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg font-light tracking-[0.15em] sm:tracking-[0.2em] text-[#E9C46A] uppercase font-serif truncate">
+                <h1 className="text-base sm:text-lg font-light tracking-[0.15em] sm:tracking-[0.2em] text-hiraya-ink uppercase font-serif truncate">
                   Hiraya Master Console
                 </h1>
                 <span className="flex items-center gap-1 text-[9px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/40 font-mono animate-pulse whitespace-nowrap">
                   <Radio size={10} /> Live Database Synced
                 </span>
               </div>
-              <span className="text-[10px] bg-[#E9C46A]/20 text-[#E9C46A] px-2 py-0.5 rounded border border-[#E9C46A]/40 uppercase tracking-widest font-semibold">
+              <span className="text-[10px] bg-[#CB997E]/20 text-hiraya-ink px-2 py-0.5 rounded border border-[#CB997E]/40 uppercase tracking-widest font-semibold">
                 Super Admin Level
               </span>
             </div>

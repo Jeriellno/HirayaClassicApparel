@@ -13,18 +13,18 @@ const GARMENT_FILTERS = [
 
 const ShopHeader = ({ activeSubCat, onSelectSubCat }) => {
   return (
-    <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/10 pb-8">
+    <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-hiraya-olive/15 pb-8">
       <div>
-        <h1 className="text-4xl font-extralight uppercase tracking-[0.35em] text-[#E9C46A]">
+        <h1 className="text-4xl font-extralight uppercase tracking-[0.35em] text-hiraya-ink">
           The Collection
         </h1>
-        <p className="text-[10px] text-gray-500 uppercase mt-2 tracking-[0.4em] italic font-medium">
+        <p className="text-[10px] text-hiraya-sand uppercase mt-2 tracking-[0.4em] italic font-medium">
           Handpicked Artifacts for AI Fitting
         </p>
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        <Filter size={14} className="text-[#E9C46A] mr-2 shrink-0" />
+        <Filter size={14} className="text-hiraya-ink mr-2 shrink-0" />
         {GARMENT_FILTERS.map((opt) => (
           <motion.button
             key={opt.value}
@@ -32,8 +32,8 @@ const ShopHeader = ({ activeSubCat, onSelectSubCat }) => {
             onClick={() => onSelectSubCat(opt.value)}
             className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition shrink-0 ${
               activeSubCat === opt.value
-                ? 'bg-[#E9C46A] text-black shadow-md'
-                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/5'
+                ? 'bg-[#CB997E] text-hiraya-olive shadow-md'
+                : 'bg-hiraya-cream/60 text-hiraya-ink hover:bg-hiraya-cream/60 hover:text-hiraya-ink border border-hiraya-olive/15'
             }`}
           >
             {opt.label}

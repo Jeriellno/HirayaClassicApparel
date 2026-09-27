@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Package, Tag, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 
 // Modals
@@ -10,6 +10,8 @@ const InventoryTab = ({
   defaultImageUrl = '',
   onSubmit, // Callback para sa Create/Update API request
   onDelete, // Callback para sa Delete API request
+  productToOpen = null,
+  onProductOpened,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -17,6 +19,13 @@ const InventoryTab = ({
   // Modal Control States
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  useEffect(() => {
+    if (!productToOpen) return;
+    setSelectedProduct(productToOpen);
+    setIsProductModalOpen(true);
+    onProductOpened?.();
+  }, [productToOpen, onProductOpened]);
 
   // Safe parser para sa sizes
   const parseSizesSafely = (rawSizes) => {
@@ -99,28 +108,28 @@ const InventoryTab = ({
   return (
     <div className="space-y-6 pb-12 relative">
       {/* Header Banner with Add Button */}
-      <div className="bg-gradient-to-r from-[#0D1017] via-[#161B22] to-[#0D1017] border border-[#E9C46A]/20 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-gradient-to-r from-[#FFE8D6] via-[#DDBEA9] to-[#FFE8D6] border border-[#CB997E]/20 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="h-2 w-2 rounded-full bg-[#E9C46A] animate-pulse"></span>
-            <span className="text-xs font-mono uppercase tracking-widest text-[#E9C46A]">
+            <span className="h-2 w-2 rounded-full bg-[#CB997E] animate-pulse"></span>
+            <span className="text-xs font-mono uppercase tracking-widest text-hiraya-ink">
               Catalog & Stock Control
             </span>
           </div>
-          <h1 className="text-xl font-bold font-mono tracking-tight text-white">Inventory Management</h1>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <h1 className="text-xl font-bold font-mono tracking-tight text-hiraya-ink">Inventory Management</h1>
+          <p className="text-xs text-hiraya-ink mt-0.5">
             Manage garment specifications, matrix sizes, and stock levels in full view.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="px-3 py-2 bg-[#1A1F2C] border border-white/10 rounded-xl text-xs font-mono text-gray-300">
-            Total Products: <span className="text-[#E9C46A] font-bold">{products.length}</span>
+          <div className="px-3 py-2 bg-[#1A1F2C] border border-hiraya-olive/15 rounded-xl text-xs font-mono text-hiraya-ink">
+            Total Products: <span className="text-hiraya-ink font-bold">{products.length}</span>
           </div>
           <button
             type="button"
             onClick={handleOpenAddModal}
-            className="px-4 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] text-black text-xs font-mono font-bold uppercase rounded-xl flex items-center gap-2 transition cursor-pointer shadow-lg"
+            className="px-4 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep text-hiraya-olive text-xs font-mono font-bold uppercase rounded-xl flex items-center gap-2 transition cursor-pointer shadow-lg"
           >
             <Plus size={16} />
             Add New Garment
@@ -129,16 +138,16 @@ const InventoryTab = ({
       </div>
 
       {/* Catalog Controls & Grid Section */}
-      <div className="bg-[#0D1017] border border-[#E9C46A]/20 rounded-2xl p-6 shadow-xl space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 border-b border-white/10">
+      <div className="bg-hiraya-cream border border-[#CB997E]/20 rounded-2xl p-6 shadow-xl space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 pb-4 border-b border-hiraya-olive/15">
           <div className="relative w-full md:w-80">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#E9C46A]" size={14} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-hiraya-ink" size={14} />
             <input
               type="text"
               placeholder="Search catalog name or category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#161B22] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-[#E9C46A]"
+              className="w-full bg-[#DDBEA9] border border-hiraya-olive/15 rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono text-hiraya-ink placeholder-gray-500 focus:outline-none focus:border-[#CB997E]"
             />
           </div>
 
@@ -151,8 +160,8 @@ const InventoryTab = ({
                   onClick={() => setSelectedCategory(cat)}
                   className={`text-[10px] font-mono px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer ${
                     selectedCategory === cat
-                      ? 'bg-[#E9C46A] text-black font-bold shadow-md'
-                      : 'bg-[#161B22] text-gray-400 hover:text-white border border-white/5'
+                      ? 'bg-[#CB997E] text-hiraya-ink font-bold shadow-md'
+                      : 'bg-[#DDBEA9] text-hiraya-ink hover:text-hiraya-ink border border-hiraya-olive/15'
                   }`}
                 >
                   {cat.replace(/_/g, ' ')}
@@ -164,9 +173,9 @@ const InventoryTab = ({
 
         {/* Garments Grid Layout */}
         {filteredProducts.length === 0 ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3 bg-[#161B22]/40 rounded-2xl border border-dashed border-white/10">
-            <Package size={32} className="text-gray-500" />
-            <p className="text-xs font-mono text-gray-400">No garments found in catalog matching your filter.</p>
+          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3 bg-[#DDBEA9]/40 rounded-2xl border border-dashed border-hiraya-olive/15">
+            <Package size={32} className="text-hiraya-sand" />
+            <p className="text-xs font-mono text-hiraya-ink">No garments found in catalog matching your filter.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -201,7 +210,7 @@ const InventoryTab = ({
                 <div
                   key={item.id}
                   onClick={() => handleOpenEditModal(item)}
-                  className="p-4 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden flex flex-col justify-between bg-[#161B22]/60 border-white/5 hover:border-white/20 hover:bg-[#161B22]"
+                  className="p-4 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden flex flex-col justify-between bg-[#DDBEA9]/60 border-hiraya-olive/15 hover:border-hiraya-olive/20 hover:bg-[#DDBEA9]"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3 mb-3">
@@ -209,17 +218,17 @@ const InventoryTab = ({
                         <img
                           src={item.display_image_url || item.image_url || defaultImageUrl}
                           alt={item.name || 'Garment'}
-                          className="w-14 h-14 object-cover rounded-xl border border-white/10 shrink-0 group-hover:scale-105 transition-transform"
+                          className="w-14 h-14 object-cover rounded-xl border border-hiraya-olive/15 shrink-0 group-hover:scale-105 transition-transform"
                         />
                         <div className="min-w-0 space-y-0.5">
-                          <h4 className="text-xs font-bold text-white line-clamp-1 group-hover:text-[#E9C46A] transition-colors">
+                          <h4 className="text-xs font-bold text-hiraya-ink line-clamp-1 group-hover:text-hiraya-ink transition-colors">
                             {item.name || 'Unnamed Garment'}
                           </h4>
-                          <p className="text-xs font-mono text-[#E9C46A] font-bold">
+                          <p className="text-xs font-mono text-hiraya-ink font-bold">
                             ₱{item.price ? Number(item.price).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'}
                           </p>
-                          <div className="flex items-center gap-1 text-[10px] text-gray-400 font-mono">
-                            <Tag size={10} className="text-gray-500" />
+                          <div className="flex items-center gap-1 text-[10px] text-hiraya-ink font-mono">
+                            <Tag size={10} className="text-hiraya-sand" />
                             <span className="truncate">{item.category?.replace(/_/g, ' ') || 'Uncategorized'}</span>
                           </div>
                         </div>
@@ -238,14 +247,14 @@ const InventoryTab = ({
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                  <div className="pt-3 border-t border-hiraya-olive/15 flex items-center justify-between">
                     <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[9px] font-mono text-gray-500 uppercase mr-1">Sizes:</span>
+                      <span className="text-[9px] font-mono text-hiraya-sand uppercase mr-1">Sizes:</span>
                       {availableSizes.length > 0 ? (
                         availableSizes.map((size) => (
                           <span
                             key={size}
-                            className="text-[9px] font-mono px-2 py-0.5 bg-black/40 border border-white/10 rounded text-gray-300"
+                            className="text-[9px] font-mono px-2 py-0.5 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded text-hiraya-ink"
                           >
                             {size}
                           </span>
@@ -264,13 +273,13 @@ const InventoryTab = ({
                       >
                         <Trash2 size={13} />
                       </button>
-                      <span className="text-[10px] font-mono text-[#E9C46A] group-hover:underline">
+                      <span className="text-[10px] font-mono text-hiraya-ink group-hover:underline">
                         Edit Entry &rarr;
                       </span>
                     </div>
                   </div>
                     {Object.keys(itemMeasurements).length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-white/5 text-[9px] font-mono text-gray-500 grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+                      <div className="mt-2 pt-2 border-t border-hiraya-olive/15 text-[9px] font-mono text-hiraya-sand grid grid-cols-1 sm:grid-cols-2 gap-x-3">
                         {Object.entries(itemMeasurements).map(([size, measurements]) => {
                           const summary = [
                             measurements?.chest_bust,
@@ -282,7 +291,7 @@ const InventoryTab = ({
 
                           return summary.length > 0 ? (
                             <div key={size} className="flex gap-1 leading-4 truncate">
-                              <span className="text-[#E9C46A] font-bold shrink-0">{size}</span>
+                              <span className="text-hiraya-ink font-bold shrink-0">{size}</span>
                               <span className="truncate">{summary.join(' / ')} cm</span>
                             </div>
                           ) : null;

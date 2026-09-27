@@ -99,18 +99,18 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
         <div>
-          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-[#E9C46A]">
+          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
             Canvas Research Analytics &amp; Data Export
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Quantitative fitting interaction logs and capstone research metrics.
           </p>
         </div>
         <button
           onClick={exportSurveyCSV}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-hiraya-ink text-xs font-mono font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           <Download size={15} /> Export Dataset (CSV)
         </button>
@@ -124,8 +124,8 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
             onClick={() => setRange(r.id)}
             className={`px-4 py-2 rounded-lg text-[10px] font-mono uppercase tracking-widest border transition cursor-pointer ${
               range === r.id
-                ? 'bg-[#E9C46A]/15 text-[#E9C46A] border-[#E9C46A]/40 font-medium'
-                : 'text-gray-400 border-white/10 hover:text-white hover:border-white/30'
+                ? 'bg-[#CB997E]/15 text-hiraya-ink border-[#CB997E]/40 font-medium'
+                : 'text-hiraya-ink border-hiraya-olive/15 hover:text-hiraya-ink hover:border-hiraya-olive/30'
             }`}
           >
             {r.label}
@@ -135,31 +135,31 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
 
       {/* Visual Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-gray-400">
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <div className="flex items-center justify-between text-hiraya-ink">
             <span className="text-[10px] font-mono uppercase tracking-wider">Total Interactions</span>
-            <Activity size={16} className="text-[#E9C46A]" />
+            <Activity size={16} className="text-hiraya-ink" />
           </div>
-          <p className="text-3xl font-mono font-bold text-white pt-1">{totalLogs}</p>
+          <p className="text-3xl font-mono font-bold text-hiraya-ink pt-1">{totalLogs}</p>
         </div>
 
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-gray-400">
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <div className="flex items-center justify-between text-hiraya-ink">
             <span className="text-[10px] font-mono uppercase tracking-wider">Completion Rate</span>
             <Sparkles size={16} className="text-emerald-400" />
           </div>
           <p className="text-3xl font-mono font-bold text-emerald-400 pt-1">
             {completionRate === null ? '—' : `${completionRate}%`}
           </p>
-          <p className="text-[10px] text-gray-500">
+          <p className="text-[10px] text-hiraya-sand">
             {totalLogs > 0
               ? `${completedCount} of ${totalLogs} finished${failedCount > 0 ? ` · ${failedCount} failed` : ''}`
               : 'no sessions yet'}
           </p>
         </div>
 
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-gray-400">
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <div className="flex items-center justify-between text-hiraya-ink">
             <span className="text-[10px] font-mono uppercase tracking-wider">Completed Fittings</span>
             <PieChart size={16} className="text-purple-400" />
           </div>
@@ -168,10 +168,10 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
       </div>
 
       {/* ACTIVITY TREND */}
-      <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-gray-300 flex items-center gap-2">
-          <Activity size={16} className="text-[#E9C46A]" /> Daily Activity
-          <span className="text-gray-600 normal-case tracking-normal">
+      <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-3">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+          <Activity size={16} className="text-hiraya-ink" /> Daily Activity
+          <span className="text-hiraya-sand normal-case tracking-normal">
             ({activeRange.label})
           </span>
         </h3>
@@ -181,30 +181,30 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
             {trend.map((t) => (
               <div
                 key={t.key}
-                className="flex-1 min-w-[3px] bg-[#E9C46A]/70 hover:bg-[#E9C46A] rounded-t transition"
+                className="flex-1 min-w-[3px] bg-[#CB997E]/70 hover:bg-[#CB997E] rounded-t transition"
                 style={{ height: `${Math.max(2, (t.count / maxTrend) * 100)}%` }}
                 title={`${t.key}: ${t.count}`}
               />
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
+          <div className="py-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest">
             No activity in this period
           </div>
         )}
       </div>
 
       {/* Interaction Table */}
-      <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-2.5">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-gray-300 mb-3 flex items-center gap-2">
-          <BarChart2 size={16} className="text-[#E9C46A]" /> Live Try-On Activity Stream
+      <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-2.5">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink mb-3 flex items-center gap-2">
+          <BarChart2 size={16} className="text-hiraya-ink" /> Live Try-On Activity Stream
         </h3>
 
         {logs.length > 0 ? (
           logs.map((log, idx) => (
-            <div key={idx} className="p-3.5 bg-black/40 border border-white/5 rounded-xl flex justify-between items-center text-xs font-mono hover:border-white/10 transition">
-              <div className="flex items-center gap-2.5 text-gray-300">
-                <span className="text-gray-500 text-[10px]">#{idx + 1}</span>
+            <div key={idx} className="p-3.5 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl flex justify-between items-center text-xs font-mono hover:border-hiraya-olive/15 transition">
+              <div className="flex items-center gap-2.5 text-hiraya-ink">
+                <span className="text-hiraya-sand text-[10px]">#{idx + 1}</span>
                 <span>{log.user_name || 'Customer'} - {log.item_name || 'Garment Item'}</span>
               </div>
               <span className={`px-2.5 py-1 rounded text-[10px] border ${
@@ -212,14 +212,14 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                   : log.status === 'failed'
                   ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                  : 'bg-[#E9C46A]/10 border-[#E9C46A]/30 text-[#E9C46A]'
+                  : 'bg-[#CB997E]/10 border-[#CB997E]/30 text-hiraya-ink'
               }`}>
                 {log.status || 'queued'}
               </span>
             </div>
           ))
         ) : (
-          <div className="py-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest">
+          <div className="py-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest">
             No research interaction logs captured in this period
           </div>
         )}

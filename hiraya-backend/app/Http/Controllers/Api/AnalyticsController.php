@@ -7,6 +7,7 @@ use App\Models\Feedback;
 use App\Models\Product;
 use App\Models\TryOnSession;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AnalyticsController extends Controller
@@ -217,9 +218,17 @@ class AnalyticsController extends Controller
      * Returns catalog-wide totals so the dashboard has a single server-side
      * source instead of recomputing everything from the product list.
      */
-    public function dashboardMetrics()
+    public function dashboardMetrics(Request $request)
     {
         try {
+            $period = $request->query('period', 'month');
+            if (! in_array($period, ['day', 'week', 'month'], true)) {
+                return response()->json([
+                    'message' => 'The period must be day, week, or month.',
+                    'errors' => ['period' => ['Choose a valid dashboard period.']],
+                ], 422);
+            }
+
             /*
              * AGGREGATE IN SQL — DO NOT HYDRATE THE CATALOG HERE.
              *
@@ -265,6 +274,28 @@ class AnalyticsController extends Controller
                 ->map(fn ($count) => (int) $count)
                 ->all();
 
+            $now = now();
+            $periodStart = match ($period) {
+                'day' => $now->copy()->startOfDay(),
+                'week' => $now->copy()->startOfWeek(),
+                'month' => $now->copy()->startOfMonth(),
+            };
+
+            $operations = DB::table('orders')
+                ->selectRaw(
+                    'COALESCE(SUM(CASE WHEN created_at BETWEEN ? AND ? THEN CASE payment_status WHEN ? THEN total_amount WHEN ? THEN dp_amount ELSE 0 END ELSE 0 END), 0) AS revenue',
+                    [$periodStart, $now, 'fully_paid', '50_paid']
+                )
+                ->selectRaw(
+                    'COALESCE(SUM(CASE WHEN payment_status = ? THEN total_amount WHEN payment_status = ? THEN balance_amount ELSE 0 END), 0) AS outstanding_balance',
+                    ['pending', '50_paid']
+                )
+                ->selectRaw('SUM(CASE WHEN payment_status = ? THEN 1 ELSE 0 END) AS awaiting_dp_count', ['pending'])
+                ->selectRaw('SUM(CASE WHEN order_status = ? THEN 1 ELSE 0 END) AS processing_count', ['processing'])
+                ->selectRaw('SUM(CASE WHEN order_status IN (?, ?) THEN 1 ELSE 0 END) AS shipping_count', ['ready_for_shipping', 'shipped'])
+                ->selectRaw('SUM(CASE WHEN created_at BETWEEN ? AND ? THEN 1 ELSE 0 END) AS period_order_count', [$periodStart, $now])
+                ->first();
+
             return response()->json([
                 'total_products'       => $totalProducts,
                 'totalProducts'        => $totalProducts,
@@ -278,6 +309,17 @@ class AnalyticsController extends Controller
                 'total_try_ons'        => (int) ($row->total_try_ons ?? 0),
                 'category_distribution'=> $distribution,
                 'categoryDistribution' => $distribution,
+                'operations' => [
+                    'period' => $period,
+                    'period_start' => $periodStart->toIso8601String(),
+                    'period_end' => $now->toIso8601String(),
+                    'revenue' => (float) ($operations->revenue ?? 0),
+                    'period_order_count' => (int) ($operations->period_order_count ?? 0),
+                    'outstanding_balance' => (float) ($operations->outstanding_balance ?? 0),
+                    'awaiting_dp_count' => (int) ($operations->awaiting_dp_count ?? 0),
+                    'processing_count' => (int) ($operations->processing_count ?? 0),
+                    'shipping_count' => (int) ($operations->shipping_count ?? 0),
+                ],
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Dashboard Metrics Error: ' . $e->getMessage());

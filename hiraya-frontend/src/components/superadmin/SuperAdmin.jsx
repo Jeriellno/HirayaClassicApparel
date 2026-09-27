@@ -893,14 +893,14 @@ const SuperAdmin = ({ onLogout }) => {
             <p className="text-red-400 font-bold uppercase tracking-widest">
               Backend unreachable
             </p>
-            <p className="text-gray-300 normal-case tracking-normal mt-1">
+            <p className="text-hiraya-ink normal-case tracking-normal mt-1">
               The console cannot reach the API server, so the figures below may be
               stale or empty. The tab will refresh automatically once the backend
               responds again.
             </p>
-            <p className="text-gray-500 normal-case tracking-normal mt-1.5">
+            <p className="text-hiraya-sand normal-case tracking-normal mt-1.5">
               Check that the Laravel server is running:{' '}
-              <code className="text-[#E9C46A]">php artisan serve</code>
+              <code className="text-hiraya-ink">php artisan serve</code>
             </p>
           </div>
         </div>
@@ -926,13 +926,13 @@ const SuperAdmin = ({ onLogout }) => {
             <p className="text-amber-400 font-bold uppercase tracking-widest">
               Some data could not be loaded
             </p>
-            <p className="text-gray-300 normal-case tracking-normal mt-1">
+            <p className="text-hiraya-ink normal-case tracking-normal mt-1">
               Failed: {datasetErrors.map((e) => e.label).join(', ')}
               {backendReachable
                 ? ' — the server is responding, so these panels may show stale or empty values.'
                 : ' — the server is unreachable.'}
             </p>
-            <p className="text-gray-500 normal-case tracking-normal mt-1.5">
+            <p className="text-hiraya-sand normal-case tracking-normal mt-1.5">
               {datasetErrors[0].message}
             </p>
             <button
@@ -962,14 +962,14 @@ const SuperAdmin = ({ onLogout }) => {
             <p className="text-sky-300 font-bold uppercase tracking-widest">
               Last action
             </p>
-            <p className="text-gray-300 normal-case tracking-normal mt-1">
+            <p className="text-hiraya-ink normal-case tracking-normal mt-1">
               {actionError}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setActionError(null)}
-            className="shrink-0 text-gray-500 hover:text-gray-300 uppercase tracking-widest text-[10px] font-bold"
+            className="shrink-0 text-hiraya-sand hover:text-hiraya-ink uppercase tracking-widest text-[10px] font-bold"
           >
             Dismiss
           </button>
@@ -1029,16 +1029,16 @@ const SuperAdmin = ({ onLogout }) => {
         * single sentence.
         */}
       {confirmResetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="max-w-md w-full rounded-2xl border border-stone-700 bg-stone-900 p-6 font-mono text-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream/50 p-6">
+          <div className="max-w-md w-full rounded-2xl border border-hiraya-sand/35 bg-hiraya-olive/60 p-6 font-mono text-xs">
             <p className="text-amber-400 font-bold uppercase tracking-widest">
               Reset interaction counters?
             </p>
-            <p className="text-gray-300 normal-case tracking-normal mt-3">
+            <p className="text-hiraya-ink normal-case tracking-normal mt-3">
               This zeroes the canvas-drag and try-on counts on{' '}
-              <strong className="text-white">every product</strong>, which resets the
+              <strong className="text-hiraya-ink">every product</strong>, which resets the
               trending-garments rankings.{' '}
-              <strong className="text-white">Orders, accounts and feedback are NOT
+              <strong className="text-hiraya-ink">Orders, accounts and feedback are NOT
               affected.</strong>
             </p>
             <div className="mt-5 flex justify-end gap-3">
@@ -1046,7 +1046,7 @@ const SuperAdmin = ({ onLogout }) => {
                 type="button"
                 onClick={() => setConfirmResetOpen(false)}
                 disabled={resetBusy}
-                className="px-4 py-2 rounded-lg border border-stone-600 text-gray-300 uppercase tracking-widest text-[10px] font-bold hover:bg-stone-800 disabled:opacity-40"
+                className="px-4 py-2 rounded-lg border border-hiraya-sand/45 text-hiraya-ink uppercase tracking-widest text-[10px] font-bold hover:bg-hiraya-sand/70 disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -1054,7 +1054,7 @@ const SuperAdmin = ({ onLogout }) => {
                 type="button"
                 onClick={clearDemoAnalytics}
                 disabled={resetBusy}
-                className="px-4 py-2 rounded-lg bg-amber-500 text-black uppercase tracking-widest text-[10px] font-bold hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-amber-500 text-hiraya-olive uppercase tracking-widest text-[10px] font-bold hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {resetBusy ? 'Resetting…' : 'Yes, reset'}
               </button>

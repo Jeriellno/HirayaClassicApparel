@@ -42,8 +42,8 @@ const MAX_GARMENT_SCALE = 0.88;
 const FRAME = {
   background: '#000',
   vignette: '#161616',
-  gold: '#E9C46A',
-  goldSoft: '#F2D89B',
+  gold: '#CB997E',
+  goldSoft: '#FFE8D6',
 };
 
 /** Load an image element from any URL / data URI / blob URL. */
@@ -668,7 +668,7 @@ const drawWordmark = async (ctx, width, height) => {
   ctx.font = '500 40px Cinzel, serif';
   ctx.fillText('HIRAYA', width / 2, footY);
   ctx.font = '600 14px "Plus Jakarta Sans", sans-serif';
-  ctx.fillStyle = 'rgba(233, 196, 106, 0.7)';
+  ctx.fillStyle = 'rgba(203, 153, 126, 0.7)';
   ctx.fillText('V I R T U A L   W A R D R O B E', width / 2, footY + 40);
 };
 

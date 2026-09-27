@@ -473,29 +473,29 @@ export default function InventoryTab({
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
         <div>
-          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-[#E9C46A] flex items-center gap-2">
+          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink flex items-center gap-2">
             <Package size={20} /> Product Inventory & AI Catalog
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Manage garment inventory, size stocks, and AI Recommendation parameters in one place.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="px-4 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] text-black font-mono text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-4 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep text-hiraya-olive font-mono text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           <Plus size={16} /> Add Product with AI Attributes
         </button>
       </div>
 
       {/* INVENTORY TABLE */}
-      <div className="bg-[#0D1017] border border-white/10 rounded-2xl overflow-hidden text-xs">
+      <div className="bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl overflow-hidden text-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-white/5 border-b border-white/10 uppercase tracking-wider text-[10px] font-mono text-gray-400">
+            <thead className="bg-hiraya-cream/60 border-b border-hiraya-olive/15 uppercase tracking-wider text-[10px] font-mono text-hiraya-ink">
               <tr>
                 <th className="p-4">Product Name</th>
                 <th className="p-4">Category</th>
@@ -506,7 +506,7 @@ export default function InventoryTab({
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-gray-300 font-mono">
+            <tbody className="divide-y divide-white/5 text-hiraya-ink font-mono">
                {products && products.length > 0 ? (
                  products.map((item, idx) => {
                    const sumSizes = (sizesObj) => Object.values(sizesObj).reduce((a, b) => {
@@ -547,7 +547,7 @@ export default function InventoryTab({
                   const fitType = aiTags.fit_type || item.fit_type || 'REGULAR';
 
                   return (
-                    <tr key={item.id || idx} className="hover:bg-white/5 transition">
+                    <tr key={item.id || idx} className="hover:bg-hiraya-cream/60 transition">
                       <td className="p-4 flex items-center gap-3">
                         {/*
                           * CATALOG IMAGE FIRST — same resolution order the Admin console
@@ -564,7 +564,7 @@ export default function InventoryTab({
                           <img
                             src={item.display_image_url || item.image_url || item.image}
                             alt={item.name}
-                            className="w-10 h-10 object-cover rounded-lg border border-white/10 bg-black/40 shrink-0"
+                            className="w-10 h-10 object-cover rounded-lg border border-hiraya-olive/15 bg-hiraya-cream/30 shrink-0"
                             onError={(e) => {
                               /*
                                * Local placeholder, not `via.placeholder.com`.
@@ -581,15 +581,15 @@ export default function InventoryTab({
                             }}
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-hiraya-cream/60 border border-hiraya-olive/15 flex items-center justify-center text-hiraya-sand shrink-0">
                             <ImageIcon size={18} />
                           </div>
                         )}
-                        <span className="font-medium text-white">{item.name}</span>
+                        <span className="font-medium text-hiraya-ink">{item.name}</span>
                       </td>
 
-                      <td className="p-4 uppercase text-gray-400">{item.category || 'N/A'}</td>
-                      <td className="p-4 text-white">₱{Number(item.price || 0).toLocaleString()}</td>
+                      <td className="p-4 uppercase text-hiraya-ink">{item.category || 'N/A'}</td>
+                      <td className="p-4 text-hiraya-ink">₱{Number(item.price || 0).toLocaleString()}</td>
 
                        <td className="p-4">
                          <div className="flex flex-wrap gap-1 max-w-[180px]">
@@ -597,7 +597,7 @@ export default function InventoryTab({
                              activeSizes.map(([sz, szData]) => {
                                const qty = typeof szData === 'object' && szData !== null ? (szData.stock || 0) : szData;
                                return (
-                                 <span key={sz} className="px-1.5 py-0.5 bg-[#E9C46A]/10 border border-[#E9C46A]/30 text-[#E9C46A] text-[9px] rounded">
+                                 <span key={sz} className="px-1.5 py-0.5 bg-[#CB997E]/10 border border-[#CB997E]/30 text-hiraya-ink text-[9px] rounded">
                                    {sz}: {qty}
                                  </span>
                                );
@@ -655,7 +655,7 @@ export default function InventoryTab({
                 })
               ) : (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-gray-500 uppercase tracking-widest">
+                  <td colSpan="7" className="p-8 text-center text-hiraya-sand uppercase tracking-widest">
                     No products found in inventory
                   </td>
                 </tr>
@@ -667,15 +667,15 @@ export default function InventoryTab({
 
       {/* UNIFIED ADD / EDIT PRODUCT + AI ATTRIBUTES MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-[#0D1017] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-mono text-xs max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream-deep/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-mono text-xs max-h-[90vh] flex flex-col">
 
             {/* Modal Header */}
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
-              <h3 className="font-bold text-[#E9C46A] uppercase tracking-wider flex items-center gap-2">
+            <div className="p-4 border-b border-hiraya-olive/15 flex justify-between items-center bg-hiraya-cream/60 shrink-0">
+              <h3 className="font-bold text-hiraya-ink uppercase tracking-wider flex items-center gap-2">
                 <Package size={16} /> {editingId ? 'Edit Product & AI Tags' : 'Add New Product with AI Attributes'}
               </h3>
-              <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-gray-400 hover:text-white p-1 rounded-lg transition">
+              <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-hiraya-ink hover:text-hiraya-ink p-1 rounded-lg transition">
                 <X size={18} />
               </button>
             </div>
@@ -684,12 +684,12 @@ export default function InventoryTab({
 
               {/* SECTION 1: BASIC PRODUCT INFORMATION */}
               <div className="space-y-3">
-                <span className="text-[10px] text-[#E9C46A] font-bold uppercase tracking-widest block border-b border-white/5 pb-1">
+                <span className="text-[10px] text-hiraya-ink font-bold uppercase tracking-widest block border-b border-hiraya-olive/15 pb-1">
                   1. Basic Product Information
                 </span>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1">Product Name *</label>
+                  <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Product Name *</label>
                   <input
                     type="text"
                     name="name"
@@ -697,18 +697,18 @@ export default function InventoryTab({
                     placeholder="e.g. Modern Filipiniana Barong Top"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#E9C46A]"
+                    className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1">Category *</label>
+                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Category *</label>
                     <select
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#E9C46A]"
+                      className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
                     >
                       <option value="TOPS">TOPS</option>
                       <option value="BOTTOMS">BOTTOMS</option>
@@ -720,7 +720,7 @@ export default function InventoryTab({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1">Price (₱) *</label>
+                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Price (₱) *</label>
                     <input
                       type="number"
                       name="price"
@@ -728,7 +728,7 @@ export default function InventoryTab({
                       placeholder="1299"
                       value={formData.price}
                       onChange={handleInputChange}
-                      className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#E9C46A]"
+                      className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
                     />
                   </div>
                 </div>
@@ -747,7 +747,7 @@ export default function InventoryTab({
                       name="undertone"
                       value={formData.undertone}
                       onChange={handleInputChange}
-                      className="w-full bg-black/50 border border-purple-500/30 rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-400"
+                      className="w-full bg-hiraya-cream/40 border border-purple-500/30 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-purple-400"
                     >
                       <option value="WARM">WARM</option>
                       <option value="COOL">COOL</option>
@@ -761,7 +761,7 @@ export default function InventoryTab({
                       name="fit_type"
                       value={formData.fit_type}
                       onChange={handleInputChange}
-                      className="w-full bg-black/50 border border-purple-500/30 rounded-xl p-2.5 text-white focus:outline-none focus:border-purple-400"
+                      className="w-full bg-hiraya-cream/40 border border-purple-500/30 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-purple-400"
                     >
                       <option value="SLIM">SLIM FIT</option>
                       <option value="REGULAR">REGULAR FIT</option>
@@ -783,8 +783,8 @@ export default function InventoryTab({
                           onClick={() => handleToggleArrayItem('body_shapes', shape)}
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition border cursor-pointer ${
                             selected
-                              ? 'bg-purple-500 border-purple-400 text-white'
-                              : 'bg-black/40 border-purple-500/20 text-gray-400 hover:border-purple-500/40'
+                              ? 'bg-purple-500 border-purple-400 text-hiraya-ink'
+                              : 'bg-hiraya-cream/30 border-purple-500/20 text-hiraya-ink hover:border-purple-500/40'
                           }`}
                         >
                           {shape}
@@ -807,8 +807,8 @@ export default function InventoryTab({
                           onClick={() => handleToggleArrayItem('occasions', occ)}
                           className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition border cursor-pointer ${
                             selected
-                              ? 'bg-[#E9C46A] border-[#E9C46A] text-black'
-                              : 'bg-black/40 border-white/10 text-gray-400 hover:border-white/30'
+                              ? 'bg-[#CB997E] border-[#CB997E] text-hiraya-olive'
+                              : 'bg-hiraya-cream/30 border-hiraya-olive/15 text-hiraya-ink hover:border-hiraya-olive/30'
                           }`}
                         >
                           {occ}
@@ -820,10 +820,10 @@ export default function InventoryTab({
               </div>
 
               {/* SECTION 3: SIZE & INVENTORY MANAGEMENT */}
-              <div className="p-3 bg-white/5 border border-white/10 rounded-xl space-y-3">
-                <div className="flex justify-between items-center border-b border-white/5 pb-1">
-                  <span className="text-[10px] uppercase text-[#E9C46A] font-bold">3. Size Inventory Breakdown</span>
-                  <span className="text-[10px] text-gray-400">Calculated Stock: <strong className="text-white">{computedTotalStock}</strong></span>
+              <div className="p-3 bg-hiraya-cream/60 border border-hiraya-olive/15 rounded-xl space-y-3">
+                <div className="flex justify-between items-center border-b border-hiraya-olive/15 pb-1">
+                  <span className="text-[10px] uppercase text-hiraya-ink font-bold">3. Size Inventory Breakdown</span>
+                  <span className="text-[10px] text-hiraya-ink">Calculated Stock: <strong className="text-hiraya-ink">{computedTotalStock}</strong></span>
                 </div>
 
                 <div className="flex gap-2 items-center">
@@ -833,12 +833,12 @@ export default function InventoryTab({
                     placeholder="Quick Qty"
                     value={bulkStock}
                     onChange={(e) => setBulkStock(e.target.value)}
-                    className="w-24 bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-[#E9C46A]"
+                    className="w-24 bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-lg px-2 py-1 text-xs text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
                   />
                   <button
                     type="button"
                     onClick={handleApplyBulkStock}
-                    className="px-3 py-1 bg-[#E9C46A] hover:bg-[#D4A94F] text-black font-bold uppercase rounded-lg text-[10px] transition cursor-pointer"
+                    className="px-3 py-1 bg-[#CB997E] hover:bg-hiraya-cream-deep text-hiraya-olive font-bold uppercase rounded-lg text-[10px] transition cursor-pointer"
                   >
                     Apply Quantity
                   </button>
@@ -851,15 +851,15 @@ export default function InventoryTab({
                      const qty = typeof szData === 'object' && szData !== null ? (szData.stock || 0) : szData;
 
                     return (
-                      <div key={sz} className={`p-2 rounded-lg border ${isConfigured ? 'bg-[#E9C46A]/10 border-[#E9C46A]' : 'bg-black/40 border-white/10'}`}>
+                      <div key={sz} className={`p-2 rounded-lg border ${isConfigured ? 'bg-[#CB997E]/10 border-[#CB997E]' : 'bg-hiraya-cream/30 border-hiraya-olive/15'}`}>
                         <button
                           type="button"
                           onClick={() => handleToggleSize(sz)}
                           className="w-full flex items-center justify-between mb-1 cursor-pointer"
                         >
-                          <span className="flex items-center gap-1.5 font-bold text-white">
-                            <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${isConfigured ? 'bg-[#E9C46A] border-[#E9C46A]' : 'bg-black border-white/30'}`}>
-                              {isConfigured && <Check size={10} className="text-black" strokeWidth={3} />}
+                          <span className="flex items-center gap-1.5 font-bold text-hiraya-ink">
+                            <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${isConfigured ? 'bg-[#CB997E] border-[#CB997E]' : 'bg-black border-hiraya-olive/30'}`}>
+                              {isConfigured && <Check size={10} className="text-hiraya-olive" strokeWidth={3} />}
                             </span>
                             {sz}
                           </span>
@@ -870,7 +870,7 @@ export default function InventoryTab({
                             min="0"
                             value={qty}
                             onChange={(e) => handleSizeStockChange(sz, e.target.value)}
-                            className="w-full bg-black/60 border border-white/20 rounded px-1.5 py-0.5 text-xs text-white text-center focus:outline-none focus:border-[#E9C46A]"
+                            className="w-full bg-hiraya-cream/50 border border-hiraya-olive/20 rounded px-1.5 py-0.5 text-xs text-hiraya-ink text-center focus:outline-none focus:border-[#CB997E]"
                           />
                         )}
                       </div>
@@ -881,17 +881,17 @@ export default function InventoryTab({
 
               {/* SECTION 4: PRODUCT MEDIA */}
               <div className="space-y-2">
-                <span className="text-[10px] text-[#E9C46A] font-bold uppercase tracking-widest block border-b border-white/5 pb-1">
+                <span className="text-[10px] text-hiraya-ink font-bold uppercase tracking-widest block border-b border-hiraya-olive/15 pb-1">
                   4. Product Media
                 </span>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1">Garment Image File</label>
+                  <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Garment Image File</label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2 text-gray-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#E9C46A] file:text-black hover:file:bg-[#D4A94F]"
+                    className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2 text-hiraya-ink file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[#CB997E] file:text-hiraya-olive hover:file:bg-hiraya-cream-deep"
                   />
                 </div>
 
@@ -913,25 +913,25 @@ export default function InventoryTab({
                 )}
 
                 {previewUrl && (
-                  <div className="p-3 bg-black/60 border border-white/10 rounded-xl space-y-3">
+                  <div className="p-3 bg-hiraya-cream/50 border border-hiraya-olive/15 rounded-xl space-y-3">
                     {compositeUrl && (
                       <div className="flex items-center gap-3">
-                        <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border-[#E9C46A]/50 bg-black">
+                        <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border-[#CB997E]/50 bg-black">
                           <img src={compositeUrl} alt="Background-removed preview" className="w-full h-full object-cover" />
-                          <span className="absolute bottom-0 inset-x-0 bg-[#E9C46A] text-black text-[7px] font-black uppercase tracking-wider text-center py-0.5">
+                          <span className="absolute bottom-0 inset-x-0 bg-[#CB997E] text-hiraya-olive text-[7px] font-black uppercase tracking-wider text-center py-0.5">
                             No BG
                           </span>
                         </div>
-                        <p className="text-[10px] text-[#E9C46A] font-bold uppercase">
+                        <p className="text-[10px] text-hiraya-ink font-bold uppercase">
                           Background removed — ito ang lalabas sa shop
                         </p>
                       </div>
                     )}
                     <div className="flex items-center gap-3">
-                      <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border border-white/10 bg-white/5">
+                      <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden border border-hiraya-olive/15 bg-hiraya-cream/60">
                         <img src={previewUrl} alt="Original preview" className="w-full h-full object-cover" />
                         {compositeUrl && (
-                          <span className="absolute bottom-0 inset-x-0 bg-black/80 text-gray-300 text-[7px] font-black uppercase tracking-wider text-center py-0.5">
+                          <span className="absolute bottom-0 inset-x-0 bg-hiraya-cream-deep/80 text-hiraya-ink text-[7px] font-black uppercase tracking-wider text-center py-0.5">
                             Original
                           </span>
                         )}
@@ -949,19 +949,19 @@ export default function InventoryTab({
               )}
 
               {/* FORM ACTIONS */}
-              <div className="pt-3 flex justify-end gap-2 border-t border-white/10 shrink-0">
+              <div className="pt-3 flex justify-end gap-2 border-t border-hiraya-olive/15 shrink-0">
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 text-gray-400 hover:text-white rounded-xl disabled:opacity-50 transition cursor-pointer"
+                  className="px-4 py-2.5 text-hiraya-ink hover:text-hiraya-ink rounded-xl disabled:opacity-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || isAnalyzingImage}
-                  className="px-5 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] text-black font-bold uppercase rounded-xl flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
+                  className="px-5 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep text-hiraya-olive font-bold uppercase rounded-xl flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
                 >
                   {(isSubmitting || isAnalyzingImage) && <Loader2 size={14} className="animate-spin" />}
                   {editingId ? 'Update Product' : 'Save Product'}

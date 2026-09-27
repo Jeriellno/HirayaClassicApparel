@@ -20,13 +20,13 @@ const GuestHero = () => {
     };
 
     return (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0A0C10] pt-20">
+        <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-hiraya-bg pt-20">
             {/* Ambient Navy/Midnight Background Elements */}
             <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-[#1A2536] rounded-full blur-[150px] opacity-40" />
             <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[70%] bg-[#0F172A] rounded-full blur-[130px] opacity-50" />
             
             {/* Subtle Navy Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0C10]/60 to-[#0A0C10] z-0" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#6B705C]/60 to-[#6B705C] z-0" />
 
             <motion.div 
                 variants={containerVariants}
@@ -36,19 +36,19 @@ const GuestHero = () => {
             >
                 {/* Brand Tagline */}
                 <motion.div variants={itemVariants} className="flex justify-center mb-10">
-                    <span className="px-8 py-3 rounded-full border border-[#E9C46A]/40 bg-[#E9C46A]/5 backdrop-blur-xl text-[13px] uppercase tracking-[0.5em] text-[#E9C46A] font-black shadow-[0_0_20px_rgba(245,235,224,0.12)]">
+                    <span className="px-8 py-3 rounded-full border border-[#CB997E]/40 bg-[#CB997E]/5 backdrop-blur-xl text-[13px] uppercase tracking-[0.5em] text-hiraya-ink font-black shadow-[0_0_20px_rgba(245,235,224,0.12)]">
                         The Future of Fitting
                     </span>
                 </motion.div>
 
                 {/* Main Heading */}
-                <motion.h1 variants={itemVariants} className="text-6xl md:text-[6rem] font-light text-[#E9C46A] mb-10 tracking-tighter leading-[1.05]">
-                    Your Closet, <span className="italic font-serif text-[#E9C46A]">Redefined.</span><br />
+                <motion.h1 variants={itemVariants} className="text-6xl md:text-[6rem] font-light text-hiraya-ink mb-10 tracking-tighter leading-[1.05]">
+                    Your Closet, <span className="italic font-serif text-hiraya-ink">Redefined.</span><br />
                     <span className="font-medium">AI-Powered Style.</span>
                 </motion.h1>
 
                 {/* System Introduction */}
-                <motion.p variants={itemVariants} className="max-w-3xl mx-auto text-gray-400 text-lg md:text-2xl leading-relaxed mb-16 font-light tracking-wide">
+                <motion.p variants={itemVariants} className="max-w-3xl mx-auto text-hiraya-ink text-lg md:text-2xl leading-relaxed mb-16 font-light tracking-wide">
                     Experience a seamless virtual fit and expert AI styling to discover your perfect look.
                     Hiraya blends traditional elegance with modern intelligence.
                 </motion.p>
@@ -57,13 +57,13 @@ const GuestHero = () => {
                 <motion.div variants={itemVariants} className="flex flex-col md:flex-row items-center justify-center gap-8 mb-28">
                     <button
                         onClick={() => navigate('/register')}
-                        className="group px-14 py-7 bg-[#F5F5F5] text-[#0A0C10] rounded-full text-[14px] uppercase tracking-[0.3em] font-black hover:bg-white transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-4"
+                        className="group px-14 py-7 bg-[#F5F5F5] text-[#6B705C] rounded-full text-[14px] uppercase tracking-[0.3em] font-black hover:bg-hiraya-cream transition-all shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-4"
                     >
                         Get Started for Free <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
                     </button>
                     <button
                         onClick={() => navigate('/login')}
-                        className="px-14 py-7 bg-transparent border-2 border-white/10 text-[#F5F5F5] rounded-full text-[14px] uppercase tracking-[0.3em] font-bold hover:bg-white/5 hover:border-white/30 transition-all backdrop-blur-md"
+                        className="px-14 py-7 bg-transparent border-2 border-hiraya-olive/15 text-[#F5F5F5] rounded-full text-[14px] uppercase tracking-[0.3em] font-bold hover:bg-hiraya-cream/60 hover:border-hiraya-olive/30 transition-all backdrop-blur-md"
                     >
                         Sign In to Profile
                     </button>
@@ -76,12 +76,12 @@ const GuestHero = () => {
                         { icon: <ShieldCheck size={28} />, title:"Privacy First", desc:"Your portraits are processed locally and securely, ensuring your data remains yours." },
                         { icon: <Zap size={28} />, title:"Instant Styling", desc:"No more guesswork. Visualize outfits on your body in real-time with one click." }
                     ].map((feature, index) => (
-                        <div key={index} className="p-12 rounded-[3.5rem] bg-white/[0.03] backdrop-blur-2xl border border-white/5 text-left hover:border-[#E9C46A]/30 transition-all duration-500 group hover:bg-white/[0.05]">
-                            <div className="w-16 h-16 bg-[#1A1C20] border border-white/5 rounded-2xl flex items-center justify-center text-[#E9C46A] mb-8 shadow-2xl group-hover:scale-110 group-hover:shadow-[#E9C46A]/10 transition-all duration-500">
+                        <div key={index} className="p-12 rounded-[3.5rem] bg-white/[0.03] backdrop-blur-2xl border border-hiraya-olive/15 text-left hover:border-[#CB997E]/30 transition-all duration-500 group hover:bg-white/[0.05]">
+                            <div className="w-16 h-16 bg-[#1A1C20] border border-hiraya-olive/15 rounded-2xl flex items-center justify-center text-hiraya-ink mb-8 shadow-2xl group-hover:scale-110 group-hover:shadow-[#CB997E]/10 transition-all duration-500">
                                 {feature.icon}
                             </div>
-                            <h4 className="text-[14px] uppercase tracking-[0.3em] font-black text-[#E9C46A] mb-5">{feature.title}</h4>
-                            <p className="text-[16px] text-gray-400 leading-relaxed font-light">{feature.desc}</p>
+                            <h4 className="text-[14px] uppercase tracking-[0.3em] font-black text-hiraya-ink mb-5">{feature.title}</h4>
+                            <p className="text-[16px] text-hiraya-ink leading-relaxed font-light">{feature.desc}</p>
                         </div>
                     ))}
                 </motion.div>

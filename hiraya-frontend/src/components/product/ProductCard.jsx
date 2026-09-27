@@ -86,14 +86,14 @@ const ProductCard = ({
       to={'/product/' + product?.id}
       aria-label={'View ' + (product?.name || 'garment') + ' details'}
       className={
-        'block bg-zinc-950 rounded-xl overflow-hidden group transition-all duration-300 flex-col h-full relative ' +
+        'block bg-hiraya-cream rounded-xl overflow-hidden group transition-all duration-300 flex-col h-full relative ' +
         (isRecommended
-          ? 'border-2 border-stone-300 shadow-[0_0_24px_rgba(245,235,224,0.22)]'
-          : 'border border-zinc-800 hover:border-stone-300/50')
+          ? 'border-2 border-hiraya-gold shadow-[0_10px_30px_rgba(107,112,92,0.35)]'
+          : 'border border-hiraya-olive/15 hover:border-hiraya-gold shadow-lg shadow-hiraya-sand/20')
       }
     >
       {/* MEDIA */}
-      <div className={'relative w-full ' + heightClass + ' bg-black overflow-hidden flex-shrink-0'}>
+      <div className={'relative w-full ' + heightClass + ' bg-hiraya-olive overflow-hidden flex-shrink-0'}>
         {/*
          * `object-contain`, NOT `object-cover`.
          *
@@ -123,7 +123,12 @@ const ProductCard = ({
         {fitBadge}
 
         {/* CATEGORY TAG */}
-        <span className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] uppercase tracking-[0.15em] text-stone-200 font-bold border-stone-300/20 z-20 flex items-center gap-1">
+        {/**
+          * CATEGORY TAG — a chip ON the image, so it stays dark-ink-on-light for
+          * legibility against an unknown photo, using the palette's olive rather
+          * than pure black.
+          */}
+        <span className="absolute top-3 left-3 bg-hiraya-cream-deep/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] uppercase tracking-[0.15em] text-hiraya-ink font-bold border-hiraya-olive/20 z-20 flex items-center gap-1">
           {isFormalWear && <Sparkles size={10} />}
           {categoryLabel}
         </span>
@@ -138,8 +143,8 @@ const ProductCard = ({
             className={
               'absolute top-3 right-3 z-20 h-9 w-9 rounded-full flex items-center justify-center backdrop-blur-md border transition duration-300 ' +
               (isSaved
-                ? 'bg-[#E9C46A] border-stone-300 text-black'
-                : 'bg-black/60 border-white/15 text-white hover:bg-[#E9C46A] hover:border-stone-300 hover:text-black')
+                ? 'bg-[#CB997E] border-hiraya-gold text-hiraya-olive'
+                : 'bg-hiraya-cream/50 border-hiraya-olive/20 text-hiraya-ink hover:bg-[#CB997E] hover:border-hiraya-gold hover:text-hiraya-olive')
             }
           >
             <Heart size={15} className={isSaved ? 'fill-black' : ''} />
@@ -156,7 +161,7 @@ const ProductCard = ({
                 e.stopPropagation();
                 onQuickView(product);
               }}
-              className="w-full flex items-center justify-center gap-2 bg-[#E9C46A] text-black text-[10px] font-bold uppercase tracking-[0.2em] py-3 hover:bg-[#D4A94F] transition"
+              className="w-full flex items-center justify-center gap-2 bg-[#CB997E] text-hiraya-ink text-[10px] font-bold uppercase tracking-[0.2em] py-3 hover:bg-[#A5A58D] transition"
             >
               View Details <ArrowRight size={13} />
             </button>
@@ -164,16 +169,23 @@ const ProductCard = ({
         )}
       </div>
 
-      {/* DETAILS */}
-      <div className="px-4 py-4 bg-zinc-950 border-t border-zinc-900 flex-col justify-between flex-1">
+      {/**
+        * DETAILS — the card's LIGHT half.
+        *
+        * Ink here is olive (#6B705C on #FFE8D6 ≈ 5.5:1), NOT cream: the card is
+        * a light surface sitting on the olive canvas, so its text inverts relative
+        * to the page. That inversion is what separates a card from the background
+        * in this palette — surface contrast, not a drop shadow alone.
+        */}
+      <div className="px-4 py-4 bg-hiraya-cream flex-col justify-between flex-1">
         {isRecommended && (
-          <div className="mb-3 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-stone-200">
+          <div className="mb-3 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-hiraya-olive/70">
             <Sparkles size={11} /> Recommended for your measurements
           </div>
         )}
 
         <div>
-          <h3 className="text-sm font-semibold text-white tracking-wide leading-snug">
+          <h3 className="text-sm font-semibold text-hiraya-olive tracking-wide leading-snug">
             {product?.name || 'Untitled Item'}
           </h3>
 
@@ -181,8 +193,8 @@ const ProductCard = ({
             <div className="mt-2 flex-wrap gap-1">
               {Object.entries(product.attributes).map(([key, value]) =>
                 value ? (
-                  <span key={key} className="text-[9px] bg-zinc-900 border-zinc-800 text-zinc-400 px-2 py-0.5 rounded">
-                    <span className="text-stone-200 capitalize">{key.replace('_', ' ')}:</span> {value}
+                  <span key={key} className="text-[9px] bg-[#CB997E]/25 border border-[#CB997E]/40 text-hiraya-olive px-2 py-0.5 rounded">
+                    <span className="text-hiraya-olive/70 capitalize">{key.replace('_', ' ')}:</span> {value}
                   </span>
                 ) : null
               )}
@@ -190,18 +202,28 @@ const ProductCard = ({
           )}
 
           {product?.description && (
-            <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed line-clamp-2">
+            <p className="text-[10px] text-hiraya-olive/70 mt-1.5 leading-relaxed line-clamp-2">
               {product.description}
             </p>
           )}
         </div>
 
-        <div className="mt-4 pt-3 border-t border-zinc-900 flex items-center justify-between gap-3">
-          <Currency amount={numericPrice} className="text-[15px] font-bold text-stone-200 tracking-wide" />
+        <div className="mt-4 pt-3 border-t border-hiraya-olive/15 flex items-center justify-between gap-3">
+          <Currency amount={numericPrice} className="text-[15px] font-bold text-hiraya-olive tracking-wide" />
 
-          <span className="text-[10px] uppercase tracking-[0.15em] font-semibold text-zinc-500 group-hover:text-stone-200 transition flex items-center gap-1">
-            View <ArrowRight size={12} />
-          </span>
+          {/*
+           * NO "VIEW" LABEL HERE — ON PURPOSE.
+           *
+           * The card already has ONE call to action: the "View Details" bar that
+           * slides up over the image on hover/tap. A second, static "View →"
+           * sitting next to the price competed with it and split the customer's
+           * attention between two identical actions, one of which looked like a
+           * plain label rather than a control.
+           *
+           * The whole card is a <Link>, so nothing was actually lost: clicking
+           * anywhere on the tile still opens the product. The hover bar remains
+           * the visible, unambiguous affordance.
+           */}
         </div>
       </div>
     </Link>

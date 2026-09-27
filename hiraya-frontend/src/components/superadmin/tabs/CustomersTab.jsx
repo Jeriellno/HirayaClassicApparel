@@ -151,12 +151,12 @@ const CustomersTab = () => {
   return (
     <div className="space-y-6 animate-fadeIn font-mono text-xs">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
         <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-[#E9C46A] flex items-center gap-2">
+          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-hiraya-ink flex items-center gap-2">
             <Users size={22} /> CUSTOMER DIRECTORY
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Search customers, review their saved measurements and order history,
             and suspend or reactivate accounts.
           </p>
@@ -165,7 +165,7 @@ const CustomersTab = () => {
         <button
           onClick={fetchCustomers}
           disabled={fetching}
-          className="px-4 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] disabled:opacity-50 text-black font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-4 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep disabled:opacity-50 text-hiraya-olive font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           <RefreshCw size={16} className={fetching ? 'animate-spin' : ''} />
           {fetching ? 'Loading' : 'Refresh'}
@@ -174,19 +174,19 @@ const CustomersTab = () => {
 
       {/* METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400">Total Customers</p>
-          <p className="text-3xl font-bold text-white pt-1">{customers.length}</p>
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Total Customers</p>
+          <p className="text-3xl font-bold text-hiraya-ink pt-1">{customers.length}</p>
         </div>
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400">Active</p>
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Active</p>
           <p className="text-3xl font-bold text-emerald-400 pt-1">
             {customers.length - suspendedCount}
           </p>
         </div>
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-gray-400">Suspended</p>
-          <p className={`text-3xl font-bold pt-1 ${suspendedCount > 0 ? 'text-red-400' : 'text-white'}`}>
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Suspended</p>
+          <p className={`text-3xl font-bold pt-1 ${suspendedCount > 0 ? 'text-red-400' : 'text-hiraya-ink'}`}>
             {suspendedCount}
           </p>
         </div>
@@ -203,8 +203,8 @@ const CustomersTab = () => {
             key={tab.id}
             onClick={() => setStatus(tab.id)}
             className={`px-4 py-2 rounded-lg text-[10px] uppercase tracking-widest border transition cursor-pointer ${status === tab.id
-                ? 'bg-[#E9C46A]/15 text-[#E9C46A] border-[#E9C46A]/40 font-medium'
-                : 'text-gray-400 border-white/10 hover:text-white hover:border-white/30'
+                ? 'bg-[#CB997E]/15 text-hiraya-ink border-[#CB997E]/40 font-medium'
+                : 'text-hiraya-ink border-hiraya-olive/15 hover:text-hiraya-ink hover:border-hiraya-olive/30'
               }`}
           >
             {tab.label}
@@ -212,13 +212,13 @@ const CustomersTab = () => {
         ))}
 
         <div className="relative ml-auto">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-hiraya-sand" />
           <input
             type="text"
             placeholder="Search name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 pr-3 py-2 bg-[#0A0D14] border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-[#E9C46A] text-xs w-full sm:w-64"
+            className="pl-8 pr-3 py-2 bg-[#0A0D14] border border-hiraya-olive/15 rounded-xl text-hiraya-ink placeholder-gray-600 focus:outline-none focus:border-[#CB997E] text-xs w-full sm:w-64"
           />
         </div>
       </div>
@@ -230,10 +230,10 @@ const CustomersTab = () => {
       )}
 
       {/* TABLE */}
-      <div className="bg-[#0A0D14] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="bg-[#0A0D14] border border-hiraya-olive/15 rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-[#111622] border-b border-white/10 uppercase tracking-widest text-[10px] text-gray-400">
+            <thead className="bg-[#111622] border-b border-hiraya-olive/15 uppercase tracking-widest text-[10px] text-hiraya-ink">
               <tr>
                 <th className="p-4">CUSTOMER</th>
                 <th className="p-4">LAST SEEN</th>
@@ -242,45 +242,45 @@ const CustomersTab = () => {
                 <th className="p-4 text-right">ACTIONS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-gray-300">
+            <tbody className="divide-y divide-white/5 text-hiraya-ink">
               {fetching ? (
                 <tr>
-                  <td colSpan="5" className="py-20 text-center text-gray-500 uppercase tracking-[0.25em]">
-                    <Loader2 size={20} className="animate-spin text-[#E9C46A] mx-auto mb-2" />
+                  <td colSpan="5" className="py-20 text-center text-hiraya-sand uppercase tracking-[0.25em]">
+                    <Loader2 size={20} className="animate-spin text-hiraya-ink mx-auto mb-2" />
                     Loading Customers...
                   </td>
                 </tr>
               ) : visible.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="py-20 text-center text-gray-500 uppercase tracking-[0.25em] font-light">
+                  <td colSpan="5" className="py-20 text-center text-hiraya-sand uppercase tracking-[0.25em] font-light">
                     {customers.length === 0 ? 'NO CUSTOMERS FOUND' : 'NOTHING MATCHES THIS VIEW'}
                   </td>
                 </tr>
               ) : (
                 visible.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-white/5 transition">
+                  <tr key={customer.id} className="hover:bg-hiraya-cream/60 transition">
                     <td className="p-4">
                       <button
                         onClick={() => openDetail(customer)}
                         className="flex items-center gap-3 text-left cursor-pointer group"
                       >
-                        <div className="w-8 h-8 rounded-full bg-[#E9C46A]/10 border border-[#E9C46A]/30 flex items-center justify-center text-[#E9C46A] font-bold">
+                        <div className="w-8 h-8 rounded-full bg-[#CB997E]/10 border border-[#CB997E]/30 flex items-center justify-center text-hiraya-ink font-bold">
                           {(customer.full_name || customer.email || '?').charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-semibold text-white group-hover:text-[#E9C46A] transition">
+                          <div className="font-semibold text-hiraya-ink group-hover:text-hiraya-ink transition">
                             {customer.full_name || 'Unnamed Customer'}
                           </div>
-                          <div className="text-[10px] text-gray-500">{customer.email}</div>
+                          <div className="text-[10px] text-hiraya-sand">{customer.email}</div>
                         </div>
                       </button>
                     </td>
 
-                    <td className="p-4 text-[11px] text-gray-400">
+                    <td className="p-4 text-[11px] text-hiraya-ink">
                       {formatWhen(customer.last_login_at)}
                     </td>
 
-                    <td className="p-4 text-[11px] text-gray-400">
+                    <td className="p-4 text-[11px] text-hiraya-ink">
                       {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '—'}
                     </td>
 
@@ -299,7 +299,7 @@ const CustomersTab = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openDetail(customer)}
-                          className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 rounded-lg transition cursor-pointer"
+                          className="p-2 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 border border-hiraya-olive/15 text-hiraya-ink rounded-lg transition cursor-pointer"
                           title="View profile"
                         >
                           <Search size={14} />
@@ -346,27 +346,27 @@ const CustomersTab = () => {
       {detail && (
         <div
           onClick={() => setDetail(null)}
-          className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 sm:p-8 overflow-y-auto"
+          className="fixed inset-0 z-[60] bg-hiraya-cream-deep/80 backdrop-blur-sm flex items-start justify-center p-4 sm:p-8 overflow-y-auto"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#0A0D14] border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            className="bg-[#0A0D14] border border-hiraya-olive/15 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
           >
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <h3 className="font-bold text-[#E9C46A] uppercase tracking-wider flex items-center gap-2">
+            <div className="p-4 border-b border-hiraya-olive/15 flex justify-between items-center bg-hiraya-cream/60">
+              <h3 className="font-bold text-hiraya-ink uppercase tracking-wider flex items-center gap-2">
                 <Users size={16} /> CUSTOMER PROFILE
               </h3>
               <button
                 onClick={() => setDetail(null)}
-                className="text-gray-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
+                className="text-hiraya-ink hover:text-hiraya-ink p-1 rounded-lg transition cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             {loadingDetail && detail.loading ? (
-              <div className="py-20 text-center text-gray-500">
-                <Loader2 size={22} className="animate-spin text-[#E9C46A] mx-auto mb-3" />
+              <div className="py-20 text-center text-hiraya-sand">
+                <Loader2 size={22} className="animate-spin text-hiraya-ink mx-auto mb-3" />
                 <span className="uppercase tracking-widest text-[10px]">Loading profile…</span>
               </div>
             ) : (
@@ -374,10 +374,10 @@ const CustomersTab = () => {
                 {/* Identity */}
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-white text-base font-semibold">
+                    <p className="text-hiraya-ink text-base font-semibold">
                       {detail.full_name || 'Unnamed Customer'}
                     </p>
-                    <p className="text-gray-500 flex items-center gap-1.5 mt-1">
+                    <p className="text-hiraya-sand flex items-center gap-1.5 mt-1">
                       <Mail size={12} /> {detail.email}
                     </p>
                   </div>
@@ -393,25 +393,25 @@ const CustomersTab = () => {
 
                 {/* Summary */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1 flex items-center gap-1">
+                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1 flex items-center gap-1">
                       <ShoppingBag size={11} /> Orders
                     </p>
-                    <p className="text-gray-200 text-lg font-bold">{detail.order_count ?? 0}</p>
+                    <p className="text-hiraya-ink text-lg font-bold">{detail.order_count ?? 0}</p>
                   </div>
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Lifetime Value</p>
+                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">Lifetime Value</p>
                     <p className="text-emerald-400 text-lg font-bold">{peso(detail.lifetime_value)}</p>
                   </div>
-                  <div className="p-3 bg-black/40 border border-white/5 rounded-xl">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Last Seen</p>
-                    <p className="text-gray-200">{formatWhen(detail.last_login_at)}</p>
+                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">Last Seen</p>
+                    <p className="text-hiraya-ink">{formatWhen(detail.last_login_at)}</p>
                   </div>
                 </div>
 
                 {/* Measurements */}
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 flex items-center gap-1.5">
+                  <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-2 flex items-center gap-1.5">
                     <Ruler size={12} /> Saved Body Measurements
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
@@ -425,9 +425,9 @@ const CustomersTab = () => {
                       ['Bottom Size', detail.measurements?.bottom_size],
                       ['Preferred Fit', detail.measurements?.preferred_fit],
                     ].map(([label, value]) => (
-                      <div key={label} className="p-2.5 bg-black/40 border border-white/5 rounded-lg">
-                        <p className="text-[9px] uppercase tracking-widest text-gray-500">{label}</p>
-                        <p className="text-gray-200">
+                      <div key={label} className="p-2.5 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-lg">
+                        <p className="text-[9px] uppercase tracking-widest text-hiraya-sand">{label}</p>
+                        <p className="text-hiraya-ink">
                           {value === null || value === undefined || value === '' ? '—' : value}
                         </p>
                       </div>
@@ -438,23 +438,23 @@ const CustomersTab = () => {
                 {/* Orders */}
                 {detail.orders?.length > 0 && (
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Order History</p>
+                    <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-2">Order History</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {detail.orders.map((o) => (
                         <div
                           key={o.id}
-                          className="flex items-center justify-between p-2.5 bg-black/40 border border-white/5 rounded-lg text-[11px]"
+                          className="flex items-center justify-between p-2.5 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-lg text-[11px]"
                         >
-                          <span className="text-gray-300">Order #{o.id}</span>
-                          <span className="text-gray-500">{o.payment_status}</span>
-                          <span className="text-white">{peso(o.total_amount)}</span>
+                          <span className="text-hiraya-ink">Order #{o.id}</span>
+                          <span className="text-hiraya-sand">{o.payment_status}</span>
+                          <span className="text-hiraya-ink">{peso(o.total_amount)}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
+                <div className="flex justify-end gap-2 pt-3 border-t border-hiraya-olive/15">
                   {detail.suspended_at ? (
                     <button
                       onClick={() => {

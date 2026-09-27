@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\OccasionBackgroundResolver;
+use App\Services\GeminiKeyPool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -36,10 +37,16 @@ class ProductImageAnalysisController extends Controller
             'image' => ['required', 'string', 'regex:/^data:image\/(png|jpeg|jpg|webp);base64,/'],
         ]);
 
-        $apiKey = config('services.gemini.key');
+        /*
+         * POOL, NOT A SINGLE KEY — the key that answers comes from
+         * App\Services\GeminiKeyPool, which rotates to the next key when the
+         * current one's daily quota is drained (429). With no GEMINI_API_KEYS
+         * configured this behaves exactly as a single GEMINI_API_KEY.
+         */
+        $apiKey = GeminiKeyPool::current();
         if (!$apiKey) {
             return response()->json([
-                'message' => 'Automatic garment analysis is not configured. Add GEMINI_API_KEY to the backend environment.',
+                'message' => 'Automatic garment analysis is not configured. Add GEMINI_API_KEY (or GEMINI_API_KEYS) to the backend environment.',
             ], 503);
         }
 
@@ -166,8 +173,14 @@ PROMPT],
                 $message = 'The configured Gemini vision model "' . config('services.gemini.model') . '" is not '
                     . 'available. Set GEMINI_VISION_MODEL to a current model (e.g. gemini-2.5-flash) in the backend .env.';
             } elseif (str_contains($lower, 'suspended') || str_contains($lower, 'permission denied')) {
-                $message = 'The Gemini API key is invalid or suspended. Replace GEMINI_API_KEY in the backend .env file.';
+                /* A dead key must never answer again today — report it so the
+                 * pool rotates past it on the next request. */
+                GeminiKeyPool::markInvalid($apiKey);
+                $message = 'The Gemini API key is invalid or suspended. Replace the drained key in the backend .env file.';
             } elseif (str_contains($lower, 'quota') || str_contains($lower, 'rate limit') || $response->status() === 429) {
+                /* The DAILY bucket for this key is gone — put it on cooldown so
+                 * the pool serves the next request from the next key. */
+                GeminiKeyPool::markRateLimited($apiKey);
                 $message = 'The Gemini analysis quota was reached. Wait a moment, then try again.';
             } elseif ($response->status() === 503 || str_contains($lower, 'overloaded') || str_contains($lower, 'unavailable')) {
                 /*

@@ -112,22 +112,22 @@ const Login = () => {
                 transition={{ duration: 0.5, ease: 'easeOut' }}
                 className="relative z-10 w-full max-w-[420px]"
             >
-                <div className="overflow-hidden rounded-[2rem] border-zinc-800 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
+                <div className="overflow-hidden rounded-[2rem] border-hiraya-sand/30 bg-hiraya-cream-deep/80 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
                     {/* Brand mark */}
                     <div className="mb-8 text-center">
-                        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border-white/20 bg-white/[0.06] text-zinc-100">
+                        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border-hiraya-olive/20 bg-white/[0.06] text-hiraya-ink">
                             <Sparkles size={20} />
                         </div>
-                        <h1 className="font-serif text-3xl uppercase leading-none tracking-[0.25em] text-[#E9C46A]">
+                        <h1 className="font-serif text-3xl uppercase leading-none tracking-[0.25em] text-hiraya-ink">
                             Login
                         </h1>
-                        <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-[#E9C46A]/60">
+                        <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-hiraya-olive/70">
                             Welcome back to Hiraya
                         </p>
                     </div>
 
                     {successMessage && !error && (
-                        <div className="mb-5 flex items-start gap-2 rounded-xl border-white/20 bg-white/[0.06] p-3 text-center text-xs font-medium text-zinc-200">
+                        <div className="mb-5 flex items-start gap-2 rounded-xl border-hiraya-olive/20 bg-white/[0.06] p-3 text-center text-xs font-medium text-hiraya-ink">
                             <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
                             <span className="leading-relaxed">{successMessage}</span>
                         </div>
@@ -147,9 +147,9 @@ const Login = () => {
                                 type="email"
                                 placeholder="Email Address"
                                 autoComplete="email"
-                                className={`w-full rounded-xl border bg-black/60 px-5 py-3.5 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:ring-1 ${fieldErrors.email
+                                className={`w-full rounded-xl border bg-hiraya-cream/50 px-5 py-3.5 text-sm text-hiraya-ink placeholder-zinc-500 outline-none transition-all focus:ring-1 ${fieldErrors.email
                                         ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
-                                        : 'border-zinc-800 focus:border-white/40 focus:ring-white/20'
+                                        : 'border-hiraya-sand/30 focus:border-hiraya-gold/60 focus:ring-white/20'
                                     }`}
                                 value={email}
                                 onChange={(e) => {
@@ -170,9 +170,9 @@ const Login = () => {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="Password"
                                     autoComplete="current-password"
-                                    className={`w-full rounded-xl border bg-black/60 px-5 py-3.5 pr-12 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:ring-1 ${fieldErrors.password
+                                    className={`w-full rounded-xl border bg-hiraya-cream/50 px-5 py-3.5 pr-12 text-sm text-hiraya-ink placeholder-zinc-500 outline-none transition-all focus:ring-1 ${fieldErrors.password
                                             ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
-                                            : 'border-zinc-800 focus:border-white/40 focus:ring-white/20'
+                                            : 'border-hiraya-sand/30 focus:border-hiraya-gold/60 focus:ring-white/20'
                                         }`}
                                     value={password}
                                     onChange={(e) => {
@@ -185,7 +185,7 @@ const Login = () => {
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-white"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-hiraya-sand transition-colors hover:text-hiraya-ink"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
@@ -196,18 +196,18 @@ const Login = () => {
 
                             {/* REMEMBER ME & FORGOT PASSWORD */}
                             <div className="flex items-center justify-between px-1 pt-1">
-                                <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-500 transition-colors hover:text-zinc-300">
+                                <label className="flex cursor-pointer items-center gap-2 text-xs text-hiraya-sand transition-colors hover:text-hiraya-ink">
                                     <input
                                         type="checkbox"
                                         checked={rememberMe}
                                         onChange={(e) => setRememberMe(e.target.checked)}
-                                        className="cursor-pointer rounded border-zinc-700 bg-black text-stone-200 accent-stone-200 focus:ring-0"
+                                        className="cursor-pointer rounded border-hiraya-sand/40 bg-black text-hiraya-ink accent-stone-200 focus:ring-0"
                                     />
                                     <span className="text-[11px]">Remember me</span>
                                 </label>
                                 <Link
                                     to="/forgot-password"
-                                    className="text-[11px] text-zinc-500 underline transition-colors hover:text-white"
+                                    className="text-[11px] text-hiraya-sand underline transition-colors hover:text-hiraya-ink"
                                 >
                                     Forgot Password?
                                 </Link>
@@ -217,7 +217,7 @@ const Login = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[#E9C46A] py-4 text-xs font-bold uppercase tracking-widest text-zinc-950 shadow-lg shadow-black/40 transition-all hover:bg-[#D4A94F] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[#CB997E] py-4 text-xs font-bold uppercase tracking-widest text-hiraya-ink shadow-lg shadow-hiraya-sand/40 transition-all hover:bg-hiraya-cream-deep active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {loading ? (
                                 <>
@@ -231,11 +231,11 @@ const Login = () => {
                         </button>
                     </form>
 
-                    <p className="mt-8 text-center text-[11px] text-zinc-500">
+                    <p className="mt-8 text-center text-[11px] text-hiraya-sand">
                         Don&apos;t have an account?{' '}
                         <Link
                             to="/register"
-                            className="ml-1 border-b border-[#E9C46A]/40 font-bold text-[#E9C46A] transition-colors hover:text-[#F2D89B]"
+                            className="ml-1 border-b border-[#CB997E]/40 font-bold text-hiraya-ink transition-colors hover:text-[#FFE8D6]"
                         >
                             Create One
                         </Link>

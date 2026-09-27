@@ -71,24 +71,24 @@ export default function AiAttributesTab({ products = [], onSaved }) {
   };
 
   return (
-    <div className="p-6 text-stone-200">
+    <div className="p-6 text-hiraya-ink">
       <div className="mb-6">
         <h2 className="text-xl font-bold tracking-wider uppercase">Garment AI Styling Tags</h2>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="text-xs text-hiraya-olive/70 mt-1">
           Configure physical attributes so the AI Assistant knows when to recommend this item to users.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Product Selector */}
-        <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-lg self-start">
-          <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-300">
+        <div className="bg-hiraya-cream-deep/90 border border-hiraya-sand/30 p-4 rounded-lg self-start">
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-hiraya-ink">
             Select Garment
           </label>
           <select
             value={selectedProductId}
             onChange={(e) => setSelectedProductId(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-700 p-2.5 rounded text-sm mb-4 focus:outline-none focus:border-stone-300"
+            className="w-full bg-hiraya-olive border border-hiraya-sand/40 p-2.5 rounded text-sm mb-4 focus:outline-none focus:border-hiraya-gold"
           >
             {products.length === 0 ? (
               <option value="">No products available</option>
@@ -102,7 +102,7 @@ export default function AiAttributesTab({ products = [], onSaved }) {
           </select>
 
           {selectedProduct && (
-            <div className="bg-neutral-950 p-3 rounded border border-neutral-800 flex gap-3 items-center">
+            <div className="bg-hiraya-olive p-3 rounded border border-hiraya-sand/30 flex gap-3 items-center">
               {(selectedProduct.display_image_url || selectedProduct.image_url) && (
                 <img
                   // The AI cut-out, so the tag editor previews the real catalog image.
@@ -113,7 +113,7 @@ export default function AiAttributesTab({ products = [], onSaved }) {
               )}
               <div>
                 <h4 className="font-bold text-sm">{selectedProduct.name || selectedProduct.title}</h4>
-                <p className="text-xs text-stone-200 font-mono mt-1">
+                <p className="text-xs text-hiraya-ink font-mono mt-1">
                   ₱{Number(selectedProduct.price || 0).toFixed(2)}
                 </p>
               </div>
@@ -122,10 +122,10 @@ export default function AiAttributesTab({ products = [], onSaved }) {
         </div>
 
         {/* Right Column: AI Tagging Form */}
-        <div className="lg:col-span-2 bg-neutral-900 border border-neutral-800 p-5 rounded-lg space-y-6">
+        <div className="lg:col-span-2 bg-hiraya-cream-deep/90 border border-hiraya-sand/30 p-5 rounded-lg space-y-6">
           {/* Target Body Shapes */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-300">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-hiraya-ink">
               Compatible Body Shapes
             </label>
             <div className="flex flex-wrap gap-2">
@@ -138,8 +138,8 @@ export default function AiAttributesTab({ products = [], onSaved }) {
                     onClick={() => toggleArrayItem('body_shapes', value)}
                     className={`px-3 py-1.5 rounded text-xs transition font-medium border ${
                       active
-                        ? 'bg-[#E9C46A] border-stone-300 text-black font-bold'
-                        : 'bg-neutral-950 border-neutral-700 text-neutral-300 hover:border-neutral-500'
+                        ? 'bg-[#CB997E] border-hiraya-gold text-hiraya-olive font-bold'
+                        : 'bg-hiraya-olive border-hiraya-sand/40 text-hiraya-ink hover:border-hiraya-sand/50'
                     }`}
                   >
                     {label}
@@ -151,7 +151,7 @@ export default function AiAttributesTab({ products = [], onSaved }) {
 
           {/* Color Undertone */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-300">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-hiraya-ink">
               Color Undertone Match
             </label>
             <div className="flex flex-wrap gap-4">
@@ -173,7 +173,7 @@ export default function AiAttributesTab({ products = [], onSaved }) {
 
           {/* Occasion & Style Vibe */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-300">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-hiraya-ink">
               Style Vibe / Occasion
             </label>
             <div className="flex flex-wrap gap-2">
@@ -186,8 +186,8 @@ export default function AiAttributesTab({ products = [], onSaved }) {
                     onClick={() => toggleArrayItem('occasions', value)}
                     className={`px-3 py-1.5 rounded text-xs transition font-medium border ${
                       active
-                        ? 'bg-[#E9C46A] border-stone-300 text-black font-bold'
-                        : 'bg-neutral-950 border-neutral-700 text-neutral-300 hover:border-neutral-500'
+                        ? 'bg-[#CB997E] border-hiraya-gold text-hiraya-olive font-bold'
+                        : 'bg-hiraya-olive border-hiraya-sand/40 text-hiraya-ink hover:border-hiraya-sand/50'
                     }`}
                   >
                     {label}
@@ -199,13 +199,13 @@ export default function AiAttributesTab({ products = [], onSaved }) {
 
           {/* Fit Type */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-neutral-300">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-hiraya-ink">
               Fit Type
             </label>
             <select
               value={attributes.fit_type}
               onChange={(e) => setAttributes({ ...attributes, fit_type: e.target.value })}
-              className="bg-neutral-950 border border-neutral-700 p-2.5 rounded text-sm w-full focus:outline-none focus:border-stone-300"
+              className="bg-hiraya-olive border border-hiraya-sand/40 p-2.5 rounded text-sm w-full focus:outline-none focus:border-hiraya-gold"
             >
               {FIT_TYPES.map(({ value, label }) => (
                 <option key={value} value={value}>
@@ -216,13 +216,13 @@ export default function AiAttributesTab({ products = [], onSaved }) {
           </div>
 
           {/* Action & Feedback */}
-          <div className="pt-4 border-t border-neutral-800 flex items-center justify-between">
-            <span className="text-xs text-stone-200 font-mono">{message}</span>
+          <div className="pt-4 border-t border-hiraya-sand/30 flex items-center justify-between">
+            <span className="text-xs text-hiraya-ink font-mono">{message}</span>
             <button
               type="button"
               onClick={handleSave}
               disabled={saving || !selectedProductId}
-              className="bg-[#E9C46A] hover:bg-[#E9C46A] text-black font-semibold px-6 py-2.5 rounded text-xs tracking-wider uppercase transition disabled:opacity-50"
+              className="bg-[#CB997E] hover:bg-[#CB997E] text-hiraya-olive font-semibold px-6 py-2.5 rounded text-xs tracking-wider uppercase transition disabled:opacity-50"
             >
               {saving ? 'SAVING...' : 'SAVE AI TAGS'}
             </button>

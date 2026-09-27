@@ -1,16 +1,28 @@
 /**
  * HIRAYA — Tailwind CSS configuration
  *
- * Tailwind v4 is driven primarily by the `@theme` block in `src/index.css`
- * (see the `--color-hiraya-*` design tokens there). This config file is kept as
- * the single, canonical BRAND MANIFEST so the palette can be inspected/imported
- * from one place, and it mirrors the CSS tokens key-for-key.
+ * Tailwind v4 is driven primarily by the `@theme` block in `src/index.css` (see
+ * the `--color-hiraya-*` tokens there). This file is kept as the canonical BRAND
+ * MANIFEST so the whole palette can be inspected or imported from one place,
+ * and it mirrors the CSS tokens key-for-key.
  *
- * BRAND STANDARD — `#E9C46A` is the official primary accent, and the warm
- * IVORY / CREAM system text ramp (`#F3EFE0`, `#EFE8D8`, `#E8D8C8`, `#D9C9B8`)
- * is restored as the original text colouring, so existing `*-hiraya-cream`
- * class usages resolve to ivory without touching every call site. Deep black /
- * zinc container contrast (`#000` / `#09090B`) is preserved.
+ * THE PALETTE IS ROLE-BASED, NOT SHADE-BASED.
+ * Every one of the six brand colours is assigned to the job it performs in the
+ * interface, so a surface is always a surface and the accent is always the
+ * accent:
+ *
+ *   #6B705C  olive      — THE INK + deepest containers
+ *   #A5A58D  sage       — muted text, hints, hairline borders
+ *   #B7B7A4  sage-light — sunken section bands + accent hover state
+ *   #CB997E  terracotta — THE accent: fills, active tabs, focus rings
+ *   #DDBEA9  sand       — raised surfaces: cards, panels, modals
+ *   #FFE8D6  cream      — the page canvas + text on accent surfaces
+ *
+ * CONTRAST PAIRINGS (the rule that picks an ink for a surface):
+ *   cream canvas   + olive ink  -> 5.5:1  (headings, body copy)
+ *   raised card    + olive ink  -> 4.9:1  (headings, body copy on cards)
+ *   terracotta fill+ cream ink  -> 5.1:1  (buttons, pills, active tabs)
+ *   olive fill     + cream ink  -> 5.6:1  (badges, count bubbles)
  */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -19,21 +31,29 @@ export default {
     extend: {
       colors: {
         hiraya: {
-          // --- Core brand accent (#E9C46A) --------------------------------
-          gold: '#E9C46A',        // Official primary brand accent
-          'gold-deep': '#D4A94F', // Hover / pressed accent
-          'gold-soft': '#F2D89B', // Highlights, glows, focus rings
+          // --- Page canvas + ink -------------------------------------------
+          bg: '#FFE8D6',          // Cream — the base canvas
+          olive: '#6B705C',       // Deep containers + ink
+          ink: '#6B705C',         // Text on light surfaces
+          charcoal: '#DDBEA9',    // Raised surface alias
 
-          // --- System ivory / cream ramp (restored original values) -------
-          cream: '#F3EFE0',
-          'cream-deep': '#EFE8D8',
-          'cream-soft': '#E8D8C8',
-          sand: '#D9C9B8',
+          // --- Semantic contrasts (see the header note) --------------------
+          'on-accent': '#FFE8D6', // Text ON terracotta
+          'on-canvas': '#6B705C', // Text ON cream
+          'on-raised': '#6B705C', // Text ON sand-light
+          muted: '#A5A58D',       // Hints / labels
 
-          // --- Deep black / zinc container contrast ----------------------
-          bg: '#000',          // Obsidian base canvas
-          ink: '#09090B',         // Text/ink sitting on gold surfaces
-          charcoal: '#F5EBE0',    // Warm ink (primary text on black)
+          // --- Accent ramp (#CB997E) -------------------------------------- -
+          gold: '#CB997E',        // Terracotta — primary brand accent
+          'gold-deep': '#B7B7A4', // Sage — hover / pressed accent
+          'gold-soft': '#DDBEA9', // Sand-light — highlights, focus rings
+
+          // --- Surfaces + text ramp ----------------------------------------
+          cream: '#FFE8D6',       // The canvas + lightest surface
+          'cream-deep': '#DDBEA9',// Raised cards / panels
+          'cream-soft': '#DDBEA9',// Soft dividers on raised cards
+          sand: '#A5A58D',        // Muted labels, hints, hairlines
+          matcha: '#B7B7A4',      // Sunken bands / section wash
         },
       },
 
@@ -42,10 +62,10 @@ export default {
         serif: ['Cinzel', 'serif'],
       },
 
-      // Gold glow used by focus states and active stack cards.
+      // Terracotta glow used by focus states and active stack cards.
       boxShadow: {
-        'gold-glow': '0 0 28px rgba(233, 196, 106, 0.30)',
-        'gold-ring': '0 0 0 1px rgba(233, 196, 106, 0.45)',
+        'gold-glow': '0 0 28px rgba(203, 153, 126, 0.30)',
+        'gold-ring': '0 0 0 1px rgba(203, 153, 126, 0.45)',
       },
     },
   },

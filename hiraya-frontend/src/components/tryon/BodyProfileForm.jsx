@@ -12,16 +12,16 @@ const CORE_MEASUREMENT_FIELDS = [
 
 export const BodyProfileForm = ({ measurements, onChange, onSave, isSaving, status }) => {
     return (
-        <section className="shrink-0 rounded-3xl border-zinc-800 bg-zinc-950/80 p-5 shadow-xl backdrop-blur-md">
-            <div className="mb-3 flex items-center justify-between border-b border-zinc-800 pb-2.5">
+        <section className="shrink-0 rounded-3xl border-hiraya-sand/30 bg-hiraya-cream-deep/80 p-5 shadow-xl backdrop-blur-md">
+            <div className="mb-3 flex items-center justify-between border-b border-hiraya-sand/30 pb-2.5">
                 <div className="flex items-center gap-2">
-                    <Ruler size={16} className="text-stone-200" />
-                    <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-white">
+                    <Ruler size={16} className="text-hiraya-ink" />
+                    <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-hiraya-ink">
                         5 Core Body Profile
                     </h2>
                 </div>
                 {status && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-200">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-hiraya-ink">
                         {status}
                     </span>
                 )}
@@ -30,7 +30,7 @@ export const BodyProfileForm = ({ measurements, onChange, onSave, isSaving, stat
             <div className="grid grid-cols-3 gap-3">
                 {CORE_MEASUREMENT_FIELDS.map(({ key, label }) => (
                     <div key={key} className="space-y-1">
-                        <label className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                        <label className="text-[9px] font-bold uppercase tracking-widest text-hiraya-sand">
                             {label} (cm)
                         </label>
                         <input
@@ -40,7 +40,7 @@ export const BodyProfileForm = ({ measurements, onChange, onSave, isSaving, stat
                             value={measurements[key] ?? ''}
                             onChange={onChange}
                             placeholder="0"
-                            className="w-full rounded-xl border-stone-300/20 bg-black/60 px-3.5 py-2 text-xs font-bold text-white outline-none transition-colors focus:border-stone-300/60 focus:ring-1 focus:ring-stone-200/30"
+                            className="w-full rounded-xl border-hiraya-olive/15 bg-hiraya-cream/50 px-3.5 py-2 text-xs font-bold text-hiraya-ink outline-none transition-colors focus:border-hiraya-gold/60 focus:ring-1 focus:ring-stone-200/30"
                         />
                     </div>
                 ))}
@@ -49,7 +49,7 @@ export const BodyProfileForm = ({ measurements, onChange, onSave, isSaving, stat
             <button
                 onClick={onSave}
                 disabled={isSaving}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-stone-300/30 bg-[#E9C46A]/10 py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] text-stone-200 transition-colors duration-200 hover:bg-[#E9C46A] hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-hiraya-olive/20 bg-[#CB997E]/10 py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] text-hiraya-ink transition-colors duration-200 hover:bg-[#CB997E] hover:text-hiraya-ink disabled:cursor-not-allowed disabled:opacity-60"
             >
                 {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                 Sync &amp; Save to Database

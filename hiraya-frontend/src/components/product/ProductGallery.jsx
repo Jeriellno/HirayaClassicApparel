@@ -42,7 +42,7 @@ const ProductGallery = ({ imageUrl, images, name, isGuest }) => {
 
   return (
     <div className="space-y-3 lg:sticky lg:top-28 max-w-md mx-auto lg:mx-0 w-full">
-      <div className="overflow-hidden bg-zinc-900 rounded-2xl relative group border-zinc-800">
+      <div className="overflow-hidden bg-hiraya-sand rounded-2xl relative group border-hiraya-sand/30">
         {activeImage ? (
           <img
             src={activeImage}
@@ -50,22 +50,22 @@ const ProductGallery = ({ imageUrl, images, name, isGuest }) => {
             className="w-full aspect-[3/4] object-cover transition-transform duration-700 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="w-full aspect-[3/4] flex-col items-center justify-center gap-2 text-zinc-600">
+          <div className="w-full aspect-[3/4] flex-col items-center justify-center gap-2 text-hiraya-sand">
             <ImageOff size={30} />
             <span className="text-[9px] uppercase tracking-[0.25em] font-bold">No image available</span>
           </div>
         )}
 
         {isGuest && (
-          <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-md border-zinc-800 px-3 py-1.5 rounded-full">
-            <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-stone-200 flex items-center gap-1.5">
+          <div className="absolute top-4 left-4 bg-hiraya-olive/60 backdrop-blur-md border-hiraya-sand/30 px-3 py-1.5 rounded-full">
+            <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-hiraya-ink flex items-center gap-1.5">
               <Lock size={11} /> Preview Mode
             </p>
           </div>
         )}
 
         {hasThumbnails && (
-          <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md border-zinc-800 text-zinc-300 text-[9px] font-bold tracking-widest px-2.5 py-1 rounded-full">
+          <div className="absolute bottom-4 right-4 bg-hiraya-cream/50 backdrop-blur-md border-hiraya-sand/30 text-hiraya-ink text-[9px] font-bold tracking-widest px-2.5 py-1 rounded-full">
             {activeIndex + 1} / {gallery.length}
           </div>
         )}
@@ -82,8 +82,8 @@ const ProductGallery = ({ imageUrl, images, name, isGuest }) => {
               aria-label={`View image ${index + 1} of ${gallery.length}`}
               aria-current={activeIndex === index}
               className={`relative w-14 h-[4.5rem] shrink-0 rounded-xl overflow-hidden border transition-all duration-300 ${activeIndex === index
-                  ? 'border-stone-300'
-                  : 'border-zinc-800 opacity-50 hover:opacity-100 hover:border-zinc-700'
+                  ? 'border-hiraya-gold'
+                  : 'border-hiraya-sand/30 opacity-50 hover:opacity-100 hover:border-hiraya-sand/40'
                 }`}
             >
               <img src={src} alt={`${name} view ${index + 1}`} className="w-full h-full object-cover" />

@@ -49,7 +49,7 @@ class AdminOrderController extends Controller
          * count path never pays for joins it does not use.
          */
         return response()->json(
-            $query->with(['user:id,full_name,email', 'orderItems'])->latest()->get()
+            $query->with(['user:id,full_name,email', 'orderItems.product'])->latest()->get()
         );
     }
 
@@ -58,7 +58,7 @@ class AdminOrderController extends Controller
      */
     public function show(Order $order)
     {
-        return response()->json($order->load(['user:id,full_name,email', 'orderItems']));
+        return response()->json($order->load(['user:id,full_name,email', 'orderItems.product']));
     }
 
     /**

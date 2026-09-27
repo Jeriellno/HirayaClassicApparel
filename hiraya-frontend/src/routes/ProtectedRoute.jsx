@@ -80,7 +80,7 @@ const resolveRole = (user) => {
 /** Full-screen Gold & Black gate shown while the session is being verified. */
 const SessionGate = ({ label }) => (
     <div className="flex min-h-screen items-center justify-center bg-black">
-        <div className="animate-pulse text-[11px] uppercase tracking-[0.35em] text-stone-200">
+        <div className="animate-pulse text-[11px] uppercase tracking-[0.35em] text-hiraya-ink">
             {label}
         </div>
     </div>

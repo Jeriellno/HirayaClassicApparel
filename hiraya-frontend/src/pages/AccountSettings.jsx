@@ -2,12 +2,13 @@ import { Check, Save, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/axios';
+import api, { clearStoredSession } from '../api/axios';
 
 import { SettingsHeader } from '../components/settings/SettingsHeader';
 import { PersonalInfoSection } from '../components/settings/PersonalInfoSection';
 import { VirtualTryOnSection } from '../components/settings/VirtualTryOnSection';
 import { SecuritySection } from '../components/settings/SecuritySection';
+import { DangerZoneSection } from '../components/settings/DangerZoneSection';
 
 // 5 Core Standardized Body Measurements (identical for Men & Women)
 const CORE_MEASUREMENT_FIELDS = [
@@ -78,6 +79,18 @@ const AccountSettings = () => {
       setLoading(false);
       return;
     }
+    if (formData.newPassword && formData.newPassword.length < 8) {
+      setErrorMessage('New password must be at least 8 characters.');
+      setLoading(false);
+      return;
+    }
+    if (formData.newPassword && !formData.currentPassword) {
+      setErrorMessage('Please enter your current password to change it.');
+      setLoading(false);
+      return;
+    }
+
+    const wantsPasswordChange = Boolean(formData.currentPassword && formData.newPassword);
 
     try {
       // 1. Update general profile (name + sizing preferences)
@@ -87,10 +100,6 @@ const AccountSettings = () => {
         bottom_size:   formData.bottomSize,
         preferred_fit: formData.preferredFit,
       };
-      if (formData.currentPassword && formData.newPassword) {
-        profilePayload.current_password = formData.currentPassword;
-        profilePayload.new_password     = formData.newPassword;
-      }
       const profileRes = await api.put('/user/profile', profilePayload);
 
       // 2. Overwrite the 5 Core Body Measurements
@@ -103,6 +112,22 @@ const AccountSettings = () => {
           raw === '' || raw === null || raw === undefined ? null : Number(raw);
       });
       const measurementsRes = await api.put('/user/measurements', measurementsPayload);
+
+      // 2. Change the password via its dedicated endpoint.
+      //
+      // This previously piggybacked on PUT /user/profile, but that endpoint
+      // never validated or applied password fields, so "Save Settings" with a
+      // new password silently did nothing. PUT /user/password verifies the
+      // CURRENT password against the stored hash and revokes all tokens —
+      // meaning the user must sign back in with their new password.
+      let passwordChanged = false;
+      if (wantsPasswordChange) {
+        await api.put('/user/password', {
+          current_password: formData.currentPassword,
+          new_password:     formData.newPassword,
+        });
+        passwordChanged = true;
+      }
 
       // 3. Sync AuthContext with the freshly returned user
       const freshUser = measurementsRes.data?.user || profileRes.data?.user;
@@ -119,6 +144,18 @@ const AccountSettings = () => {
       // present in the global auth state.
       if (typeof refreshUser === 'function') {
         try { await refreshUser(); } catch (e) { /* non-fatal */ }
+      }
+
+      // A password change revokes every token server-side. End the session
+      // cleanly and send the user to login to re-authenticate with the new
+      // password instead of letting their very next request 401.
+      if (passwordChanged) {
+        clearStoredSession();
+        navigate('/login', {
+          replace: true,
+          state: { message: 'Password updated successfully. Please sign in with your new password.' },
+        });
+        return;
       }
 
       setFormData((prev) => ({
@@ -144,7 +181,7 @@ const AccountSettings = () => {
   };
 
   return (
-    <main className="min-h-screen bg-[#0B0D12] px-6 pb-16 pt-28 text-white md:px-16">
+    <main className="min-h-screen bg-[#0B0D12] px-6 pb-16 pt-28 text-hiraya-ink md:px-16">
       <div className="mx-auto max-w-3xl space-y-8">
 
         <SettingsHeader onBack={() => navigate(-1)} />
@@ -164,7 +201,7 @@ const AccountSettings = () => {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl bg-[#E9C46A] px-8 py-3 text-xs font-extrabold uppercase tracking-widest text-black transition hover:bg-[#D4A94F] disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-[#CB997E] px-8 py-3 text-xs font-extrabold uppercase tracking-widest text-hiraya-olive transition hover:bg-hiraya-cream-deep disabled:opacity-50"
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
               {loading ? 'Saving...' : saved ? 'Saved Changes!' : 'Save Settings'}
@@ -172,6 +209,14 @@ const AccountSettings = () => {
             {saved && <span className="text-xs font-bold text-green-400">Profile & measurements updated successfully!</span>}
           </div>
         </form>
+
+        <DangerZoneSection onDeleted={() => {
+          clearStoredSession();
+          navigate('/login', {
+            replace: true,
+            state: { message: 'Your account has been permanently deleted.' },
+          });
+        }} />
 
       </div>
     </main>

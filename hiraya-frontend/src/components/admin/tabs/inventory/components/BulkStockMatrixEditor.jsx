@@ -120,12 +120,12 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
   const totalChanges = Object.keys(localChanges).length;
 
   return (
-    <div className="space-y-4 bg-[#0D1017] border border-white/10 p-6 rounded-3xl text-white">
+    <div className="space-y-4 bg-hiraya-cream border border-hiraya-olive/15 p-6 rounded-3xl text-hiraya-ink">
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
         <div className="flex items-center gap-3">
-          <h2 className="text-xs font-mono uppercase tracking-wider text-[#E9C46A]">Bulk Stock Matrix</h2>
+          <h2 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink">Bulk Stock Matrix</h2>
           {totalChanges > 0 && (
-            <span className="px-2 py-0.5 bg-[#E9C46A]/20 text-[#E9C46A] text-[9px] font-mono rounded border border-[#E9C46A]/30">
+            <span className="px-2 py-0.5 bg-[#CB997E]/20 text-hiraya-ink text-[9px] font-mono rounded border border-[#CB997E]/30">
               {totalChanges} pending change{totalChanges !== 1 ? 's' : ''}
             </span>
           )}
@@ -133,13 +133,13 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
         
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-hiraya-ink" size={14} />
             <input
               type="text"
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-[#E9C46A]"
+              className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-lg pl-9 pr-3 py-1.5 text-xs font-mono text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
             />
           </div>
           
@@ -155,12 +155,12 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
                 handleGlobalApply();
               }
             }}
-            className="w-20 bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-[#E9C46A]"
+            className="w-20 bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-lg px-2 py-1.5 text-xs font-mono text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
           />
           <button
             type="button"
             onClick={handleGlobalApply}
-            className="px-3 py-1.5 bg-[#E9C46A] hover:bg-[#D4A94F] text-black text-[10px] font-mono font-bold uppercase rounded-lg transition flex items-center gap-1 whitespace-nowrap"
+            className="px-3 py-1.5 bg-[#CB997E] hover:bg-hiraya-cream-deep text-hiraya-olive text-[10px] font-mono font-bold uppercase rounded-lg transition flex items-center gap-1 whitespace-nowrap"
           >
             <Zap size={12} /> Apply All
           </button>
@@ -171,8 +171,8 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
             disabled={totalChanges === 0 || saving}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition flex items-center gap-1 whitespace-nowrap ${
               totalChanges > 0 && !saving
-                ? 'bg-emerald-500 hover:bg-emerald-400 text-black'
-                : 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
+                ? 'bg-emerald-500 hover:bg-emerald-400 text-hiraya-olive'
+                : 'bg-hiraya-sand/80 text-hiraya-ink cursor-not-allowed'
             }`}
           >
             <Save size={12} />
@@ -181,10 +181,10 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
         </div>
       </div>
 
-      <div className="overflow-x-auto border border-white/10 rounded-2xl max-h-[65vh] overflow-y-auto">
+      <div className="overflow-x-auto border border-hiraya-olive/15 rounded-2xl max-h-[65vh] overflow-y-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 bg-[#0D1017] z-10">
-            <tr className="border-b border-white/10 bg-white/5 text-[10px] font-mono uppercase tracking-widest text-[#E9C46A]">
+          <thead className="sticky top-0 bg-hiraya-cream z-10">
+            <tr className="border-b border-hiraya-olive/15 bg-hiraya-cream/60 text-[10px] font-mono uppercase tracking-widest text-hiraya-ink">
               <th className="p-3 min-w-[180px]">Product</th>
               {sizes.map(sz => (
                 <th key={sz} className="p-2 text-center min-w-[60px]">{sz}</th>
@@ -195,7 +195,7 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
           <tbody className="divide-y divide-white/5 text-xs font-mono">
             {filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan={sizes.length + 2} className="p-8 text-center text-gray-500">No products found.</td>
+                <td colSpan={sizes.length + 2} className="p-8 text-center text-hiraya-sand">No products found.</td>
               </tr>
             ) : (
               filteredProducts.map(product => {
@@ -206,7 +206,7 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
                   <tr 
                     key={product.id} 
                     className={`transition ${
-                      hasChanges ? 'bg-[#E9C46A]/5' : 'hover:bg-white/[0.02]'
+                      hasChanges ? 'bg-[#CB997E]/5' : 'hover:bg-white/[0.02]'
                     }`}
                   >
                     <td className="p-3 flex items-center gap-3 min-w-[180px]">
@@ -223,17 +223,17 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
                          */
                         src={product.display_image_url || product.image_url || defaultImageUrl || '/images/placeholder.svg'}
                         alt={product.name}
-                        className="w-10 h-10 rounded-lg object-cover border border-white/10 flex-shrink-0"
+                        className="w-10 h-10 rounded-lg object-cover border border-hiraya-olive/15 flex-shrink-0"
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.src = defaultImageUrl || '/images/placeholder.svg';
                         }}
                       />
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-white truncate">{product.name}</div>
-                        <div className="text-[10px] text-gray-400 uppercase">{product.category}</div>
+                        <div className="text-xs font-semibold text-hiraya-ink truncate">{product.name}</div>
+                        <div className="text-[10px] text-hiraya-ink uppercase">{product.category}</div>
                         {hasChanges && (
-                          <span className="text-[8px] text-[#E9C46A]">* unsaved</span>
+                          <span className="text-[8px] text-hiraya-ink">* unsaved</span>
                         )}
                       </div>
                     </td>
@@ -245,8 +245,8 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
                           min="0"
                           value={currentStocks[sz] ?? 0}
                           onChange={(e) => handleSizeChange(product.id, sz, e.target.value)}
-                          className={`w-14 bg-black/40 border rounded-lg py-1 text-center text-xs text-white focus:outline-none focus:border-[#E9C46A] ${
-                            hasChanges ? 'border-[#E9C46A]/50' : 'border-white/10'
+                          className={`w-14 bg-hiraya-cream/30 border rounded-lg py-1 text-center text-xs text-hiraya-ink focus:outline-none focus:border-[#CB997E] ${
+                            hasChanges ? 'border-[#CB997E]/50' : 'border-hiraya-olive/15'
                           }`}
                         />
                       </td>
@@ -256,21 +256,21 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
                       <button
                         type="button"
                         onClick={() => handleQuickApplyRow(product.id, 10)}
-                        className="px-2 py-0.5 bg-white/5 hover:bg-[#E9C46A]/20 border border-white/10 rounded text-[9px] text-gray-300 transition"
+                        className="px-2 py-0.5 bg-hiraya-cream/60 hover:bg-[#CB997E]/20 border border-hiraya-olive/15 rounded text-[9px] text-hiraya-ink transition"
                       >
                         10
                       </button>
                       <button
                         type="button"
                         onClick={() => handleQuickApplyRow(product.id, 20)}
-                        className="px-2 py-0.5 bg-white/5 hover:bg-[#E9C46A]/20 border border-white/10 rounded text-[9px] text-gray-300 transition"
+                        className="px-2 py-0.5 bg-hiraya-cream/60 hover:bg-[#CB997E]/20 border border-hiraya-olive/15 rounded text-[9px] text-hiraya-ink transition"
                       >
                         20
                       </button>
                       <button
                         type="button"
                         onClick={() => handleQuickApplyRow(product.id, 50)}
-                        className="px-2 py-0.5 bg-white/5 hover:bg-[#E9C46A]/20 border border-white/10 rounded text-[9px] text-gray-300 transition"
+                        className="px-2 py-0.5 bg-hiraya-cream/60 hover:bg-[#CB997E]/20 border border-hiraya-olive/15 rounded text-[9px] text-hiraya-ink transition"
                       >
                         50
                       </button>
@@ -283,7 +283,7 @@ const BulkStockMatrixEditor = ({ products = [], onBulkUpdate, defaultImageUrl })
         </table>
       </div>
 
-      <div className="flex justify-between items-center text-[10px] font-mono text-gray-400 border-t border-white/10 pt-4">
+      <div className="flex justify-between items-center text-[10px] font-mono text-hiraya-ink border-t border-hiraya-olive/15 pt-4">
         <span>Showing {filteredProducts.length} of {products.length} products</span>
         <span>{totalChanges} pending change{totalChanges !== 1 ? 's' : ''}</span>
       </div>

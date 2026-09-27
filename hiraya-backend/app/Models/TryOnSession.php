@@ -27,6 +27,9 @@ class TryOnSession extends Model
         // layer order) produced by TryOnPreProcessor before the render runs.
         'render_plan_json',
         'status',
+        'is_favorite',
+        'history_title',
+        'garment_metadata_json',
         'result_image_base64',
         'ai_feedback',
         'error_message',
@@ -34,8 +37,10 @@ class TryOnSession extends Model
 
     protected $casts = [
         'session_id' => 'string',
+        'is_favorite' => 'boolean',
         'garment_photos_json' => 'array',
         'garment_categories_json' => 'array',
+        'garment_metadata_json' => 'array',
         'measurements_json' => 'array',
         'render_plan_json' => 'array',
         'created_at' => 'datetime',

@@ -183,27 +183,27 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-[#E9C46A]">
+          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
             ADMIN PRIVILEGES & RBAC ACCESS
           </h2>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-hiraya-ink mt-1">
             Super Admin exclusive: Provision system administrators and manage RBAC.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="px-5 py-2.5 bg-[#E9C46A] hover:bg-[#D4A94F] text-black font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-5 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep text-hiraya-olive font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           <UserPlus size={16} /> ADD ADMIN ACCOUNT
         </button>
       </div>
 
       {/* RBAC TABLE */}
-      <div className="bg-[#0A0D14] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+      <div className="bg-[#0A0D14] border border-hiraya-olive/15 rounded-2xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-[#111622] border-b border-white/10 uppercase tracking-widest text-[10px] text-gray-400">
+            <thead className="bg-[#111622] border-b border-hiraya-olive/15 uppercase tracking-widest text-[10px] text-hiraya-ink">
               <tr>
                 <th className="p-4">USER DETAILS</th>
                 <th className="p-4">LAST SEEN</th>
@@ -213,7 +213,7 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                 <th className="p-4 text-right">ACTIONS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5 text-gray-300">
+            <tbody className="divide-y divide-white/5 text-hiraya-ink">
               {adminAccounts && adminAccounts.length > 0 ? (
                 adminAccounts.map((admin, idx) => {
                   const normalizedRole = String(admin.role || '').toUpperCase().replaceAll("_", '').replaceAll("-", '').replaceAll(" ", '');
@@ -222,22 +222,22 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                   // no-op removed ' ');
 
                   return (
-                    <tr key={admin.id || idx} className="hover:bg-white/5 transition">
+                    <tr key={admin.id || idx} className="hover:bg-hiraya-cream/60 transition">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#E9C46A]/10 border border-[#E9C46A]/30 flex items-center justify-center text-[#E9C46A] font-bold">
+                          <div className="w-8 h-8 rounded-full bg-[#CB997E]/10 border border-[#CB997E]/30 flex items-center justify-center text-hiraya-ink font-bold">
                             {(admin.full_name || admin.name) ? (admin.full_name || admin.name).charAt(0).toUpperCase() : 'A'}
                           </div>
                           <div>
-                            <div className="font-semibold text-white">{admin.full_name || admin.name || 'Admin User'}</div>
-                            <div className="text-[10px] text-gray-500">{admin.email}</div>
+                            <div className="font-semibold text-hiraya-ink">{admin.full_name || admin.name || 'Admin User'}</div>
+                            <div className="text-[10px] text-hiraya-sand">{admin.email}</div>
                           </div>
                         </div>
                       </td>
 
                       <td className="p-4">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] uppercase tracking-wider text-gray-300">
+                          <span className="text-[10px] uppercase tracking-wider text-hiraya-ink">
                             {formatLastSeen(admin.last_login_at)}
                           </span>
                         </div>
@@ -247,7 +247,7 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                         <span
                           className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${
                             isSuperAdmin
-                              ? 'bg-[#E9C46A]/10 text-stone-200 border-stone-300/30'
+                              ? 'bg-[#CB997E]/10 text-hiraya-ink border-hiraya-olive/20'
                               : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
                           }`}
                         >
@@ -255,8 +255,8 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                         </span>
                       </td>
 
-                      <td className="p-4 uppercase text-gray-400">
-                        <span className="px-2 py-0.5 bg-white/5 rounded border border-white/10 text-[10px]">
+                      <td className="p-4 uppercase text-hiraya-ink">
+                        <span className="px-2 py-0.5 bg-hiraya-cream/60 rounded border border-hiraya-olive/15 text-[10px]">
                           {admin.inventory_permissions || 'READ_WRITE'}
                         </span>
                       </td>
@@ -298,7 +298,7 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                 })
               ) : (
                 <tr>
-                  <td colSpan="6" className="py-20 text-center text-gray-500 uppercase tracking-[0.25em] font-light">
+                  <td colSpan="6" className="py-20 text-center text-hiraya-sand uppercase tracking-[0.25em] font-light">
                     NO ACTIVE ADMINISTRATIVE ACCOUNTS FOUND
                   </td>
                 </tr>
@@ -310,15 +310,15 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
 
       {/* EXCLUSIVE ADMIN REGISTRATION MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-[#0A0D14] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <h3 className="font-bold text-[#E9C46A] uppercase tracking-wider flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream-deep/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-[#0A0D14] border border-hiraya-olive/15 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b border-hiraya-olive/15 flex justify-between items-center bg-hiraya-cream/60">
+              <h3 className="font-bold text-hiraya-ink uppercase tracking-wider flex items-center gap-2">
                 {editingAccount ? <><Edit3 size={16} /> EDIT ADMIN ACCOUNT</> : <><UserPlus size={16} /> REGISTER ADMIN ACCOUNT</>}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-white p-1 rounded-lg transition"
+                className="text-hiraya-ink hover:text-hiraya-ink p-1 rounded-lg transition"
               >
                 <X size={18} />
               </button>
@@ -331,7 +331,7 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                 </div>
               )}
               <div>
-                <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1 flex items-center gap-1">
+                <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 flex items-center gap-1">
                   <User size={12} /> Full Name
                 </label>
                 <input
@@ -342,12 +342,12 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                   placeholder="e.g. Maria Clara"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-[#E9C46A]"
+                  className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink placeholder-gray-600 focus:outline-none focus:border-[#CB997E]"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1 flex items-center gap-1">
+                <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 flex items-center gap-1">
                   <Mail size={12} /> Email
                 </label>
                 <input
@@ -358,7 +358,7 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                   placeholder="admin@hiraya.com"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-[#E9C46A]"
+                  className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink placeholder-gray-600 focus:outline-none focus:border-[#CB997E]"
                 />
               </div>
 
@@ -366,7 +366,7 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
               {/* Password is create-only: the update endpoint does not change it. */}
               {!editingAccount && (
               <div>
-                <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1 flex items-center gap-1">
+                <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 flex items-center gap-1">
                   <Lock size={12} /> Password
                 </label>
                 <div className="relative">
@@ -377,12 +377,12 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                     placeholder=""
                     value={formData.password}
                     onChange={handleChange}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 pr-10 text-white placeholder-gray-600 focus:outline-none focus:border-[#E9C46A]"
+                    className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 pr-10 text-hiraya-ink placeholder-gray-600 focus:outline-none focus:border-[#CB997E]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#E9C46A] transition cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-hiraya-ink hover:text-hiraya-ink transition cursor-pointer"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -392,14 +392,14 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1 flex items-center gap-1">
+                  <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 flex items-center gap-1">
                     <Key size={12} /> Role
                   </label>
                   <select
                     name="role"
                     value={formData.role}
                     onChange={handleChange}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#E9C46A]"
+                    className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
                   >
                     {/*
                      * MODERATOR used to be listed here, but the backend coerces
@@ -415,14 +415,14 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase text-gray-400 tracking-wider mb-1">
+                  <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">
                     Inventory Access
                   </label>
                   <select
                     name="inventory_permissions"
                     value={formData.inventory_permissions}
                     onChange={handleChange}
-                    className="w-full bg-black/50 border border-white/10 rounded-xl p-2.5 text-white focus:outline-none focus:border-[#E9C46A]"
+                    className="w-full bg-hiraya-cream/40 border border-hiraya-olive/15 rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-[#CB997E]"
                   >
                     <option value="READ_WRITE">READ & WRITE</option>
                     <option value="READ_ONLY">READ ONLY</option>
@@ -430,32 +430,32 @@ export default function AdminsTab({ adminAccounts = [], onAddAdmin, onDeleteAdmi
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-black/40 border border-white/10 rounded-xl">
+              <div className="flex items-center justify-between p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
                 <div>
-                  <p className="text-white font-medium">AI Rules Access</p>
-                  <p className="text-[9px] text-gray-500">Allow modifying Hiraya AI Fitting rules</p>
+                  <p className="text-hiraya-ink font-medium">AI Rules Access</p>
+                  <p className="text-[9px] text-hiraya-sand">Allow modifying Hiraya AI Fitting rules</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, ai_rules_access: !formData.ai_rules_access })}
-                  className="text-[#E9C46A]"
+                  className="text-hiraya-ink"
                 >
-                  {formData.ai_rules_access ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-gray-600" />}
+                  {formData.ai_rules_access ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-hiraya-sand" />}
                 </button>
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
+              <div className="pt-3 flex justify-end gap-2 border-t border-hiraya-olive/15">
                 <button
                   type="button"
                   onClick={() => { setIsModalOpen(false); setEditingAccount(null); }}
-                  className="px-4 py-2 text-gray-400 hover:text-white rounded-xl transition"
+                  className="px-4 py-2 text-hiraya-ink hover:text-hiraya-ink rounded-xl transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-[#E9C46A] hover:bg-[#D4A94F] disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold uppercase rounded-xl transition font-semibold flex items-center gap-2"
+                  className="px-4 py-2 bg-[#CB997E] hover:bg-hiraya-cream-deep disabled:opacity-50 disabled:cursor-not-allowed text-hiraya-olive font-bold uppercase rounded-xl transition font-semibold flex items-center gap-2"
                 >
                   {editingAccount ? <Save size={14} /> : <UserPlus size={14} />}
                   {submitting

@@ -54,19 +54,19 @@ const CategoryRow = ({
 
   return (
     <div className="mb-20">
-      <div className="flex justify-between items-center mb-8 border-l-[3px] border-[#E9C46A] pl-6">
+      <div className="flex justify-between items-center mb-8 border-l-[3px] border-[#CB997E] pl-6">
         <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.25em] text-white">
+          <h2 className="text-2xl font-light uppercase tracking-[0.25em] text-hiraya-ink">
             {title}
           </h2>
-          <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1 block">
+          <span className="text-[10px] text-hiraya-sand uppercase tracking-widest mt-1 block">
             Showing {filtered.length} piece(s)
           </span>
         </div>
         <button
           type="button"
           onClick={handleExplore}
-          className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-gray-500 hover:text-[#E9C46A] transition-all group"
+          className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-hiraya-sand hover:text-hiraya-ink transition-all group"
         >
           Explore More <PlusCircle size={15} className="group-hover:rotate-90 transition-transform" />
         </button>

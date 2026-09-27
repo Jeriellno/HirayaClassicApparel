@@ -38,7 +38,7 @@ const COLOR_MAP = {
   mustard: '#D4A72C',
   orange: '#D2793E',
   rust: '#9C4A1F',
-  gold: '#E9C46A',   // "gold" garment option now renders as luxury cream
+  gold: '#CB997E',   // "gold" garment option now renders as luxury cream
   silver: '#C0C0C0',
 };
 
@@ -71,10 +71,10 @@ export const ColorSelector = ({ colors = [], selectedColor, onSelectColor }) => 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-zinc-400">
+        <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-hiraya-sand">
           Colour
         </p>
-        <span className="text-[11px] font-medium text-stone-200 tracking-wide">
+        <span className="text-[11px] font-medium text-hiraya-ink tracking-wide">
           {selectedColor || 'Select one'}
         </span>
       </div>
@@ -99,14 +99,14 @@ export const ColorSelector = ({ colors = [], selectedColor, onSelectColor }) => 
                 }`}
             >
               <span
-                className={`absolute inset-0 rounded-full ${light ? 'border border-zinc-600' : ''}`}
+                className={`absolute inset-0 rounded-full ${light ? 'border border-hiraya-sand/50' : ''}`}
                 style={{ backgroundColor: hex }}
               />
               {isSelected && (
                 <Check
                   size={13}
                   strokeWidth={3}
-                  className={`relative z-10 ${light ? 'text-zinc-950' : 'text-white'}`}
+                  className={`relative z-10 ${light ? 'text-hiraya-ink' : 'text-hiraya-ink'}`}
                 />
               )}
             </button>
@@ -130,10 +130,10 @@ export const SizeSelector = ({ sizes = [], selectedSize, onSelectSize, sizeStock
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-zinc-400">
+        <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-hiraya-sand">
           Size
         </p>
-        <span className="text-[11px] font-medium text-stone-200 tracking-wide">
+        <span className="text-[11px] font-medium text-hiraya-ink tracking-wide">
           {selectedSize || 'Select one'}
         </span>
       </div>
@@ -156,16 +156,16 @@ export const SizeSelector = ({ sizes = [], selectedSize, onSelectSize, sizeStock
               aria-pressed={isSelected}
               title={soldOut ? `${size} — Out of stock` : `Size ${size}`}
               className={`relative min-w-[2.75rem] h-11 px-3 rounded-lg flex items-center justify-center text-[12px] font-semibold transition-all duration-300 border ${soldOut
-                  ? 'border-zinc-900 bg-zinc-950 text-zinc-700 cursor-not-allowed'
+                  ? 'border-hiraya-sand bg-hiraya-olive text-zinc-700 cursor-not-allowed'
                   : isSelected
-                    ? 'bg-[#E9C46A] text-black border-stone-300'
-                    : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-stone-300/70 hover:text-stone-200'
+                    ? 'bg-[#CB997E] text-hiraya-olive border-hiraya-gold'
+                    : 'border-hiraya-sand/30 bg-hiraya-olive text-hiraya-ink hover:border-hiraya-gold/70 hover:text-hiraya-ink'
                 }`}
             >
               <span className={soldOut ? 'line-through' : ''}>{size}</span>
 
               {soldOut && (
-                <Ban size={10} className="absolute -top-1 -right-1 text-zinc-600" />
+                <Ban size={10} className="absolute -top-1 -right-1 text-hiraya-sand" />
               )}
             </button>
           );

@@ -46,20 +46,20 @@ class ErrorBoundary extends Component {
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-black px-6">
-        <div className="max-w-md w-full text-center rounded-3xl border-stone-300/30 bg-zinc-950 p-10 shadow-2xl">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E9C46A]/10 border-stone-300/30 text-stone-200">
+        <div className="max-w-md w-full text-center rounded-3xl border-hiraya-olive/20 bg-hiraya-olive p-10 shadow-2xl">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#CB997E]/10 border-hiraya-olive/20 text-hiraya-ink">
             <AlertTriangle size={24} />
           </div>
-          <h1 className="text-lg font-light uppercase tracking-[0.25em] text-white">
+          <h1 className="text-lg font-light uppercase tracking-[0.25em] text-hiraya-ink">
             Something slipped
           </h1>
-          <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+          <p className="mt-3 text-xs leading-relaxed text-hiraya-sand">
             The Hiraya studio hit an unexpected error. Your bag and profile are safe —
             reload to continue where you left off.
           </p>
           <button
             onClick={this.handleReload}
-            className="mt-8 w-full rounded-xl bg-[#E9C46A] px-6 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-black transition hover:bg-[#D4A94F]"
+            className="mt-8 w-full rounded-xl bg-[#CB997E] px-6 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-hiraya-olive transition hover:bg-hiraya-cream-deep"
           >
             Reload Hiraya
           </button>

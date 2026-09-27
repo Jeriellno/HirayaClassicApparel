@@ -46,53 +46,53 @@ const FeedbackTab = ({ feedbacks = [] }) => {
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl">
       <div>
-        <h2 className="text-xl font-light uppercase tracking-[0.2em] text-[#E9C46A]">
+        <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
           Student &amp; User Feedback
         </h2>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-hiraya-ink mt-1">
           Review research responses and student satisfaction ratings.
         </p>
       </div>
 
       {/* AGGREGATES */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-gray-400">
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <div className="flex items-center justify-between text-hiraya-ink">
             <span className="text-[10px] font-mono uppercase tracking-wider">Responses</span>
-            <MessageSquare size={16} className="text-[#E9C46A]" />
+            <MessageSquare size={16} className="text-hiraya-ink" />
           </div>
-          <p className="text-3xl font-mono font-bold text-white pt-1">{feedbacks.length}</p>
+          <p className="text-3xl font-mono font-bold text-hiraya-ink pt-1">{feedbacks.length}</p>
         </div>
 
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-gray-400">
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
+          <div className="flex items-center justify-between text-hiraya-ink">
             <span className="text-[10px] font-mono uppercase tracking-wider">Average Rating</span>
-            <Star size={16} className="text-[#E9C46A]" fill="#E9C46A" />
+            <Star size={16} className="text-hiraya-ink" fill="#CB997E" />
           </div>
-          <p className="text-3xl font-mono font-bold text-[#E9C46A] pt-1">
+          <p className="text-3xl font-mono font-bold text-hiraya-ink pt-1">
             {averageRating === null ? '—' : averageRating.toFixed(1)}
           </p>
-          <p className="text-[10px] text-gray-500">
+          <p className="text-[10px] text-hiraya-sand">
             {rated.length > 0 ? `from ${rated.length} rated` : 'no ratings yet'}
           </p>
         </div>
 
-        <div className="p-5 bg-[#0D1017] border border-white/10 rounded-2xl space-y-2">
-          <div className="flex items-center justify-between text-gray-400">
+        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-2">
+          <div className="flex items-center justify-between text-hiraya-ink">
             <span className="text-[10px] font-mono uppercase tracking-wider">Distribution</span>
             <TrendingUp size={16} className="text-emerald-400" />
           </div>
           <div className="space-y-1 pt-1">
             {distribution.map(({ star, count }) => (
               <div key={star} className="flex items-center gap-2 text-[10px]">
-                <span className="text-gray-500 w-3">{star}</span>
-                <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <span className="text-hiraya-sand w-3">{star}</span>
+                <div className="flex-1 h-1.5 bg-hiraya-cream/60 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#E9C46A]"
+                    className="h-full bg-[#CB997E]"
                     style={{ width: `${(count / maxBucket) * 100}%` }}
                   />
                 </div>
-                <span className="text-gray-400 w-4 text-right">{count}</span>
+                <span className="text-hiraya-ink w-4 text-right">{count}</span>
               </div>
             ))}
           </div>
@@ -115,8 +115,8 @@ const FeedbackTab = ({ feedbacks = [] }) => {
             onClick={() => setFilter(tab.id)}
             className={`px-3.5 py-2 rounded-lg text-[10px] uppercase tracking-widest border transition cursor-pointer ${
               filter === tab.id
-                ? 'bg-[#E9C46A]/15 text-[#E9C46A] border-[#E9C46A]/40 font-medium'
-                : 'text-gray-400 border-white/10 hover:text-white hover:border-white/30'
+                ? 'bg-[#CB997E]/15 text-hiraya-ink border-[#CB997E]/40 font-medium'
+                : 'text-hiraya-ink border-hiraya-olive/15 hover:text-hiraya-ink hover:border-hiraya-olive/30'
             }`}
           >
             {tab.label}
@@ -130,18 +130,18 @@ const FeedbackTab = ({ feedbacks = [] }) => {
             const hasRating =
               fb.rating !== null && fb.rating !== undefined && fb.rating !== '';
             return (
-              <div key={fb.id || idx} className="p-4 bg-[#0D1017] border border-white/10 rounded-2xl space-y-2 text-xs">
-                <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                  <span className="font-mono text-gray-200 flex items-center gap-2">
-                    <MessageSquare size={14} className="text-[#E9C46A]" />
+              <div key={fb.id || idx} className="p-4 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-2 text-xs">
+                <div className="flex justify-between items-center border-b border-hiraya-olive/15 pb-2">
+                  <span className="font-mono text-hiraya-ink flex items-center gap-2">
+                    <MessageSquare size={14} className="text-hiraya-ink" />
                     {fb.user_name || 'Anonymous Visitor'}
                   </span>
-                  <span className="text-[#E9C46A] font-mono flex items-center gap-1 text-[11px] bg-[#E9C46A]/10 px-2 py-0.5 rounded border border-[#E9C46A]/20">
-                    <Star size={12} fill="#E9C46A" />
+                  <span className="text-hiraya-ink font-mono flex items-center gap-1 text-[11px] bg-[#CB997E]/10 px-2 py-0.5 rounded border border-[#CB997E]/20">
+                    <Star size={12} fill="#CB997E" />
                     {hasRating ? `${fb.rating} / 5` : 'Unrated'}
                   </span>
                 </div>
-                <p className="text-gray-300 leading-relaxed font-light">
+                <p className="text-hiraya-ink leading-relaxed font-light">
                   {/*
                    * `comment` is the ONLY text column on `feedbacks` (see the
                    * Feedback model). The old `fb.comment || fb.message` fallback
@@ -155,7 +155,7 @@ const FeedbackTab = ({ feedbacks = [] }) => {
             );
           })
         ) : (
-          <div className="p-8 text-center text-xs font-mono text-gray-500 uppercase tracking-widest bg-[#0D1017] border border-white/10 rounded-2xl">
+          <div className="p-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl">
             {feedbacks.length === 0 ? 'No student feedback received yet' : 'Nothing matches this filter'}
           </div>
         )}

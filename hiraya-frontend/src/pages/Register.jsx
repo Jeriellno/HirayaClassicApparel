@@ -8,8 +8,8 @@ import { parseApiError } from '../api/axios';
 // Shared Gold & Black input styling so every field on this page stays visually
 // identical without repeating a 200-character class string per input.
 const FIELD_BASE =
-    'w-full rounded-xl border bg-black/60 px-5 py-3.5 text-sm text-hiraya-cream placeholder-hiraya-sand outline-none transition-all focus:ring-1';
-const FIELD_OK = 'border-zinc-800 focus:border-[#E9C46A]/60 focus:ring-[#E9C46A]/25';
+    'w-full rounded-xl border bg-hiraya-cream/50 px-5 py-3.5 text-sm text-hiraya-ink placeholder-hiraya-sand outline-none transition-all focus:ring-1';
+const FIELD_OK = 'border-hiraya-sand/30 focus:border-[#CB997E]/60 focus:ring-[#CB997E]/25';
 const FIELD_ERR = 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30';
 const fieldClass = (hasError) => `${FIELD_BASE} ${hasError ? FIELD_ERR : FIELD_OK}`;
 
@@ -186,8 +186,8 @@ const Register = () => {
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black p-4 font-sans">
             {/* Ambient gold glow */}
             <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -top-1/3 left-1/2 h-[70vh] w-[70vh] -translate-x-1/2 rounded-full bg-[#F5EBE0]/\[0.05\] blur-[120px]" />
-                <div className="absolute bottom-0 right-0 h-[40vh] w-[40vh] rounded-full bg-[#F2D89B]/\[0.03\] blur-[100px]" />
+                <div className="absolute -top-1/3 left-1/2 h-[70vh] w-[70vh] -translate-x-1/2 rounded-full bg-hiraya-cream/\[0.05\] blur-[120px]" />
+                <div className="absolute bottom-0 right-0 h-[40vh] w-[40vh] rounded-full bg-hiraya-cream/\[0.03\] blur-[100px]" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(245,235,224,0.08),transparent_60%)]" />
             </div>
 
@@ -197,20 +197,20 @@ const Register = () => {
                 transition={{ duration: 0.5, ease: 'easeOut' }}
                 className="relative z-10 w-full max-w-[460px]"
             >
-                <div className="overflow-hidden rounded-[2rem] border-zinc-800 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-xl">
+                <div className="overflow-hidden rounded-[2rem] border-hiraya-sand/30 bg-hiraya-cream-deep/80 p-8 shadow-2xl backdrop-blur-xl">
                     <div className="mb-6 text-center">
-                        <h1 className="font-serif text-3xl font-light uppercase leading-none tracking-[0.2em] text-[#E9C46A]">
+                        <h1 className="font-serif text-3xl font-light uppercase leading-none tracking-[0.2em] text-hiraya-ink">
                             {step === 1 ? 'Register' : 'Body Profile'}
                         </h1>
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+                        <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-hiraya-sand">
                             {step === 1
                                 ? 'Create your account'
                                 : '5 Core measurements for AI virtual fitting'}
                         </p>
 
                         <div className="mt-5 flex items-center justify-center gap-2">
-                            <div className={`h-1 w-8 rounded-full transition-colors ${step >= 1 ? 'bg-[#E9C46A]' : 'bg-zinc-800'}`} />
-                            <div className={`h-1 w-8 rounded-full transition-colors ${step >= 2 ? 'bg-[#E9C46A]' : 'bg-zinc-800'}`} />
+                            <div className={`h-1 w-8 rounded-full transition-colors ${step >= 1 ? 'bg-[#CB997E]' : 'bg-hiraya-sand/70'}`} />
+                            <div className={`h-1 w-8 rounded-full transition-colors ${step >= 2 ? 'bg-[#CB997E]' : 'bg-hiraya-sand/70'}`} />
                         </div>
                     </div>
 
@@ -274,19 +274,19 @@ const Register = () => {
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-stone-200"
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-hiraya-sand transition-colors hover:text-hiraya-ink"
                                         >
                                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
                                     {formData.password.length > 0 && (
-                                        <div className="mt-2 space-y-1 rounded-xl border-zinc-800 bg-zinc-900/60 p-2.5">
+                                        <div className="mt-2 space-y-1 rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 p-2.5">
                                             {requirements.map((req, idx) => (
                                                 <div key={idx} className="flex items-center gap-1.5">
                                                     {req.valid
                                                         ? <Check size={12} className="text-emerald-500 shrink-0" />
-                                                        : <X size={12} className="shrink-0 text-zinc-600" />}
-                                                    <span className={`text-[10px] ${req.valid ? 'font-medium text-emerald-500' : 'text-zinc-500'}`}>
+                                                        : <X size={12} className="shrink-0 text-hiraya-sand" />}
+                                                    <span className={`text-[10px] ${req.valid ? 'font-medium text-emerald-500' : 'text-hiraya-sand'}`}>
                                                         {req.label}
                                                     </span>
                                                 </div>
@@ -313,7 +313,7 @@ const Register = () => {
                                                 type="button"
                                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                                 aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                                                className="text-zinc-500 transition-colors hover:text-stone-200"
+                                                className="text-hiraya-sand transition-colors hover:text-hiraya-ink"
                                             >
                                                 {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                             </button>
@@ -326,15 +326,15 @@ const Register = () => {
 
                                 {/* TERMS */}
                                 <div className="pt-1 px-1">
-                                    <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-500">
+                                    <label className="flex cursor-pointer items-start gap-2 text-xs text-hiraya-sand">
                                         <input
                                             type="checkbox"
                                             checked={formData.agree_terms}
                                             onChange={(e) => updateField('agree_terms', e.target.checked)}
-                                            className="mt-0.5 cursor-pointer rounded border-zinc-700 bg-black text-stone-200 accent-stone-200 focus:ring-0"
+                                            className="mt-0.5 cursor-pointer rounded border-hiraya-sand/40 bg-black text-hiraya-ink accent-stone-200 focus:ring-0"
                                         />
                                         <span className="select-none text-[11px] leading-tight">
-                                            I agree to the <span className="text-stone-200/80 underline">Terms of Service</span> and <span className="text-stone-200/80 underline">Privacy Policy</span>.
+                                            I agree to the <span className="text-hiraya-ink underline">Terms of Service</span> and <span className="text-hiraya-ink underline">Privacy Policy</span>.
                                         </span>
                                     </label>
                                     {errors.agree_terms && <p className="mt-1 text-[10px] font-medium text-red-400">{errors.agree_terms}</p>}
@@ -345,8 +345,8 @@ const Register = () => {
                                     disabled={!formData.agree_terms}
                                     className={`mt-2 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-bold uppercase tracking-widest transition-all ${
                                         formData.agree_terms
-                                            ? 'cursor-pointer bg-[#E9C46A] text-black shadow-lg shadow-stone-200/10 hover:bg-[#D4A94F] active:scale-95'
-                                            : 'cursor-not-allowed bg-zinc-900 text-zinc-600'
+                                            ? 'cursor-pointer bg-[#CB997E] text-hiraya-olive shadow-lg shadow-stone-200/10 hover:bg-hiraya-cream-deep active:scale-95'
+                                            : 'cursor-not-allowed bg-hiraya-sand text-hiraya-sand'
                                     }`}
                                 >
                                     Continue <ChevronRight size={14} />
@@ -365,8 +365,8 @@ const Register = () => {
                                 noValidate
                                 className="space-y-3.5"
                             >
-                                <div className="mb-2 flex items-center gap-2 text-zinc-500">
-                                    <Ruler size={14} className="text-stone-200" />
+                                <div className="mb-2 flex items-center gap-2 text-hiraya-sand">
+                                    <Ruler size={14} className="text-hiraya-ink" />
                                     <span className="text-[10px] font-bold uppercase tracking-widest">
                                         All 5 fields are optional — you can skip and update later in Settings.
                                     </span>
@@ -375,7 +375,7 @@ const Register = () => {
                                 <div className="space-y-3">
                                     {CORE_MEASUREMENT_FIELDS.map(({ key, label, placeholder }) => (
                                         <div key={key}>
-                                            <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                                            <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-hiraya-sand">
                                                 {label} (cm)
                                             </label>
                                             <input
@@ -398,14 +398,14 @@ const Register = () => {
                                     <button
                                         type="button"
                                         onClick={handleBack}
-                                        className="flex items-center justify-center gap-2 rounded-full border-zinc-800 bg-zinc-900/60 py-3.5 text-xs font-bold uppercase tracking-widest text-zinc-300 transition-all hover:border-stone-300/40 hover:text-stone-200 active:scale-95"
+                                        className="flex items-center justify-center gap-2 rounded-full border-hiraya-sand/30 bg-hiraya-sand/60 py-3.5 text-xs font-bold uppercase tracking-widest text-hiraya-ink transition-all hover:border-hiraya-gold/50 hover:text-hiraya-ink active:scale-95"
                                     >
                                         <ChevronLeft size={14} /> Back
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="flex items-center justify-center gap-2 rounded-full bg-[#E9C46A] py-3.5 text-xs font-bold uppercase tracking-widest text-black shadow-lg shadow-stone-200/10 transition-all hover:bg-[#D4A94F] active:scale-95 disabled:cursor-not-allowed disabled:bg-zinc-900 disabled:text-zinc-600 disabled:shadow-none"
+                                        className="flex items-center justify-center gap-2 rounded-full bg-[#CB997E] py-3.5 text-xs font-bold uppercase tracking-widest text-hiraya-olive shadow-lg shadow-stone-200/10 transition-all hover:bg-hiraya-cream-deep active:scale-95 disabled:cursor-not-allowed disabled:bg-hiraya-sand disabled:text-hiraya-sand disabled:shadow-none"
                                     >
                                         {isLoading ? (
                                             <>
@@ -421,9 +421,9 @@ const Register = () => {
                     </AnimatePresence>
 
                     <div className="mt-6 text-center">
-                        <p className="text-[11px] text-zinc-500">
+                        <p className="text-[11px] text-hiraya-sand">
                             Already have an account?{' '}
-                            <Link to="/login" className="ml-1 border-b border-stone-300/30 font-bold text-stone-200 transition-colors hover:text-stone-200">Sign In</Link>
+                            <Link to="/login" className="ml-1 border-b border-hiraya-olive/20 font-bold text-hiraya-ink transition-colors hover:text-hiraya-ink">Sign In</Link>
                         </p>
                     </div>
                 </div>

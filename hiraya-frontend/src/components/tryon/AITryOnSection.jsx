@@ -33,7 +33,7 @@ export const AITryOnSection = ({ withStyleStack = true, withChat = true }) => {
   } = useTryOnState();
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-black pt-16 text-stone-200">
+    <div className="flex h-screen w-full overflow-hidden bg-black pt-16 text-hiraya-ink">
       {/* 1. LEFT PANEL — MY BAG STYLE STACK (categorical rows + BG removal) */}
       {withStyleStack && (
         <StyleStack

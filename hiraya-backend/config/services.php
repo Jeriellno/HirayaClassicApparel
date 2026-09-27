@@ -237,6 +237,17 @@ return [
      */
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
+        /*
+         * THE KEY POOL.
+         *
+         * `key` is the ORIGINAL key and stays first in preference order; every
+         * additional key in `GEMINI_API_KEYS` (comma-separated) is tried after
+         * it. App\Services\GeminiKeyPool walks this list: a key that answers
+         * 429 sits out the rest of the day and the next key takes over, so a
+         * drained bucket no longer refuses a customer.
+         */
+        'keys' => env('GEMINI_API_KEYS', ''),
+
         // Text/vision model used for catalog image analysis.
         // Default MUST be a model that still exists — `gemini-2.0-flash` is
         // retired and 404s, which silently broke the garment auto-fill.

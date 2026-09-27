@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\PasswordResetService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -176,18 +178,105 @@ class AuthController extends Controller
     }
 
     /**
+     * POST /forgot-password — send a reset link.
+     *
+     * THE PREVIOUS WIRING WAS WRONG IN A WAY THAT LOOKED CORRECT.
+     * ------------------------------------------------------------
+     * The Forgot page called `/check-email`, which exists to answer "is this
+     * address already registered?" during SIGN-UP. It never sent mail. So the
+     * customer was shown "Reset link sent", no email was ever produced, and the
+     * failure was invisible from the UI — the worst kind of bug, because it only
+     * surfaces when someone is already locked out.
+     *
+     * THIS ENDPOINT IS ENUMERATION-SAFE BY CONSTRUCTION: it returns the same 200
+     * body whether the address exists, does not exist, or the send FAILED. A
+     * caller cannot use it to discover which addresses are registered, and an
+     * operator reading the logs is the only party who can tell the difference.
+     */
+    public function forgotPassword(Request $request, PasswordResetService $reset): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            /*
+             * A malformed address is the ONE case that gets a distinct answer.
+             * It tells the caller nothing about the account database — the input
+             * was not a valid email at all — and it is far more useful than a
+             * silent success on a typo.
+             */
+            return response()->json([
+                'message' => 'Please enter a valid email address.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $result = $reset->sendResetLink((string) $request->email);
+
+        return response()->json([
+            'message' => 'If an account exists for that address, a reset link is on its way.',
+            'expires_in_minutes' => $result['expires_in_minutes'] ?? PasswordResetService::TTL_MINUTES,
+        ], 200);
+    }
+
+    /**
+     * POST /validate-reset-token — is this link still usable?
+     *
+     * Answered BEFORE the customer picks a new password. Without it, an expired
+     * or already-used link is only discovered on submit, after the work of
+     * choosing a password — and the reset response is (correctly) generic, so the
+     * customer sees something that reads like success while nothing changed.
+     *
+     * The response is a plain boolean plus a reason CODE, never the account's
+     * details: it confirms a token, not an account.
+     */
+    public function validateResetToken(Request $request, PasswordResetService $reset): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'valid' => false,
+                'reason' => 'malformed',
+                'message' => 'This reset link is incomplete. Request a new one.',
+            ], 200);
+        }
+
+        $valid = $reset->tokenIsValid((string) $request->email, (string) $request->token);
+
+        return response()->json([
+            'valid' => $valid,
+            'reason' => $valid ? 'ok' : 'invalid_or_expired',
+            'message' => $valid
+                ? 'Set a new password below.'
+                : 'This reset link is invalid, expired, or has already been used. Request a new one.',
+        ], 200);
+    }
+
+    /**
      * Reset a password using a previously issued, signed reset token.
      *
      * The response is intentionally identical for every outcome so the
      * endpoint cannot be used to enumerate registered email addresses.
      */
-    public function resetPasswordDirect(Request $request)
+    public function resetPasswordDirect(Request $request, PasswordResetService $reset): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'email'                 => 'required|email',
             'token'                 => 'required|string',
-            'password'              => 'required|string|min:8',
-            'password_confirmation' => 'required|same:password',
+            /*
+             * `confirmed` mirrors the registration contract: the frontend sends
+             * `password_confirmation`, and a mismatch must be a validation error
+             * the customer can see rather than a silent no-op.
+             */
+            'password'              => 'required|string|min:8|confirmed',
+        ], [
+            'password.confirmed' => 'The password confirmation does not match.',
+            'password.min' => 'Your password must be at least 8 characters.',
         ]);
 
         if ($validator->fails()) {
@@ -200,33 +289,19 @@ class AuthController extends Controller
         // Generic message returned on every failure path below.
         $genericMessage = 'If that email is registered, the password has been reset.';
 
-        // The signed token carries the email hash; a tampered or missing
-        // token fails here before we ever look the user up.
-        if (! $this->resetTokenIsValid($request->email, $request->token)) {
-            Log::warning('Rejected password reset with invalid token');
-            return response()->json(['message' => $genericMessage], 200);
-        }
+        $reset->resetPassword(
+            (string) $request->email,
+            (string) $request->token,
+            (string) $request->password
+        );
 
-        $user = User::where('email', $request->email)->first();
-
-        if (! $user) {
-            return response()->json(['message' => $genericMessage], 200);
-        }
-
-        $user->update(['password' => Hash::make($request->password)]);
-        $user->tokens()->delete();
-
+        /*
+         * Deliberately the SAME 200 whether the token was accepted or rejected.
+         * Reporting the rejection would let a caller test tokens, and the link's
+         * validity is already confirmed by /validate-reset-token before this is
+         * ever reached from the UI.
+         */
         return response()->json(['message' => $genericMessage], 200);
-    }
-
-    /**
-     * Verify that the supplied token matches a signed hash of the email.
-     */
-    protected function resetTokenIsValid(string $email, string $token): bool
-    {
-        $expected = hash_hmac('sha256', strtolower($email), (string) config('app.key'));
-
-        return hash_equals($expected, $token);
     }
 
     /**

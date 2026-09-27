@@ -49,51 +49,51 @@ const Feedback = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-stone-200">
+    <div className="min-h-screen bg-black text-hiraya-ink">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-24 md:pt-28 pb-16">
         <button
           onClick={() => navigate(-1)}
-          className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-zinc-500 hover:text-stone-200 transition mb-6"
+          className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-sand hover:text-hiraya-ink transition mb-6"
         >
           <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
           Back
         </button>
 
         <div className="flex items-center gap-2 mb-1">
-          <MessageSquare size={18} className="text-[#E9C46A]" />
-          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#E9C46A]">
+          <MessageSquare size={18} className="text-hiraya-ink" />
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-hiraya-ink">
             Share your experience
           </span>
         </div>
-        <h1 className="text-2xl font-light uppercase tracking-[0.15em] text-white mb-2">
+        <h1 className="text-2xl font-light uppercase tracking-[0.15em] text-hiraya-ink mb-2">
           Send Feedback
         </h1>
-        <p className="text-sm text-zinc-400 mb-8">
+        <p className="text-sm text-hiraya-sand mb-8">
           Let us know how we did. Your response helps improve the Hiraya fitting experience.
         </p>
 
         {done ? (
           <div className="rounded-2xl border-emerald-500/30 bg-emerald-500/10 p-8 text-center">
             <CheckCircle2 size={36} className="mx-auto text-emerald-400 mb-3" />
-            <p className="text-lg text-white">Thank you for your feedback!</p>
-            <p className="text-sm text-zinc-400 mt-1">Your response has been recorded.</p>
+            <p className="text-lg text-hiraya-ink">Thank you for your feedback!</p>
+            <p className="text-sm text-hiraya-olive/70 mt-1">Your response has been recorded.</p>
             <div className="mt-6 flex justify-center gap-3">
               <button
                 onClick={() => { setDone(false); setComment(''); setRating(5); }}
-                className="px-4 py-2 rounded-xl border-white/10 text-sm text-zinc-300 hover:text-white transition"
+                className="px-4 py-2 rounded-xl border-hiraya-olive/15 text-sm text-hiraya-ink hover:text-hiraya-ink transition"
               >
                 Send another
               </button>
               <button
                 onClick={() => navigate('/shop')}
-                className="px-4 py-2 rounded-xl bg-[#E9C46A] text-black font-semibold text-sm hover:bg-[#d8b257] transition"
+                className="px-4 py-2 rounded-xl bg-[#CB997E] text-hiraya-olive font-semibold text-sm hover:bg-[#d8b257] transition"
               >
                 Back to shop
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border-white/10 bg-white/5 p-6">
+          <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border-hiraya-olive/15 bg-hiraya-cream/60 p-6">
             {error && (
               <div className="rounded-xl border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                 {error}
@@ -102,7 +102,7 @@ const Feedback = () => {
 
             {/* Rating */}
             <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-2">
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-hiraya-sand mb-2">
                 Your rating
               </label>
               <div className="flex items-center gap-1.5">
@@ -118,19 +118,19 @@ const Feedback = () => {
                   >
                     <Star
                       size={26}
-                      className={(hovered || rating) >= n ? 'text-[#E9C46A]' : 'text-zinc-600'}
-                      fill={(hovered || rating) >= n ? '#E9C46A' : 'none'}
+                      className={(hovered || rating) >= n ? 'text-hiraya-ink' : 'text-hiraya-sand'}
+                      fill={(hovered || rating) >= n ? '#CB997E' : 'none'}
                     />
                   </button>
                 ))}
-                <span className="ml-2 text-sm text-zinc-400">{hovered || rating} / 5</span>
+                <span className="ml-2 text-sm text-hiraya-sand">{hovered || rating} / 5</span>
               </div>
             </div>
 
             {/* Guest name */}
             {!user && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-hiraya-sand mb-1">
                   Name (optional)
                 </label>
                 <input
@@ -138,14 +138,14 @@ const Feedback = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Anonymous Visitor"
-                  className="w-full rounded-xl border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#E9C46A]"
+                  className="w-full rounded-xl border-hiraya-olive/15 bg-hiraya-cream/30 px-3 py-2.5 text-sm text-hiraya-ink placeholder-zinc-600 focus:outline-none focus:border-[#CB997E]"
                 />
               </div>
             )}
 
             {/* Comment */}
             <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1">
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-hiraya-sand mb-1">
                 Your feedback <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -154,7 +154,7 @@ const Feedback = () => {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Tell us what worked well and what could be better..."
-                className="w-full resize-none rounded-xl border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#E9C46A]"
+                className="w-full resize-none rounded-xl border-hiraya-olive/15 bg-hiraya-cream/30 px-3 py-2.5 text-sm text-hiraya-ink placeholder-zinc-600 focus:outline-none focus:border-[#CB997E]"
               />
             </div>
 
@@ -162,7 +162,7 @@ const Feedback = () => {
               <button
                 type="submit"
                 disabled={submitting || !comment.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#E9C46A] px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-black transition hover:bg-[#d8b257] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#CB997E] px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-hiraya-olive transition hover:bg-[#d8b257] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                 {submitting ? 'Sending...' : 'Submit feedback'}

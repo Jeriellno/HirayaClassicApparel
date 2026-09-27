@@ -27,7 +27,7 @@ export default function CanvassLookupTab() {
   };
 
   return (
-    <div className="p-6 text-stone-200">
+    <div className="p-6 text-hiraya-ink">
       <h2 className="text-xl font-bold mb-4 tracking-wider">CANVASS & FITTING LOOKUP</h2>
       
       {/* Search Bar */}
@@ -37,12 +37,12 @@ export default function CanvassLookupTab() {
           placeholder="Enter Customer Name or Email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-neutral-900 border border-neutral-700 p-3 rounded text-sm w-full focus:outline-none focus:border-stone-300"
+          className="bg-hiraya-cream-deep/90 border border-hiraya-sand/40 p-3 rounded text-sm w-full focus:outline-none focus:border-hiraya-gold"
         />
         <button 
           type="submit" 
           disabled={loading}
-          className="bg-[#E9C46A] hover:bg-[#d8b257] text-black px-6 py-3 rounded text-sm font-semibold tracking-wider transition disabled:opacity-50"
+          className="bg-[#CB997E] hover:bg-[#d8b257] text-hiraya-olive px-6 py-3 rounded text-sm font-semibold tracking-wider transition disabled:opacity-50"
         >
           {loading ? 'SEARCHING...' : 'LOOKUP'}
         </button>
@@ -50,13 +50,13 @@ export default function CanvassLookupTab() {
 
       {/* Result View */}
       {wishlistData ? (
-        <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-lg">
-          <div className="flex justify-between items-center border-b border-neutral-800 pb-3 mb-4">
+        <div className="bg-hiraya-cream-deep/90 border border-hiraya-sand/30 p-5 rounded-lg">
+          <div className="flex justify-between items-center border-b border-hiraya-sand/30 pb-3 mb-4">
             <div>
               <h3 className="font-bold text-lg">{wishlistData.user_name}</h3>
-              <p className="text-xs text-neutral-400">Ref Code: {wishlistData.reference_code}</p>
+              <p className="text-xs text-hiraya-sand">Ref Code: {wishlistData.reference_code}</p>
             </div>
-            <span className="bg-[#E9C46A]/10 text-stone-200 text-xs px-3 py-1 rounded border border-stone-300/20">
+            <span className="bg-[#CB997E]/10 text-hiraya-ink text-xs px-3 py-1 rounded border border-hiraya-olive/15">
               {wishlistData.items?.length || 0} Items in Bag
             </span>
           </div>
@@ -69,11 +69,11 @@ export default function CanvassLookupTab() {
               );
 
               return (
-                <div key={item.id} className="flex gap-4 bg-neutral-950 p-3 rounded border border-neutral-800">
+                <div key={item.id} className="flex gap-4 bg-hiraya-olive p-3 rounded border border-hiraya-sand/30">
                   <img 
                     src={imageUrl} 
                     alt={item.name || 'Garment'} 
-                    className="w-16 h-20 object-cover rounded bg-neutral-900"
+                    className="w-16 h-20 object-cover rounded bg-hiraya-cream-deep/90"
                     onError={(e) => {
                       // Fallback kapag nag-fail ang pag-load ng image
                       e.currentTarget.src = '/images/placeholder.svg';
@@ -81,8 +81,8 @@ export default function CanvassLookupTab() {
                   />
                   <div className="flex-1">
                     <h4 className="font-semibold text-sm">{item.name}</h4>
-                    <p className="text-xs text-neutral-400">Category: {item.category}</p>
-                    <p className="text-xs text-stone-200 font-mono mt-1">Rack: {item.rack_location || 'Main Display'}</p>
+                    <p className="text-xs text-hiraya-sand">Category: {item.category}</p>
+                    <p className="text-xs text-hiraya-ink font-mono mt-1">Rack: {item.rack_location || 'Main Display'}</p>
                   </div>
                 </div>
               );
@@ -90,7 +90,7 @@ export default function CanvassLookupTab() {
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 text-neutral-500 border border-dashed border-neutral-800 rounded">
+        <div className="text-center py-12 text-neutral-500 border border-dashed border-hiraya-sand/30 rounded">
           Enter a customer code or name above to pull up their online AI styling canvass.
         </div>
       )}

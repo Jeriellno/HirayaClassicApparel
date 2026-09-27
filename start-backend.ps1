@@ -173,16 +173,41 @@ while ((Get-Date) -lt $deadline) {
 }
 
 Write-Host ''
-if ($healthy) {
-    Write-Host "READY  ->  http://127.0.0.1:$Port" -ForegroundColor Green
-    Write-Host 'Health check /up answered 200 (no database needed).' -ForegroundColor DarkGray
-    Write-Host ''
-    Write-Host 'Remember: the try-on queue needs a worker if QUEUE_CONNECTION=database:' -ForegroundColor DarkGray
-    Write-Host '  php artisan queue:work --queue=tryon,default' -ForegroundColor DarkGray
-} else {
+if (-not $healthy) {
     Write-Error "Server did not answer /up within 60s. Last error: $lastError"
     Write-Host 'Diagnose with:' -ForegroundColor DarkGray
     Write-Host '  php artisan hiraya:doctor' -ForegroundColor DarkGray
     Write-Host 'Check hiraya-backend/storage/logs/laravel.log' -ForegroundColor DarkGray
     exit 1
 }
+
+# ---------------------------------------------------------------------------
+# 5. START THE TRY-ON QUEUE WATCHDOG
+# ---------------------------------------------------------------------------
+#
+# The orphan cleanup above also stops any old queue worker. Re-create the worker
+# automatically so one `start-backend.ps1` invocation brings up everything the
+# database-backed try-on queue needs. The Laravel command is idempotent and owns
+# the process detection, so repeated invocations cannot create duplicate workers.
+Write-Host 'Starting the try-on worker watchdog ...' -ForegroundColor Cyan
+
+Push-Location $backend
+try {
+    $workerOutput = & $php artisan tryon:ensure-worker 2>&1
+    $workerExitCode = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
+
+$workerOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+
+if ($workerExitCode -ne 0) {
+    Write-Error 'The try-on worker watchdog failed to start.'
+    Write-Host ('Diagnose manually with: & "{0}" artisan tryon:ensure-worker' -f $php) -ForegroundColor DarkGray
+    exit 1
+}
+
+Write-Host ''
+Write-Host "READY  ->  http://127.0.0.1:$Port" -ForegroundColor Green
+Write-Host 'Health check /up answered 200 (no database needed).' -ForegroundColor DarkGray
+Write-Host 'Try-on worker watchdog is running (queue: tryon,default).' -ForegroundColor DarkGray

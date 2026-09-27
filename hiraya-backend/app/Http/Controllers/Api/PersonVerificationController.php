@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\GeminiKeyPool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -280,7 +281,7 @@ PROMPT;
              * and timed out". Those need completely different fixes.
              */
             $configured = match ($name) {
-                'gemini' => (bool) config('services.gemini.key'),
+                'gemini' => (bool) GeminiKeyPool::current(),
                 'cloudflare' => (bool) (config('services.person_verification.cloudflare.account_id')
                     && config('services.person_verification.cloudflare.token')),
                 'groq' => (bool) config('services.person_verification.groq.token'),
@@ -300,7 +301,7 @@ PROMPT;
             }
 
             $chain[$name] = match ($name) {
-                'gemini' => fn () => $this->askGemini((string) config('services.gemini.key')),
+                'gemini' => fn () => $this->askGemini((string) GeminiKeyPool::current()),
                 'cloudflare' => fn () => $this->askCloudflare(),
                 'groq' => fn () => $this->askOpenAiCompatible('groq'),
                 'openai' => fn () => $this->askOpenAiCompatible('openai'),
@@ -389,12 +390,24 @@ PROMPT;
                  * 429 IS THE QUOTA WALL, NOT A BAD IMAGE. Report it distinctly so
                  * the chain (and the log) says "quota reached" rather than a
                  * generic upstream error — then TRY THE NEXT MODEL.
+                 *
+                 * THE OUTCOME IS ALSO REPORTED TO THE KEY POOL: a 429 puts THIS
+                 * key on daily cooldown and the pool serves the NEXT call from
+                 * the next key; a 401/403 sits the key out the same way (it is
+                 * invalid, not merely drained). 404 stays out of this — it is a
+                 * MODEL fault, not a KEY fault.
                  */
                 $reason = match (true) {
                     $response->status() === 429 => 'quota',
                     $response->status() === 404 => 'model-retired',
                     default => 'upstream-error',
                 };
+
+                if ($response->status() === 429) {
+                    GeminiKeyPool::markRateLimited($apiKey);
+                } elseif (in_array($response->status(), [401, 403], true)) {
+                    GeminiKeyPool::markInvalid($apiKey);
+                }
 
                 $this->providerFailed('gemini', $reason, [
                     'model' => $model,

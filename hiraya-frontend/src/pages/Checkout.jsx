@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, AlertTriangle, CheckCircle2, Truck } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import PaymentInstructions from '../components/common/PaymentInstructions';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   // Optional product context passed from ProductDetail's"Proceed to Checkout".
   const prefill = location.state || {};
@@ -99,6 +101,9 @@ const Checkout = () => {
       // Tell the backend which path this is, so it clears the bag only for
       // genuine cart checkouts.
       payload.append('source', fromCart ? 'cart' : 'direct');
+      if (fromCart && Array.isArray(prefill.cart_item_ids)) {
+        prefill.cart_item_ids.forEach((id) => payload.append('cart_item_ids[]', id));
+      }
 
       // Forward the line items. The server ignores any client price and reads
       // products.price from the database, then decrements stock per line.
@@ -117,6 +122,9 @@ const Checkout = () => {
       }
 
       await api.post('/checkout', payload);
+      // The bag may have changed server-side; immediately discard stale cached
+      // totals/items before the success screen offers navigation back to it.
+      if (fromCart) await queryClient.invalidateQueries({ queryKey: ['cart'] });
       setSuccess(true);
     } catch (err) {
       const validation = err.response?.data?.errors;
@@ -129,11 +137,11 @@ const Checkout = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#0A0C10] flex items-center justify-center px-6 pt-24 pb-20 text-white">
-        <div className="max-w-md w-full glass-card bg-white/[0.03] border-[#E9C46A]/20 rounded-2xl p-10 text-center">
-          <CheckCircle2 className="w-14 h-14 text-[#E9C46A] mx-auto mb-6" />
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] mb-3 text-[#E9C46A]">Order Received</h2>
-          <p className="text-xs text-gray-400 leading-relaxed mb-6">
+      <div className="min-h-screen bg-hiraya-bg flex items-center justify-center px-6 pt-24 pb-20 text-hiraya-ink">
+        <div className="max-w-md w-full glass-card bg-white/[0.03] border-[#CB997E]/20 rounded-2xl p-10 text-center">
+          <CheckCircle2 className="w-14 h-14 text-hiraya-ink mx-auto mb-6" />
+          <h2 className="text-2xl font-light uppercase tracking-[0.2em] mb-3 text-hiraya-ink">Order Received</h2>
+          <p className="text-xs text-hiraya-ink leading-relaxed mb-6">
             We have received your down payment proof. Our team will verify it and update your order
             status within the 3:00 PM same-day processing cutoff.
           </p>
@@ -143,13 +151,13 @@ const Checkout = () => {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => navigate('/orders')}
-              className="px-8 py-3 bg-[#E9C46A] text-black text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-[#D4A94F] transition"
+              className="px-8 py-3 bg-[#CB997E] text-hiraya-ink text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-hiraya-cream-deep transition"
             >
               Track My Order
             </button>
             <button
               onClick={() => navigate('/')}
-              className="px-8 py-3 border-white/20 text-gray-300 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:border-white/40 transition"
+              className="px-8 py-3 border-hiraya-olive/20 text-hiraya-ink text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:border-hiraya-olive/60 transition"
             >
               Back to Store
             </button>
@@ -160,11 +168,11 @@ const Checkout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0C10] px-6 md:px-20 pt-32 pb-20 text-white">
+    <div className="min-h-screen bg-hiraya-bg px-6 md:px-20 pt-32 pb-20 text-hiraya-ink">
       <div className="max-w-5xl mx-auto">
         <div className="mb-10">
-          <h2 className="text-4xl font-light uppercase tracking-[0.3em] text-[#E9C46A]">Checkout</h2>
-          <p className="text-[10px] text-[#E9C46A] font-black uppercase tracking-widest mt-2">
+          <h2 className="text-4xl font-light uppercase tracking-[0.3em] text-hiraya-ink">Checkout</h2>
+          <p className="text-[10px] text-hiraya-ink font-black uppercase tracking-widest mt-2">
             Secure your order with a 50% down payment
           </p>
         </div>
@@ -172,41 +180,41 @@ const Checkout = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* ORDER GUIDELINES CARD */}
           <div className="lg:col-span-1">
-            <div className="glass-card bg-white/[0.03] border-[#E9C46A]/20 rounded-2xl p-6 sticky top-28">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#E9C46A] mb-4">
+            <div className="glass-card bg-white/[0.03] border-[#CB997E]/20 rounded-2xl p-6 sticky top-28">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-4">
                 Order Guidelines
               </h3>
-              <ul className="space-y-3 text-[11px] text-gray-300 leading-relaxed">
+              <ul className="space-y-3 text-[11px] text-hiraya-ink leading-relaxed">
                 <li className="flex gap-2">
-                  <span className="text-[#E9C46A]">•</span>
-                  Orders placed before <strong className="text-white">3:00 PM</strong> are processed the same day.
+                  <span className="text-hiraya-ink">•</span>
+                  Orders placed before <strong className="text-hiraya-ink">3:00 PM</strong> are processed the same day.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#E9C46A]">•</span>
-                  A <strong className="text-white">50% down payment (PAYO)</strong> is required to secure your order.
+                  <span className="text-hiraya-ink">•</span>
+                  A <strong className="text-hiraya-ink">50% down payment (PAYO)</strong> is required to secure your order.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#E9C46A]">•</span>
-                  The remaining balance must be settled <strong className="text-white">before shipping</strong>.
+                  <span className="text-hiraya-ink">•</span>
+                  The remaining balance must be settled <strong className="text-hiraya-ink">before shipping</strong>.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#E9C46A]">•</span>
-                  Down payments are <strong className="text-white">non-refundable</strong>.
+                  <span className="text-hiraya-ink">•</span>
+                  Down payments are <strong className="text-hiraya-ink">non-refundable</strong>.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-[#E9C46A]">•</span>
-                  All sales are <strong className="text-white">final</strong> once payment is confirmed.
+                  <span className="text-hiraya-ink">•</span>
+                  All sales are <strong className="text-hiraya-ink">final</strong> once payment is confirmed.
                 </li>
               </ul>
 
-              <label className="flex items-start gap-3 mt-6 pt-5 border-t border-white/10 cursor-pointer">
+              <label className="flex items-start gap-3 mt-6 pt-5 border-t border-hiraya-olive/15 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 accent-[#E9C46A]"
+                  className="mt-0.5 accent-[#CB997E]"
                 />
-                <span className="text-[11px] text-gray-300 leading-relaxed">
+                <span className="text-[11px] text-hiraya-ink leading-relaxed">
                   I have read and agree to the order guidelines above.
                 </span>
               </label>
@@ -216,14 +224,14 @@ const Checkout = () => {
           {/* CHECKOUT FORM */}
           <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
             {/* Shipping Details */}
-            <div className="glass-card bg-white/[0.03] border-white/10 rounded-2xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#E9C46A] mb-5">
+            <div className="glass-card bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-6">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-5">
                 Shipping Details
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
                     Full Name
                   </label>
                   <input
@@ -231,13 +239,13 @@ const Checkout = () => {
                     value={formData.customer_name}
                     onChange={handleChange}
                     required
-                    className="w-full bg-black/40 border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#E9C46A] outline-none transition"
+                    className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-sm focus:border-[#CB997E] outline-none transition"
                     placeholder="Juan Dela Cruz"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
                     Contact Number
                   </label>
                   <input
@@ -245,13 +253,13 @@ const Checkout = () => {
                     value={formData.contact_number}
                     onChange={handleChange}
                     required
-                    className="w-full bg-black/40 border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#E9C46A] outline-none transition"
+                    className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-sm focus:border-[#CB997E] outline-none transition"
                     placeholder="09XX XXX XXXX"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                  <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
                     Complete Delivery Address
                   </label>
                   <textarea
@@ -260,7 +268,7 @@ const Checkout = () => {
                     onChange={handleChange}
                     required
                     rows={3}
-                    className="w-full bg-black/40 border-white/10 rounded-lg px-4 py-3 text-sm focus:border-[#E9C46A] outline-none transition resize-none"
+                    className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-sm focus:border-[#CB997E] outline-none transition resize-none"
                     placeholder="House No., Street, Barangay, City, Province, ZIP"
                   />
                 </div>
@@ -268,8 +276,8 @@ const Checkout = () => {
             </div>
 
             {/* Courier Selection */}
-            <div className="glass-card bg-white/[0.03] border-white/10 rounded-2xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#E9C46A] mb-5 flex items-center gap-2">
+            <div className="glass-card bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-6">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-5 flex items-center gap-2">
                 <Truck className="w-4 h-4" /> Courier
               </h3>
 
@@ -281,8 +289,8 @@ const Checkout = () => {
                   <label
                     key={option.value}
                     className={`cursor-pointer rounded-xl border px-4 py-4 text-center transition ${formData.courier === option.value
-                        ? 'border-[#E9C46A] bg-[#E9C46A]/10'
-                        : 'border-white/10 bg-black/40 hover:border-white/30'
+                        ? 'border-[#CB997E] bg-[#CB997E]/10'
+                        : 'border-hiraya-olive/15 bg-hiraya-cream/30 hover:border-hiraya-olive/30'
                       }`}
                   >
                     <input
@@ -299,7 +307,7 @@ const Checkout = () => {
               </div>
 
               {formData.courier === 'lalamove' && (
-                <div className="mt-4 flex items-start gap-2 text-[11px] text-stone-200/90 bg-[#F5EBE0]/10 border-stone-300/20 rounded-lg px-4 py-3">
+                <div className="mt-4 flex items-start gap-2 text-[11px] text-hiraya-ink/90 bg-hiraya-cream/10 border-hiraya-olive/15 rounded-lg px-4 py-3">
                   <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
                   <span>
                     Note: You will be responsible for booking the courier once the item is ready.
@@ -309,13 +317,13 @@ const Checkout = () => {
             </div>
 
             {/* Payment */}
-            <div className="glass-card bg-white/[0.03] border-white/10 rounded-2xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#E9C46A] mb-5">
+            <div className="glass-card bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-6">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-5">
                 Payment
               </h3>
 
               <div className="mb-5">
-                <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
                   Your Items
                 </label>
 
@@ -331,18 +339,18 @@ const Checkout = () => {
                     return (
                       <li
                         key={`${item.product_id}-${index}`}
-                        className="flex items-center justify-between gap-3 bg-black/30 rounded-lg px-3 py-2.5 text-[11px]"
+                        className="flex items-center justify-between gap-3 bg-hiraya-cream/30 rounded-lg px-3 py-2.5 text-[11px]"
                       >
-                        <span className="text-gray-200 min-w-0 truncate">
+                        <span className="text-hiraya-ink min-w-0 truncate">
                           {label}
-                          <span className="text-gray-500">
+                          <span className="text-hiraya-sand">
                             {' '}
                             {item.size ? `· ${item.size}` : ''}
                             {item.color ? ` · ${item.color}` : ''}
                             {` × ${item.quantity}`}
                           </span>
                         </span>
-                        <span className="text-gray-400 shrink-0">
+                        <span className="text-hiraya-ink shrink-0">
                           ₱{(Number(unitPrice) * Number(item.quantity)).toFixed(2)}
                         </span>
                       </li>
@@ -350,34 +358,34 @@ const Checkout = () => {
                   })}
                 </ul>
 
-                <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">
+                <p className="text-[10px] text-hiraya-sand mt-3 leading-relaxed">
                   Your total is verified against live prices on our server when you submit.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-5 text-center">
-                <div className="bg-[#E9C46A]/10 border-[#E9C46A]/30 rounded-xl py-4">
-                  <p className="text-[9px] uppercase tracking-widest text-gray-400 mb-1">
+                <div className="bg-[#CB997E]/10 border-[#CB997E]/30 rounded-xl py-4">
+                  <p className="text-[9px] uppercase tracking-widest text-hiraya-ink mb-1">
                     50% Down Payment
                   </p>
-                  <p className="text-lg font-light text-[#E9C46A]">₱{dpAmount}</p>
+                  <p className="text-lg font-light text-hiraya-ink">₱{dpAmount}</p>
                 </div>
-                <div className="bg-black/40 border-white/10 rounded-xl py-4">
-                  <p className="text-[9px] uppercase tracking-widest text-gray-400 mb-1">
+                <div className="bg-hiraya-cream/30 border-hiraya-olive/15 rounded-xl py-4">
+                  <p className="text-[9px] uppercase tracking-widest text-hiraya-ink mb-1">
                     Balance Before Shipping
                   </p>
                   <p className="text-lg font-light">₱{balance}</p>
                 </div>
               </div>
 
-              <label className="block text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+              <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
                 Upload Down Payment Receipt
               </label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setDpProof(e.target.files[0])}
-                className="w-full bg-black/40 border-white/10 rounded-lg px-4 py-3 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#E9C46A] file:text-black file:text-[10px] file:font-black file:uppercase file:tracking-widest hover:file:bg-[#D4A94F] transition"
+                className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#CB997E] file:text-hiraya-olive file:text-[10px] file:font-black file:uppercase file:tracking-widest hover:file:bg-hiraya-cream-deep transition"
               />
             </div>
 
@@ -390,7 +398,7 @@ const Checkout = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-[#E9C46A] text-black text-xs font-black uppercase tracking-[0.2em] rounded-lg hover:bg-[#D4A94F] transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-[#CB997E] text-hiraya-olive text-xs font-black uppercase tracking-[0.2em] rounded-lg hover:bg-hiraya-cream-deep transition disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? 'Submitting Order...' : 'Submit Order & Down Payment'}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProviderHealthEvent;
+use App\Services\GeminiKeyPool;
 use App\Support\ProviderHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -108,7 +109,7 @@ class ApiStatusController extends Controller
                 'label' => 'Gemini — Catalog Vision',
                 'purpose' => 'Reads uploaded garment photos to auto-fill catalog details.',
                 'required' => false,
-                'env' => 'GEMINI_API_KEY',
+                'env' => 'GEMINI_API_KEY (+ GEMINI_API_KEYS)',
                 'config_path' => 'services.gemini.key',
                 'endpoint_path' => 'services.gemini.model',
                 /*
@@ -125,11 +126,13 @@ class ApiStatusController extends Controller
                 'instructions' => [
                     'Open hiraya-backend/.env',
                     'Set GEMINI_API_KEY to the new key from https://aistudio.google.com/apikey',
+                    'OPTIONAL: add more keys comma-separated on GEMINI_API_KEYS — each key carries its OWN 20/day free bucket, and a key that answers 429 sits out the day while the next key answers automatically.',
                     'Run: php artisan config:clear',
                 ],
                 'notes' => 'Free-tier keys are quota-limited per day (HTTP 429) '
                     . 'rather than rejected, so a 429 here means the key is VALID but '
-                    . 'has no quota left right now.',
+                    . 'has no quota left right now. The key POOL rotates past a '
+                    . 'drained key automatically — see the per-key states below.',
             ],
 
             'supabase' => [
@@ -212,6 +215,18 @@ class ApiStatusController extends Controller
              * recorded observations rather than from a guess, which is why it is
              * read from the database and not from config.
              */
+            /*
+             * GEMINI KEY POOL — per-key state, so an operator sees a drained
+             * bucket (and the rotation that followed) BEFORE a customer does.
+             * Every entry is MASKED (first 6 … last 4), never the raw key.
+             *
+             * With no GEMINI_API_KEYS configured the list has exactly ONE entry
+             * and the tab reads exactly as it did before — the pool is a
+             * rotation mechanism, not a new credential store.
+             */
+            'gemini_key_pool' => GeminiKeyPool::status(),
+            'gemini_key_pool_summary' => $this->geminiPoolSummary(),
+
             'provider_health' => $this->providerHealth(),
             'services' => $report,
         ]);
@@ -357,6 +372,75 @@ class ApiStatusController extends Controller
     }
 
     /**
+     * HOW MANY POOL KEYS STILL HAVE A FRESH BUCKET RIGHT NOW.
+     *
+     * One glance number for the console: "3/3 available" means the pool has
+     * runway; "0/3" means every Gemini vision feature is failing until the
+     * daily reset, regardless of the probe result.
+     */
+    private function geminiPoolSummary(): array
+    {
+        $keys = GeminiKeyPool::keys();
+        $now = now()->timestamp;
+        $available = 0;
+
+        foreach ($keys as $key) {
+            $expires = \Illuminate\Support\Facades\Cache::get(
+                'gemini_key_pool.cooldown.' . md5($key)
+            );
+
+            if (! $expires || $expires <= $now) {
+                $available++;
+            }
+        }
+
+        return [
+            'total' => count($keys),
+            'available' => $available,
+        ];
+    }
+
+    /**
+     * POST /api/admin/api-status/gemini/rotate
+     *
+     * THE MANUAL SAFETY VALVE — the ligaw "Rotate key" button, WITHOUT the
+     * security surface of in-app key editing.
+     *
+     * It does NOT read or write any secret. It only clears the cooldown cache
+     * entry for ONE pool key (identified by its MASKED label, e.g.
+     * "AIzaSyC…f3a1") so a key that was marked 429 in error can answer again.
+     * The key set itself still lives in .env — this endpoint changes only
+     * WHICH key answers first and whether one sits out the day.
+     */
+    public function rotateGemini(): JsonResponse
+    {
+        $label = trim((string) request()->input('label', ''));
+
+        if ($label === '') {
+            return response()->json(['message' => 'Provide the masked key label to reset.'], 422);
+        }
+
+        $reset = GeminiKeyPool::resetKey($label);
+
+        if (! $reset) {
+            return response()->json([
+                'message' => "No pool key matches {$label}.",
+                'pool' => GeminiKeyPool::status(),
+            ], 404);
+        }
+
+        Log::info('Gemini pool key cooldown reset from the API status console', [
+            'key_label' => $label,
+            'by_user_id' => request()->user()?->id,
+        ]);
+
+        return response()->json([
+            'message' => "Key {$label} is available again and is now the preferred key.",
+            'gemini_key_pool' => GeminiKeyPool::status(),
+        ]);
+    }
+
+    /**
      * POST /api/admin/api-status/{key}/probe
      *
      * A LIVE liveness check for ONE service. Deliberately a separate, on-demand
@@ -443,23 +527,55 @@ class ApiStatusController extends Controller
         }
 
         if ($key === 'gemini') {
-            $token = trim((string) config($spec['config_path']));
-            $url = $probe['url'] . '?key=' . urlencode($token);
+            /*
+             * PROBE EVERY POOL KEY, not just key #1.
+             *
+             * The status list above already says WHICH key is drained; only a
+             * live call says whether each key is still ACCEPTED. One cheap
+             * models-list request per key — same call shape as before, now
+             * repeated across the pool so the result distinguishes:
+             *
+             *   valid   -> 200 from the models list
+             *   drained -> 429 (valid key, no quota left today)
+             *   invalid -> 400/401/403 (revoked or mistyped — replace it)
+             */
+            $results = [];
+            $okCount = 0;
 
-            $res = Http::timeout($timeout)->acceptJson()->get($url);
+            foreach (GeminiKeyPool::keys() as $poolKey) {
+                $url = $probe['url'] . '?key=' . urlencode($poolKey);
+                $res = Http::timeout($timeout)->acceptJson()->get($url);
 
-            return [
-                'key' => $key,
-                'reachable' => true,
-                'http_status' => $res->status(),
-                'ok' => $res->successful(),
-                'summary' => match (true) {
+                $summary = match (true) {
                     $res->successful() => 'Key is VALID and reachable.',
                     $res->status() === 429 => 'Key is VALID but out of quota for now.',
                     in_array($res->status(), [400, 401, 403], true) => 'Key is INVALID or not permitted for this API.',
                     default => 'Unexpected response from Gemini.',
-                },
-                'detail' => $this->upstreamReason($res->json()),
+                };
+
+                $ok = $res->successful();
+                $okCount += $ok ? 1 : 0;
+
+                $results[] = [
+                    'label' => substr($poolKey, 0, 6) . '…' . substr($poolKey, -4),
+                    'http_status' => $res->status(),
+                    'ok' => $ok,
+                    'summary' => $summary,
+                    'detail' => $this->upstreamReason($res->json()),
+                ];
+            }
+
+            return [
+                'key' => $key,
+                'reachable' => true,
+                'per_key' => $results,
+                // "ok" means AT LEAST ONE key in the pool still answers.
+                'ok' => $okCount > 0,
+                'http_status' => $results[0]['http_status'] ?? null,
+                'summary' => $okCount > 0
+                    ? "{$okCount} of " . count($results) . ' pool key(s) are VALID and reachable.'
+                    : 'No pool key is currently accepted by Gemini.',
+                'detail' => null,
             ];
         }
 

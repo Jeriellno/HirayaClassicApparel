@@ -15,12 +15,12 @@ const ProductModal = ({ isOpen, onClose, onSave, onDelete, productToEdit = null,
   ).trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-[#0D1017] border border-[#E9C46A]/30 rounded-2xl shadow-2xl w-full max-w-4xl font-sans text-sm max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream-deep/80 backdrop-blur-sm p-4">
+      <div className="bg-hiraya-cream border border-[#CB997E]/30 rounded-2xl shadow-2xl w-full max-w-4xl font-sans text-sm max-h-[90vh] flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
-          <h3 className="font-serif font-semibold text-[#E9C46A] uppercase tracking-wider flex items-center gap-2">
+        <div className="p-4 border-b border-hiraya-olive/15 flex justify-between items-center bg-hiraya-cream/60 shrink-0">
+          <h3 className="font-serif font-semibold text-hiraya-ink uppercase tracking-wider flex items-center gap-2">
             {form.isEditMode ? <Edit3 size={16} /> : <Package size={16} />}
             {form.isEditMode ? 'Edit Garment Details' : 'Add New Garment'}
           </h3>
@@ -34,14 +34,14 @@ const ProductModal = ({ isOpen, onClose, onSave, onDelete, productToEdit = null,
                 <Trash2 size={12} /> Delete
               </button>
             )}
-            <button type="button" onClick={() => !form.isSubmitting && onClose()} className="text-gray-400 hover:text-white p-1">
+            <button type="button" onClick={() => !form.isSubmitting && onClose()} className="text-hiraya-ink hover:text-hiraya-ink p-1">
               <X size={18} />
             </button>
           </div>
         </div>
 
         {/* Tabs Navigation */}
-        <div className="flex border-b border-white/10 bg-[#0D1017] px-5 pt-3 gap-2 shrink-0">
+        <div className="flex border-b border-hiraya-olive/15 bg-hiraya-cream px-5 pt-3 gap-2 shrink-0">
           {[
             // Image first: the flow is upload photo -> AI auto-fill -> review.
             { id: 'media', label: '1. Garment Image', icon: ImageIcon },
@@ -56,7 +56,7 @@ const ProductModal = ({ isOpen, onClose, onSave, onDelete, productToEdit = null,
                 type="button"
                 onClick={() => form.setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-xl transition cursor-pointer relative ${
-                  isActive ? 'bg-white/5 text-[#E9C46A] border-t border-x border-[#E9C46A]/40 font-bold' : 'text-gray-400'
+                  isActive ? 'bg-hiraya-cream/60 text-hiraya-ink border-t border-x border-[#CB997E]/40 font-bold' : 'text-hiraya-ink'
                 }`}
               >
                 <Icon size={14} /> {tab.label}
@@ -114,14 +114,14 @@ const ProductModal = ({ isOpen, onClose, onSave, onDelete, productToEdit = null,
           </div>
 
           {/* Footer Buttons */}
-          <div className="pt-3 flex justify-end gap-2 border-t border-white/10 shrink-0">
-            <button type="button" disabled={form.isSubmitting} onClick={onClose} className="px-4 py-2.5 text-gray-400 uppercase">
+          <div className="pt-3 flex justify-end gap-2 border-t border-hiraya-olive/15 shrink-0">
+            <button type="button" disabled={form.isSubmitting} onClick={onClose} className="px-4 py-2.5 text-hiraya-ink uppercase">
               Cancel
             </button>
             <button
               type="submit"
               disabled={form.isSubmitting || form.isAnalyzingImage}
-              className="px-5 py-2.5 bg-[#E9C46A] text-black font-bold uppercase rounded-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 bg-[#CB997E] text-hiraya-ink font-bold uppercase rounded-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check size={14} /> {form.isEditMode ? 'Update Garment' : 'Save Garment'}
             </button>

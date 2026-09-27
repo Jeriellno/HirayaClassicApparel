@@ -55,6 +55,14 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     /*
+     * The frontend's public origin. Password-reset links are built from this, NOT
+     * from APP_URL: in a split deployment the API host and the SPA host differ, and
+     * a reset link pointing at the API returns JSON instead of the reset form.
+     * Falls back to APP_URL so a single-host deployment needs no extra setting.
+     */
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

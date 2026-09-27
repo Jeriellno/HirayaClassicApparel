@@ -25,12 +25,12 @@ const STEPS = [
 
 const HowItWorksSection = () => {
   return (
-    <section className="px-8 md:px-20 py-24 my-12 bg-gradient-to-b from-transparent via-[#12161f]/50 to-transparent">
+    <section className="px-8 md:px-20 py-24 my-12 bg-gradient-to-b from-transparent via-hiraya-cream-deep/50 to-transparent">
       <div className="text-center max-w-3xl mx-auto mb-16">
-        <span className="text-[#E9C46A] text-[10px] font-bold uppercase tracking-[0.4em] block mb-2">
+        <span className="text-hiraya-ink text-[10px] font-bold uppercase tracking-[0.4em] block mb-2">
           Seamless Virtual Experience
         </span>
-        <h2 className="text-3xl md:text-4xl font-light uppercase tracking-[0.3em] text-[#E9C46A]">How Hiraya Works</h2>
+        <h2 className="text-3xl md:text-4xl font-light uppercase tracking-[0.3em] text-hiraya-ink">How Hiraya Works</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -40,16 +40,16 @@ const HowItWorksSection = () => {
             <motion.div
               key={idx}
               whileHover={{ y: -5 }}
-              className="p-8 rounded-3xl bg-[#12161f] border border-white/10 flex flex-col justify-between"
+              className="p-8 rounded-3xl bg-hiraya-cream-deep border border-hiraya-olive/15 flex flex-col justify-between"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-[#E9C46A]/10 text-[#E9C46A] flex items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-[#CB997E]/10 text-hiraya-ink flex items-center justify-center mb-6">
                   <IconComponent size={22} />
                 </div>
-                <h3 className="text-lg font-bold uppercase tracking-wider text-white mb-3">{item.title}</h3>
-                <p className="text-gray-400 text-xs leading-relaxed">{item.desc}</p>
+                <h3 className="text-lg font-bold uppercase tracking-wider text-hiraya-ink mb-3">{item.title}</h3>
+                <p className="text-hiraya-ink text-xs leading-relaxed">{item.desc}</p>
               </div>
-              <span className="text-[10px] text-[#E9C46A] font-extrabold uppercase tracking-widest mt-8 block">
+              <span className="text-[10px] text-hiraya-ink font-extrabold uppercase tracking-widest mt-8 block">
                 {item.step}
               </span>
             </motion.div>
