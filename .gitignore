@@ -38,7 +38,13 @@ hf_*.txt
 /_analyze_*.php
 /_emit_*.php
 /_extract_assets.json
-/_qa_chrome-profile/
+
+# Browser automation profile (Chromium user-data-dir used by QA runs).
+# It is a real browser profile: cookies, Local Storage, cache, History.
+# Never commit it.
+.qa-chrome-profile/
+chrome-profile*/
+**/.qa-chrome-profile/
 
 # Backend scratch scripts
 /hiraya-backend/_*.php
@@ -57,3 +63,9 @@ hf_*.txt
 /raw_*.jpg
 /tryon_output_*.png
 /qa_person.jpg
+
+# QA harness output (regenerated on every run; see hiraya-frontend/qa/)
+_qa_archive/*.png
+_qa_archive/*.jpg
+_qa_archive/*.json
+/_qa_archive/subfolders/
