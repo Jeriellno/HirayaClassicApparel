@@ -1,0 +1,218 @@
+/* ============================================================================
+ * HIRAYA WALKTHROUGH — SPOTLIGHT OVERLAY
+ * ----------------------------------------------------------------------------
+ * A dark, semi-transparent layer dims the whole page EXCEPT the element being
+ * explained. The "hole" is not a real hole in the DOM: it is drawn with
+ * box-shadow, which is the only technique that gives a rounded, soft-edged
+ * spotlight AND lets clicks through to the highlighted element itself.
+ *
+ * HOW THE CUTOUT WORKS
+ *   The spotlight box sits exactly over the target (position + size set from JS).
+ *   Its own background is transparent, so the target shows through untouched.
+ *   A huge, opaque box-shadow spread (0 0 0 9999px) paints the dim EVERYWHERE
+ *   ELSE, and the border-radius on the box rounds the inside of that shadow —
+ *   one element, one rule, no SVG mask, no four-panel fake overlay.
+ *
+ * COLOURS come from the Hiraya palette so the tour reads as part of the app.
+ * ==========================================================================*/
+
+:root {
+  --wt-overlay: rgba(6, 8, 12, 0.78);   /* the dim over everything else */
+  --wt-spot-ring: #cb997e;              /* brand accent ring around the target */
+  --wt-card-bg: #FFE8D6;
+  --wt-card-border: rgba(255, 255, 255, 0.12);
+  --wt-card-text: #ffe8d6;
+  --wt-card-muted: #a5a58d;
+  --wt-accent: #cb997e;
+  --wt-accent-hover: #b7b7a4;
+  --wt-radius: 12px;
+  --wt-z: 9999;
+}
+
+/* The click-blocking layer. Clicks land here to close, and it captures the
+   scroll position for the JS repositioning loop. */
+.wt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--wt-z);
+  background: transparent;   /* the dim is drawn by .wt-spotlight's shadow */
+  cursor: default;
+  animation: wt-fade-in 180ms ease-out;
+}
+
+/* The spotlight "hole". Position/size are written by the JS as inline styles. */
+.wt-spotlight {
+  position: fixed;
+  border-radius: var(--wt-radius);
+  box-shadow:
+    0 0 0 9999px var(--wt-overlay),        /* the dim, everywhere else */
+    0 0 0 2px var(--wt-spot-ring),         /* accent ring, ON the target edge */
+    0 0 26px 6px rgba(203, 153, 126, 0.35);/* soft brand glow */
+  transition:
+    top 240ms cubic-bezier(0.4, 0, 0.2, 1),
+    left 240ms cubic-bezier(0.4, 0, 0.2, 1),
+    width 240ms cubic-bezier(0.4, 0, 0.2, 1),
+    height 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;       /* the element underneath stays clickable */
+}
+
+/* The floating tooltip card. */
+.wt-card {
+  position: fixed;
+  z-index: calc(var(--wt-z) + 1);
+  width: min(340px, calc(100vw - 32px));
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--wt-card-bg);
+  border: 1px solid var(--wt-card-border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  color: var(--wt-card-text);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  animation: wt-card-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: top 200ms ease-out, left 200ms ease-out;
+}
+
+.wt-card__step {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--wt-accent);
+}
+
+.wt-card__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.wt-card__text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--wt-card-muted);
+}
+
+.wt-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.wt-card__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.wt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 200ms;
+}
+
+.wt-dot.is-active {
+  background: var(--wt-accent);
+  width: 18px;
+}
+
+.wt-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wt-btn {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 180ms, color 180ms, border-color 180ms;
+}
+
+.wt-btn--next {
+  background: var(--wt-accent);
+  color: #FFE8D6;
+}
+
+.wt-btn--next:hover {
+  background: var(--wt-accent-hover);
+}
+
+.wt-btn--close {
+  background: transparent;
+  color: var(--wt-card-muted);
+  border-color: var(--wt-card-border);
+}
+
+.wt-btn--close:hover {
+  color: var(--wt-card-text);
+  border-color: var(--wt-accent);
+}
+
+/* Arrow that ties the card to the highlighted element. */
+.wt-card__arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--wt-card-bg);
+  border-left: 1px solid var(--wt-card-border);
+  border-top: 1px solid var(--wt-card-border);
+  transform: rotate(45deg);
+}
+
+.wt-card[data-placement='bottom'] .wt-card__arrow {
+  top: -7px;
+  left: 28px;
+}
+
+.wt-card[data-placement='top'] .wt-card__arrow {
+  bottom: -7px;
+  left: 28px;
+  transform: rotate(225deg);
+}
+
+.wt-card[data-placement='right'] .wt-card__arrow {
+  left: -7px;
+  top: 28px;
+  transform: rotate(-45deg);
+}
+
+.wt-card[data-placement='left'] .wt-card__arrow {
+  right: -7px;
+  top: 28px;
+  transform: rotate(135deg);
+}
+
+/* Locks page scroll while a tour is running. */
+.wt-locked {
+  overflow: hidden;
+}
+
+@keyframes wt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes wt-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect a reduced-motion preference: keep the tour, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .wt-spotlight,
+  .wt-card {
+    transition: none;
+    animation: none;
+  }
+}
