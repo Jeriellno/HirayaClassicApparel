@@ -5,8 +5,8 @@
  * worker uses, so a "renderer_unreachable" is not simply a missing token/space.
  */
 
-require __DIR__ . '/vendor/autoload.php';
-$app = require_once __DIR__ . '/bootstrap/app.php';
+require __DIR__ . '/../vendor/autoload.php';
+$app = require_once __DIR__ . '/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 echo 'queue.default = ' . config('queue.default') . PHP_EOL;
