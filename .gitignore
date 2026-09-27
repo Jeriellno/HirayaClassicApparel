@@ -22,3 +22,38 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Secrets pasted as loose files (never commit these)
+hf_*.txt
+*.env.txt
+
+# Root-level scratch/diagnostic scripts (see hiraya-backend/scripts/)
+/_wgbind.php
+/_probe*.php
+/_smoke_*.php
+/_verify_*.php
+/_db*.php
+/_dump_*.php
+/_measure_*.php
+/_analyze_*.php
+/_emit_*.php
+/_extract_assets.json
+/_qa_chrome-profile/
+
+# Backend scratch scripts
+/hiraya-backend/_*.php
+/hiraya-backend/_*.ps1
+/hiraya-backend/probe_*.php
+/hiraya-backend/probe_*.ps1
+/hiraya-backend/diag*.php
+/hiraya-backend/test_*.php
+/hiraya-backend/verify_*.php
+/hiraya-backend/download_*.php
+/hiraya-backend/repair_*.php
+/hiraya-backend/measure_*.ps1
+
+# Root screenshots / output
+/navbar-*.png
+/raw_*.jpg
+/tryon_output_*.png
+/qa_person.jpg
