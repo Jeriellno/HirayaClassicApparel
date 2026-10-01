@@ -1,0 +1,11 @@
+{
+  "_note": "Local QA customer accounts created through the Register page for browser checks. Test-only; never reuse elsewhere.",
+  "customer_gender_qa": {
+    "email": "qa.gender@hiraya.test",
+    "password": "Qa05e070734ba4X9",
+    "gender": "male",
+    "upper_body_size": "M",
+    "lower_body_size": "M",
+    "preferred_fit": "slim"
+  }
+}

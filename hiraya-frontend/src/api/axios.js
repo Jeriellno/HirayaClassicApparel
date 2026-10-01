@@ -326,8 +326,9 @@ const isAdminPath = (url = '') => /(^|\/)(api\/)?admin(\/|$|\?)/.test(String(url
 const CATALOG_WRITE_PATH = /^\/products\/?$/;
 const CATALOG_WRITE_ITEM_PATH = /^\/products\/[^/]+\/?$/;
 const CATALOG_WRITE_VERBS = new Set(['post', 'put', 'patch', 'delete']);
+// `analyze-image` is NOT in this list any more: it is staff-only now (it spends
+// the store's Gemini quota), so it must carry the Supabase JWT like a write.
 const PUBLIC_CATALOG_SUBROUTES = new Set([
-  'analyze-image',
   'spotlight',
   'track-canvas',
   'track-tryon'
@@ -578,6 +579,28 @@ api.interceptors.response.use(
   (error) => {
     const url = error?.config?.url ?? '';
     const status = error?.response?.status ?? 0;
+
+    /*
+     * NEVER SHOW INTERNALS IN THE UI. Many screens print
+     * `err.response.data.message` directly, so a server error that leaked SQL
+     * ("SQLSTATE[23505] ...") or a PHP exception reached a toast verbatim. A
+     * 500 body, or any message that looks technical, is replaced here — once,
+     * for every caller — with a plain sentence. Messages the app wrote for
+     * people (422 validation, 502/503 "service busy") pass through untouched.
+     */
+    const data = error?.response?.data;
+    if (data && typeof data === 'object') {
+      const raw = String(data.message || '');
+      const technical = /SQLSTATE|Exception|Stack trace|\.php|SQL|syntax error|Undefined (array key|variable|property)|Call to|cURL error/i.test(raw);
+      if (status === 500 || technical) {
+        data.message = 'Something went wrong on our side. Please try again in a moment.';
+        delete data.error;
+        delete data.exception;
+        delete data.trace;
+        delete data.file;
+        delete data.line;
+      }
+    }
 
     if (status === 401 && isAdminPath(url)) {
       console.error('====================================');

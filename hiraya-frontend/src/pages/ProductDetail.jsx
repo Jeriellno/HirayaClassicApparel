@@ -17,7 +17,7 @@ import {
 
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import SizeTable from '../components/product/SizeTable';
+import SizeTable, { sortSizes } from '../components/product/SizeTable';
 import ProductGallery from '../components/product/ProductGallery';
 import StylistBox from '../components/product/StylistBox';
 import ProductReviews from '../components/product/ProductReviews';
@@ -25,12 +25,14 @@ import { ColorSelector, SizeSelector } from '../components/product/VariantSelect
 import AccordionItem from '../components/common/AccordionItem';
 import Currency from '../components/common/Currency';
 import { getStylistRecommendation, parseVariants } from '../utils/stylistHelper';
+import { useT } from '../context/PreferencesContext';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const t = useT();
 
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
@@ -58,7 +60,7 @@ const ProductDetail = () => {
   const addToCartMutation = useMutation({
     mutationFn: (newItem) => api.post('/cart', newItem),
     onSuccess: () => {
-      setFeedback({ type: 'success', message: 'Added to your bag.' });
+      setFeedback({ type: 'success', message: t('product.addedToBag') });
       queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
     onError: (err) => {
@@ -71,7 +73,25 @@ const ProductDetail = () => {
   });
 
   // --- Derived product data (all hooks run before any early return) ---
+
+  /*
+   * COLOUR VARIANTS. `colors[0]` is the main photo's colour; every entry in
+   * `color_variants` is another colour with its own photo, stock and optional
+   * name / description. A product with no colours on file shows no colour
+   * picker at all (it used to invent Black / Cream / Brown, which could be
+   * ordered but did not exist).
+   */
+  const colorVariants = useMemo(
+    () => (Array.isArray(product?.color_variants) ? product.color_variants.filter((v) => v?.color) : []),
+    [product?.color_variants]
+  );
+  const activeVariant = useMemo(
+    () => colorVariants.find((v) => v.color.toLowerCase() === String(selectedColor).toLowerCase()) || null,
+    [colorVariants, selectedColor]
+  );
+
   const parsedSizeStocks = useMemo(() => {
+    if (activeVariant) return activeVariant.size_stocks || {};
     const raw = product?.size_stocks;
     if (typeof raw === 'string') {
       try {
@@ -81,12 +101,28 @@ const ProductDetail = () => {
       }
     }
     return raw || {};
-  }, [product?.size_stocks]);
+  }, [product?.size_stocks, activeVariant]);
 
-  const productColors = useMemo(
-    () => parseVariants(product?.colors, ['Black', 'Cream', 'Brown']),
-    [product?.colors]
-  );
+  const productColors = useMemo(() => {
+    const list = parseVariants(product?.colors, []).filter((c) => typeof c === 'string' && c.trim());
+    colorVariants.forEach((v) => {
+      if (!list.some((c) => c.toLowerCase() === v.color.toLowerCase())) list.push(v.color);
+    });
+    return list;
+  }, [product?.colors, colorVariants]);
+
+  const colorSwatches = useMemo(() => {
+    const map = {};
+    const primary = productColors[0];
+    if (primary && product?.ai_tags?.primary_hex) map[primary] = product.ai_tags.primary_hex;
+    colorVariants.forEach((v) => {
+      if (v.hex) map[v.color] = v.hex;
+    });
+    return map;
+  }, [productColors, colorVariants, product?.ai_tags?.primary_hex]);
+
+  // With no colours on file the line is sold as the single "Standard" colour.
+  const effectiveColor = productColors.length > 0 ? selectedColor : 'Standard';
 
   /*
    * The real size list. `size_stocks` is authoritative when present — its KEYS
@@ -99,9 +135,10 @@ const ProductDetail = () => {
    * check that gates the purchase buttons.
    */
   const productSizes = useMemo(() => {
+    // Always in size order (XS → 2XL), never the JSON key order.
     const stockKeys = Object.keys(parsedSizeStocks || {});
-    if (stockKeys.length > 0) return stockKeys;
-    return parseVariants(product?.sizes, []);
+    if (stockKeys.length > 0) return sortSizes(stockKeys);
+    return sortSizes(parseVariants(product?.sizes, []));
   }, [product?.sizes, parsedSizeStocks]);
 
   // Does this product carry real per-size stock data?
@@ -111,12 +148,13 @@ const ProductDetail = () => {
   );
 
   // Stock for the chosen size, falling back to the aggregate column.
+  const baseStock = activeVariant ? Number(activeVariant.stock) || 0 : product?.stock ?? 0;
   const availableStock = selectedSize
-    ? (parsedSizeStocks[selectedSize] ?? (hasSizeStockData ? 0 : product?.stock ?? 0))
-    : product?.stock ?? 0;
+    ? (parsedSizeStocks[selectedSize] ?? (hasSizeStockData ? 0 : baseStock))
+    : baseStock;
 
   const isSelectedSizeOutOfStock = Boolean(selectedSize) && availableStock <= 0;
-  const isVariantSelected = Boolean(selectedSize) && Boolean(selectedColor);
+  const isVariantSelected = Boolean(selectedSize) && Boolean(effectiveColor);
   const canPurchase = Boolean(user) && isVariantSelected && !isSelectedSizeOutOfStock;
 
   /*
@@ -141,11 +179,13 @@ const ProductDetail = () => {
     }
 
     if (!selectedSize && productSizes.length > 0) {
-      const firstInStock = productSizes.find((size) => {
-        if (!hasSizeStockData) return true; // no per-size data: all are fair game
-        return (parsedSizeStocks[size] ?? 0) > 0;
-      });
-      setSelectedSize(firstInStock ?? productSizes[0]);
+      const inStock = (size) => !hasSizeStockData || (parsedSizeStocks[size] ?? 0) > 0;
+      // The shopper's own saved size first, when it is in stock.
+      const lowerWords = ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'];
+      const isLower = lowerWords.some((w) => `${product.category} ${product.name}`.toLowerCase().includes(w));
+      const mine = isLower ? user?.lower_body_size : user?.upper_body_size;
+      const own = productSizes.find((size) => mine && size.toUpperCase() === String(mine).toUpperCase() && inStock(size));
+      setSelectedSize(own ?? productSizes.find(inStock) ?? productSizes[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id, productColors.length, productSizes.length, hasSizeStockData]);
@@ -155,13 +195,25 @@ const ProductDetail = () => {
     setQuantity(1);
   }, [selectedSize, selectedColor]);
 
+  // A colour with its own stock may not carry the size picked for the last
+  // colour: move to its first in-stock size instead of a dead selection.
+  useEffect(() => {
+    if (!selectedSize || productSizes.length === 0) return;
+    const stillValid = productSizes.includes(selectedSize) && (!hasSizeStockData || (parsedSizeStocks[selectedSize] ?? 0) > 0);
+    if (!stillValid) {
+      const next = productSizes.find((size) => !hasSizeStockData || (parsedSizeStocks[size] ?? 0) > 0);
+      setSelectedSize(next ?? productSizes[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVariant?.id]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
         <div className="glass w-full max-w-xs space-y-4 px-8 py-10 text-center">
           <Loader2 className="mx-auto h-6 w-6 animate-spin text-hiraya-accent" />
           <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-hiraya-ink-muted">
-            Loading Details
+            {t('product.loading')}
           </p>
         </div>
       </div>
@@ -176,13 +228,13 @@ const ProductDetail = () => {
             <AlertCircle className="h-5 w-5" />
           </span>
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-hiraya-ink">
-            Product not found
+            {t('product.notFound')}
           </p>
           <button
             onClick={() => navigate(-1)}
             className="btn-quiet"
           >
-            Go Back
+            {t('product.goBack')}
           </button>
         </div>
       </div>
@@ -192,9 +244,9 @@ const ProductDetail = () => {
   const maxQuantity = Math.max(1, Math.min(10, availableStock || 1));
 
   const handleRequireSelection = () => {
-    if (!selectedSize && !selectedColor) return 'Please select a size and colour.';
+    if (!selectedSize && !effectiveColor) return 'Please select a size and colour.';
     if (!selectedSize) return 'Please select a size.';
-    if (!selectedColor) return 'Please select a colour.';
+    if (!effectiveColor) return 'Please select a colour.';
     if (isSelectedSizeOutOfStock) return 'The selected size is currently out of stock.';
     return null;
   };
@@ -207,7 +259,7 @@ const ProductDetail = () => {
 
     addToCartMutation.mutate({
       product_id: product.id,
-      selected_color: selectedColor,
+      selected_color: effectiveColor,
       selected_size: selectedSize,
       quantity,
     });
@@ -220,7 +272,7 @@ const ProductDetail = () => {
   const persistToBag = async () => {
     await api.post('/cart', {
       product_id: product.id,
-      selected_color: selectedColor,
+      selected_color: effectiveColor,
       selected_size: selectedSize,
       quantity,
     });
@@ -263,7 +315,7 @@ const ProductDetail = () => {
         state: {
           product_id: product.id,
           selected_size: selectedSize,
-          selected_color: selectedColor,
+          selected_color: effectiveColor,
         },
       });
     } catch (err) {
@@ -289,6 +341,10 @@ const ProductDetail = () => {
 
 
   const price = parseFloat(product.price) || 0;
+  // What the chosen colour shows: its own photo / name / description when set.
+  const shownName = activeVariant?.name || product.name;
+  const shownDescription = activeVariant?.description || product.description;
+  const shownImage = activeVariant?.display_image_url || product.display_image_url || product.image_url;
 
   return (
     <div className="min-h-screen w-full text-hiraya-ink">
@@ -299,16 +355,17 @@ const ProductDetail = () => {
           className="btn-quiet group mb-8"
         >
           <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
-          Back
+          {t('common.back')}
         </button>
 
         <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-14">
           <div className="lg:col-span-6 xl:col-span-7">
           {/* ============ LEFT: GALLERY ============ */}
           <ProductGallery
-            imageUrl={product.display_image_url || product.image_url}
-            images={product.images}
-            name={product.name}
+            key={activeVariant?.id || 'primary'}
+            imageUrl={shownImage}
+            images={activeVariant ? null : product.images}
+            name={shownName}
             isGuest={!user}
           />
           </div>
@@ -323,7 +380,7 @@ const ProductDetail = () => {
                 </span>
               )}
               <h1 className="mt-4 font-serif text-[clamp(1.8rem,3vw,2.6rem)] uppercase leading-[1.08] tracking-[0.04em] text-navy-900">
-                {product.name}
+                {shownName}
               </h1>
 
               <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -332,7 +389,7 @@ const ProductDetail = () => {
                   className="text-2xl font-semibold tracking-wide text-navy-900 md:text-[1.7rem]"
                 />
                 <span className="rounded-full bg-cream-200/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal-600 shadow-neu-inset">
-                  50% DP to secure
+                  {t('product.dp')}
                 </span>
               </div>
             </div>
@@ -340,10 +397,10 @@ const ProductDetail = () => {
             {/* Description */}
             <div className="space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
-                Description
+                {t('product.description')}
               </p>
               <p className="text-[13px] font-normal leading-relaxed text-hiraya-ink-soft">
-                {product.description || 'No description provided for this piece.'}
+                {shownDescription || t('product.noDescription')}
               </p>
             </div>
 
@@ -355,6 +412,7 @@ const ProductDetail = () => {
               {productColors.length > 0 && (
                 <ColorSelector
                   colors={productColors}
+                  swatches={colorSwatches}
                   selectedColor={selectedColor}
                   onSelectColor={(color) => {
                     setSelectedColor(color);
@@ -387,10 +445,10 @@ const ProductDetail = () => {
                       }`}
                   >
                     {isSelectedSizeOutOfStock
-                      ? 'Out of stock in this size'
+                      ? t('product.soldOutSize')
                       : availableStock <= 5
-                        ? `Only ${availableStock} left in size ${selectedSize}`
-                        : `In stock — ${availableStock} units available`}
+                        ? t('product.onlyLeft', { n: availableStock, size: selectedSize })
+                        : t('product.inStock', { n: availableStock })}
                   </p>
                 </div>
               )}
@@ -400,7 +458,7 @@ const ProductDetail = () => {
             {user && (
               <div className="space-y-2">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
-                  Quantity
+                  {t('product.quantity')}
                 </p>
                 {/*
                  * THE STEPPER SITS ON A RULED PLATE.
@@ -458,9 +516,9 @@ const ProductDetail = () => {
               )}
 
               {/* Helper text when a variant is still missing */}
-              {user && !isVariantSelected && (
+              {user && !isVariantSelected && productSizes.length > 0 && (
                 <p className="text-center text-[10px] font-medium uppercase tracking-[0.18em] text-hiraya-ink-muted">
-                  Please select a size and colour
+                  {t('product.selectVariant')}
                 </p>
               )}
 
@@ -487,13 +545,13 @@ const ProductDetail = () => {
                   >
                     {addToCartMutation.isPending ? (
                       <>
-                        <Loader2 size={14} className="animate-spin" /> Adding
+                        <Loader2 size={14} className="animate-spin" /> {t('product.adding')}
                       </>
                     ) : isSelectedSizeOutOfStock ? (
-                      'Out of Stock'
+                      t('product.outOfStock')
                     ) : (
                       <>
-                        <ShoppingBag size={14} /> Add to Bag
+                        <ShoppingBag size={14} /> {t('product.addToBag')}
                       </>
                     )}
                   </button>
@@ -508,11 +566,11 @@ const ProductDetail = () => {
                   >
                     {isTryingOn ? (
                       <>
-                        <Loader2 size={14} className="animate-spin" /> Fitting
+                        <Loader2 size={14} className="animate-spin" /> {t('product.fitting')}
                       </>
                     ) : (
                       <>
-                        <Sparkles size={14} /> Try in Virtual Try-On
+                        <Sparkles size={14} /> {t('product.tryOn')}
                       </>
                     )}
                   </button>
@@ -536,7 +594,7 @@ const ProductDetail = () => {
                   onClick={() => navigate('/login')}
                   className="btn-primary w-full rounded-full py-4"
                 >
-                  Sign in to Purchase
+                  {t('product.signInToBuy')}
                 </button>
               )}
 
@@ -550,7 +608,7 @@ const ProductDetail = () => {
             {/* ========== ACCORDIONS ========== */}
             <div className="card px-5 py-1 sm:px-6">
               <AccordionItem
-                title="Order Guidelines"
+                title={t('product.guidelines')}
                 subtitle="3:00 PM cutoff · 50% DP · non-refundable"
                 icon={FileText}
                 defaultOpen={false}
@@ -584,14 +642,20 @@ const ProductDetail = () => {
               </AccordionItem>
 
               <AccordionItem
-                title="Sizing Information"
+                title={t('product.sizing')}
                 subtitle="Flat-lay measurements in centimetres"
                 icon={Ruler}
               >
-                <SizeTable category={product.category} />
+                <SizeTable
+                  category={product.category}
+                  name={product.name}
+                  measurements={product.size_measurements}
+                  sizes={productSizes}
+                  highlight={user?.upper_body_size || ''}
+                />
               </AccordionItem>
 
-              <AccordionItem title="Shipping & Payment" subtitle="Couriers, DP and balance" icon={Truck}>
+              <AccordionItem title={t('product.shipping')} subtitle="Couriers, DP and balance" icon={Truck}>
                 <p>
                   We ship nationwide. Choose <strong className="text-hiraya-ink">LBC</strong> for door-to-door
                   delivery, or <strong className="text-hiraya-ink">Lalamove</strong> for same-day bookings you

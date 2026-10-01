@@ -275,6 +275,7 @@ const matchThemeInText = (text) => {
  *
  * Order, strongest intent first:
  *   1. the theme the admin picked explicitly in the form,
+ *   1b. the AI's `background_vibe` read from the photo,
  *   2. the product NAME (short and deliberate — "Summer Linen Dress"),
  *   3. the AI's occasion tags,
  *   4. the description,
@@ -284,8 +285,11 @@ const matchThemeInText = (text) => {
  *
  * @returns {string} a key of FRAME_PRESETS
  */
-export const resolveThemeKey = ({ override = null, name = '', occasions = null, description = '', category = null } = {}) => {
+export const resolveThemeKey = ({ override = null, vibe = null, name = '', occasions = null, description = '', category = null } = {}) => {
   if (isThemeKey(override)) return override;
+
+  // The scene the AI picked from the photo itself (`background_vibe`).
+  if (isThemeKey(vibe)) return vibe;
 
   const byName = matchThemeInText(name);
   if (byName) return byName;

@@ -1,41 +1,60 @@
+const LOWER_WORDS = ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'];
+const FIT_TO_CUT = { slim: 'SLIM', regular: 'REGULAR', oversized: 'LOOSE' };
+const CUT_WORDS = { SLIM: 'slim', REGULAR: 'regular', LOOSE: 'relaxed / oversized' };
+
 /**
- * Generates personalized fit recommendations based on user measurements and product attributes.
- * 
- * @param {Object} user - User context object containing physical attributes.
- * @param {Object} product - Product context object.
- * @returns {string} Recommendation text string.
+ * A short, honest fit note for the product page, built ONLY from what Hiraya
+ * actually stores: the shopper's upper / lower size, fit style and gender, and
+ * the garment's stocked sizes, AI cut (`ai_tags.fit_type`) and gender.
+ *
+ * (It used to ask for a `height` column that no longer exists, so every
+ * signed-in shopper saw "Update your height in your profile".)
+ *
+ * @param {Object} user
+ * @param {Object} product
+ * @returns {string}
  */
 export const getStylistRecommendation = (user, product) => {
   if (!user) {
-    return"Login to see how this piece fits your unique measurements.";
-  }
-  
-  const height = parseInt(user.height, 10);
-  if (!user.height || isNaN(height)) {
-    return"Update your height in your profile for a personalized fit analysis.";
+    return 'Sign in to see how this piece fits your saved size and fit style.';
   }
 
-  const category = product?.category?.toLowerCase() || '';
-  const name = product?.name?.toLowerCase() || '';
-  const garmentType = product?.garment_type?.toLowerCase() || '';
+  const category = `${product?.category || ''} ${product?.name || ''}`.toLowerCase();
+  const isLower = LOWER_WORDS.some((word) => category.includes(word));
+  const mySize = isLower ? user.lower_body_size || user.upper_body_size : user.upper_body_size || user.lower_body_size;
 
-  // Bottoms / Trousers / Pants Logic
-  if (category === 'bottom' || name.includes('trouser') || name.includes('pants')) {
-    if (height < 155) {
-      return `At ${height}cm, these trousers might be a bit long. We recommend pairing them with platform shoes or a slight hem adjustment to keep the aesthetic clean.`;
-    }
-    return `Your height of ${height}cm is ideal for this cut. It will fall perfectly at your ankles.`;
+  if (!mySize) {
+    return 'Add your upper and lower body size in Account Settings for a personalised fit note.';
   }
 
-  // Gowns & Full Body Garments
-  if (category === 'gown' || garmentType === 'full_body' || garmentType === 'dress') {
-    if (height < 155) {
-      return `For your petite frame (${height}cm), we suggest pairing this gown with 3-4 inch heels to elevate the silhouette and prevent the hem from dragging.`;
-    }
-    return `This gown is designed to complement your stature perfectly. No major adjustments needed!`;
+  const stocked = parseVariants(product?.size_stocks, parseVariants(product?.sizes, []));
+  const parts = [];
+
+  if (stocked.length > 0) {
+    parts.push(
+      stocked.some((s) => String(s).toUpperCase() === String(mySize).toUpperCase())
+        ? `Your ${isLower ? 'lower' : 'upper'} body size ${mySize} is available.`
+        : `Your size ${mySize} is not stocked in this piece — check the size chart below before choosing another size.`
+    );
   }
 
-  return"This piece is a versatile fit for your current measurements.";
+  const cut = String(product?.ai_tags?.fit_type || '').toUpperCase();
+  const wanted = FIT_TO_CUT[user.preferred_fit];
+  if (cut && wanted) {
+    parts.push(
+      cut === wanted
+        ? `It is cut ${CUT_WORDS[cut]}, exactly the fit you prefer.`
+        : `It is cut ${CUT_WORDS[cut]}, while you prefer a ${CUT_WORDS[wanted]} fit — consider sizing ${wanted === 'LOOSE' ? 'up' : 'down'} one if you want your usual feel.`
+    );
+  }
+
+  const productGender = String(product?.gender || '').toLowerCase();
+  const myGender = user.gender === 'male' ? 'men' : user.gender === 'female' ? 'women' : '';
+  if (myGender && productGender && productGender !== 'unisex' && productGender !== myGender) {
+    parts.push(`Note: this piece is cut for ${productGender}.`);
+  }
+
+  return parts.length > 0 ? parts.join(' ') : 'This piece is a versatile fit for your saved size.';
 };
 
 /**

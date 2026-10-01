@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\WritesAuditTrail;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
+use App\Support\ProductVariants;
 use App\Notifications\OrderStatusChanged;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -243,21 +244,8 @@ class AdminOrderController extends Controller
                 continue;
             }
 
-            $qty = (int) $item->quantity;
-            $size = $item->selected_size;
-
-            $sizeStocks = $product->size_stocks;
-            if (is_string($sizeStocks)) {
-                $sizeStocks = json_decode($sizeStocks, true) ?: [];
-            }
-
-            if ($size && is_array($sizeStocks) && array_key_exists($size, $sizeStocks)) {
-                $sizeStocks[$size] = (int) $sizeStocks[$size] + $qty;
-                $product->size_stocks = $sizeStocks;
-            }
-
-            $product->stock = (int) $product->stock + $qty;
-            $product->save();
+            // Credited back to the colour that was sold (variant or primary).
+            ProductVariants::adjust($product, $item->selected_size, $item->selected_color, (int) $item->quantity);
         }
     }
 
@@ -340,7 +328,6 @@ class AdminOrderController extends Controller
 
             return response()->json([
                 'message' => 'Failed to confirm full payment.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -379,6 +366,32 @@ class AdminOrderController extends Controller
         if ($previousStatus === 'rejected') {
             return response()->json([
                 'message' => 'This order was rejected and its stock was returned. It can no longer change status.',
+            ], 422);
+        }
+
+        /*
+         * ORDERS ONLY MOVE FORWARD. pending → processing → ready_for_shipping →
+         * shipped → delivered (rejected is allowed from any open step). Moving a
+         * shipped order back to "pending" re-opened payment steps the customer
+         * had already completed and sent them contradictory notifications.
+         */
+        $ladder = ['pending', 'processing', 'ready_for_shipping', 'shipped', 'delivered'];
+        if ($newStatus !== 'rejected'
+            && array_search($newStatus, $ladder, true) < array_search($previousStatus, $ladder, true)) {
+            return response()->json([
+                'message' => 'An order cannot move back from ' . str_replace('_', ' ', $previousStatus)
+                    . ' to ' . str_replace('_', ' ', $newStatus) . '.',
+            ], 422);
+        }
+
+        if ($newStatus === 'delivered' && $previousStatus !== 'shipped') {
+            return response()->json(['message' => 'Mark the order as shipped before marking it delivered.'], 422);
+        }
+
+        // Work starts only on a verified down payment (approve-dp does this).
+        if ($newStatus === 'processing' && ! in_array($order->payment_status, ['50_paid', 'fully_paid'], true)) {
+            return response()->json([
+                'message' => 'Verify the 50% down payment before moving this order to processing.',
             ], 422);
         }
 
@@ -471,8 +484,15 @@ class AdminOrderController extends Controller
     public function updateTracking(Request $request, Order $order)
     {
         $validated = $request->validate([
-            'tracking_booking_details' => 'required|string|max:255',
+            'tracking_booking_details' => 'required|string|min:4|max:255',
         ]);
+
+        // Courier details are only meaningful once the order may ship.
+        if ($order->payment_status !== 'fully_paid' || $order->order_status === 'rejected') {
+            return response()->json([
+                'message' => 'Add tracking details after the full payment is confirmed.',
+            ], 422);
+        }
 
                 $order->update([
                     'tracking_booking_details' => $validated['tracking_booking_details'],

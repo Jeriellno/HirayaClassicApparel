@@ -60,6 +60,11 @@ class AuthController extends Controller
              * the same reason as the two sizes above.
              */
             'preferred_fit'   => ['required', 'string', 'in:slim,regular,oversized'],
+            /*
+             * GENDER — required so the Home feed can match product gender
+             * (Men / Women / Unisex) on top of size and fit style.
+             */
+            'gender'          => ['required', 'string', 'in:male,female'],
         ], [
             'email.unique'                => 'That email address is already registered.',
             'email.email'                 => 'Please enter a valid email address.',
@@ -73,6 +78,8 @@ class AuthController extends Controller
             'lower_body_size.in'           => 'Please choose a valid lower body size.',
             'preferred_fit.required'       => 'Please choose your fit style.',
             'preferred_fit.in'             => 'Please choose a valid fit style.',
+            'gender.required'              => 'Please choose your gender.',
+            'gender.in'                    => 'Please choose a valid gender.',
         ]);
 
         if ($validator->fails()) {
@@ -91,6 +98,7 @@ class AuthController extends Controller
                 'upper_body_size' => $request->upper_body_size,
                 'lower_body_size' => $request->lower_body_size,
                 'preferred_fit'   => $request->preferred_fit,
+                'gender'          => $request->gender,
             ]);
         } catch (\Throwable $e) {
             Log::error('Registration failed: ' . $e->getMessage());

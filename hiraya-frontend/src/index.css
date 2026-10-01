@@ -1054,3 +1054,183 @@
   }
 
 }
+
+/*
+ * ============================================================================
+ * DARK MODE — `html.dark` (toggled by ThemeContext, remembered per browser).
+ * ============================================================================
+ * Every utility in this app paints from the tokens above through CSS
+ * variables, so dark mode is a TOKEN SWAP, not a second stylesheet. Each ramp
+ * is mirrored (cream ↔ navy-ink, charcoal 50 ↔ 950), which keeps every pairing
+ * the components already use readable: `bg-cream-50 text-navy-900` becomes a
+ * dark card with light ink, and `bg-navy-900 text-cream-100` becomes a light
+ * chip with dark ink — the same contrast ratio, just inverted. The navigation
+ * bar and "structure" surfaces stay deep navy in both themes.
+ */
+html.dark {
+  color-scheme: dark;
+  background-color: #111723;
+
+  --color-cream-50: #1B2333;
+  --color-cream-100: #121927;
+  --color-cream-200: #222C3E;
+  --color-cream-300: #2D384D;
+  --color-cream-400: #8F7D5B;
+  --color-cream-500: #A38E66;
+  --color-cream-600: #C2AA80;
+  --color-cream-700: #D9C49E;
+
+  --color-navy-50: #1F2737;
+  --color-navy-100: #283246;
+  --color-navy-200: #3A4458;
+  --color-navy-300: #5C6476;
+  --color-navy-400: #7F8596;
+  --color-navy-500: #A2A6B2;
+  --color-navy-600: #BFC2CB;
+  --color-navy-700: #D3D3D4;
+  --color-navy-800: #E2D8C2;
+  --color-navy-900: #EFE8DA;
+  --color-navy-950: #F7F2E7;
+
+  --color-charcoal-50: #1D2330;
+  --color-charcoal-100: #283041;
+  --color-charcoal-200: #3A4356;
+  --color-charcoal-300: #566074;
+  --color-charcoal-400: #78808F;
+  --color-charcoal-500: #9AA0AB;
+  --color-charcoal-600: #B9BCC3;
+  --color-charcoal-700: #CDCFD3;
+  --color-charcoal-800: #DEDFE1;
+  --color-charcoal-900: #ECECEC;
+  --color-charcoal-950: #F6F6F5;
+  --color-noir: #FFFFFF;
+
+  --color-hiraya-ink: #EFE8DA;
+  --color-hiraya-ink-soft: #CDCFD3;
+  --color-hiraya-ink-muted: #B3B7BF;
+  --color-hiraya-accent: #E2D8C2;
+  --color-hiraya-accent-deep: #FFFFFF;
+  --color-hiraya-accent-soft: #BFC2CB;
+  --color-hiraya-accent-wash: #263044;
+  --color-hiraya-structure: #0E1420;
+  --color-hiraya-structure-deep: #0A0F19;
+  --color-hiraya-structure-line: #34405A;
+  --color-hiraya-surface: #1B2333;
+  --color-hiraya-surface-raised: #222C3E;
+  --color-hiraya-surface-sunken: #141B29;
+  --color-hiraya-focus: #E2D8C2;
+  --color-hiraya-bg: #121927;
+  --color-hiraya-charcoal: #EFE8DA;
+  --color-hiraya-navy: #EFE8DA;
+  --color-hiraya-indigo: #E2D8C2;
+  --color-hiraya-maroon: #E2D8C2;
+  --color-hiraya-peach: #121927;
+  --color-hiraya-vintage: #222C3E;
+  --color-hiraya-gold: #E2D8C2;
+  --color-hiraya-gold-deep: #FFFFFF;
+  --color-hiraya-gold-soft: #BFC2CB;
+  --color-hiraya-cream-deep: #222C3E;
+  --color-hiraya-cream-soft: #222C3E;
+  --color-hiraya-sand: #B3B7BF;
+  --color-hiraya-olive: #E2D8C2;
+  --color-hiraya-matcha: #222C3E;
+  --color-hiraya-cream: #1B2333;
+  --color-hiraya-on-accent: #121927;
+  --color-hiraya-on-canvas: #EFE8DA;
+  --color-hiraya-on-raised: #EFE8DA;
+  --color-hiraya-on-structure: #F7F2E7;
+  --color-hiraya-muted: #B3B7BF;
+  --color-hiraya-nav: #0E1420;
+  --color-hiraya-nav-deep: #0A0F19;
+  --color-hiraya-disabled-bg: #283041;
+  --color-hiraya-disabled-ink: #9AA0AB;
+
+  --hiraya-canvas: radial-gradient(120% 90% at 20% 0%, #1B2333 0%, #121927 45%, #0E1420 100%);
+
+  --shadow-neu-sm: -2px -2px 6px rgba(255, 255, 255, 0.03), 4px 5px 12px -4px rgba(0, 0, 0, 0.6);
+  --shadow-neu: -6px -6px 16px rgba(255, 255, 255, 0.025), 10px 12px 28px -8px rgba(0, 0, 0, 0.65);
+  --shadow-neu-inset: inset 3px 3px 7px rgba(0, 0, 0, 0.45), inset -2px -2px 6px rgba(255, 255, 255, 0.03);
+  --shadow-glass: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.3), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+}
+
+html.dark body { color-scheme: dark; }
+html.dark body::after { background-color: #121927; }
+html.dark body::before { opacity: 0.25; }
+html.dark * { scrollbar-color: #5C6476 transparent; }
+
+/* Decorative cream "lamp-light" glows hard-coded as rgba(252,250,245,…) read
+   as grey patches on a dark page; dim them rather than edit every component. */
+html.dark [class*="rgba(252,250,245"],
+html.dark [class*="rgba(255,255,255,0.9"] { opacity: 0.08; }
+
+/* Plain white / black utilities that are not on the token ramps. */
+html.dark .bg-white { background-color: #1B2333; }
+html.dark .text-black { color: #EFE8DA; }
+
+/* Smooth theme switch (colours only, never layout). */
+html.theme-transition,
+html.theme-transition * {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease !important;
+}
+
+/* Chrome that is dark navy in BOTH themes (the navbar): restore the light
+   theme's ramps inside it so its cream-on-navy design is unchanged. */
+html.dark .theme-locked {
+  --color-cream-50: #FCFAF5;
+  --color-cream-100: #F7F2E7;
+  --color-cream-200: #EFE6D2;
+  --color-cream-300: #E4D6BA;
+  --color-cream-400: #D3C09C;
+  --color-navy-800: #1D2C45;
+  --color-navy-900: #152036;
+  --color-navy-950: #0D1524;
+  --color-hiraya-ink: #152036;
+  --color-hiraya-ink-muted: #56534F;
+  --color-hiraya-structure-line: #CFCDCA;
+}
+
+/* Hard-coded light glass / plates in the primitives above, re-tinted dark. */
+html.dark {
+  --hiraya-ambient:
+    radial-gradient(42% 36% at 8% 4%, rgba(226, 216, 194, 0.05) 0%, rgba(226, 216, 194, 0) 70%),
+    radial-gradient(52% 46% at 100% 100%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0) 74%);
+}
+html.dark .btn-secondary,
+html.dark .glass-quiet { background-color: rgba(27, 35, 51, 0.75); }
+html.dark .glass,
+html.dark .glass-card { background-color: rgba(27, 35, 51, 0.82); border-color: rgba(226, 216, 194, 0.12); }
+html.dark .btn-primary,
+html.dark .btn-cream { box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.7); }
+html.dark .theme-locked .glass { background-color: rgba(252, 250, 245, 0.92); }
+
+/*
+ * BASIC MOTION — small entrance animations shared by modals, alerts, panels
+ * and list items (`animate-fadeIn`, `animate-slideUp`, `animate-scaleIn`).
+ * Reduced-motion visitors get them instantly.
+ */
+@theme {
+  /* `backwards`, NOT `both`: a fill that outlives the animation keeps an
+     animated opacity/transform on the element, which turns it into a stacking
+     context / containing block and traps any `fixed` modal inside it under the
+     console sidebar and header. */
+  --animate-fadeIn: hiraya-fade-in 0.28s ease-out backwards;
+  --animate-slideUp: hiraya-slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  --animate-scaleIn: hiraya-scale-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+
+  @keyframes hiraya-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes hiraya-slide-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hiraya-scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn, .animate-slideUp, .animate-scaleIn { animation: none !important; }
+}

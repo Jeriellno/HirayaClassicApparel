@@ -20,6 +20,8 @@ export const useOutfitRecommendations = (limit = 8) => {
          */
         user?.upper_body_size ?? null,
         user?.lower_body_size ?? null,
+        user?.preferred_fit ?? null,
+        user?.gender ?? null,
     ];
 
     return useQuery({

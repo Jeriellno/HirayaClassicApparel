@@ -6,6 +6,7 @@ import { generateGarmentCatalogImage } from '../../../utils/removeBackground';
 import { releaseCompositeUrl, reframeCutout } from '../../../utils/garmentCompositor';
 import { FRAME_PRESETS, isThemeKey, resolveThemeKey } from '../../../utils/framePresets';
 import { getProductImageUrl } from '../../../utils/imageHelper';
+import ColorVariantsPanel, { appendVariantsToPayload, validateVariants, variantFromApi } from './ColorVariantsPanel';
 import useConfirm from '../../../hooks/useConfirm';
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
@@ -17,6 +18,15 @@ const PAGE_SIZE = 5;
 const AUTO_THEME = 'auto';
 
 /** A stored image reference as a same-origin, canvas-safe URL — or null. */
+/** The product gender in the form's vocabulary (Men / Women / Unisex), or ''. */
+const normaliseGender = (raw) => {
+  const value = String(raw || '').trim().toLowerCase();
+  if (['men', 'male', 'man'].includes(value)) return 'Men';
+  if (['women', 'female', 'woman'].includes(value)) return 'Women';
+  if (value === 'unisex') return 'Unisex';
+  return '';
+};
+
 const loadableUrl = (raw) => {
   const url = raw ? getProductImageUrl(raw) : null;
   return url && url !== '/images/placeholder.svg' ? url : null;
@@ -107,6 +117,11 @@ const INITIAL_FORM_STATE = {
   size_measurements: {},
   image_url: '',
   fit_type: 'REGULAR',
+  // Who the garment is for — the Home feed matches it against the shopper's gender.
+  gender: 'Unisex',
+  // The colour of the main photo; other colours live in `colorVariants` state.
+  primary_color: '',
+  primary_color_hex: '#1A1A1A',
   /*
    * WHICH BACKGROUND THE CATALOG CARD IS DRAWN ON. `auto` follows the details
    * (name, AI occasion, description, category — see `resolveThemeKey`); a preset
@@ -190,6 +205,10 @@ export default function InventoryTab({
    */
   const [hasCompletedRun, setHasCompletedRun] = useState(false);
   const [imageAnalysisError, setImageAnalysisError] = useState('');
+  // The enlarged preview (original or AI cut-out), or null when closed.
+  const [zoomPreview, setZoomPreview] = useState(null);
+  // Extra colours of this garment (see ColorVariantsPanel).
+  const [colorVariants, setColorVariants] = useState([]);
   const [saveError, setSaveError] = useState('');
 
   /*
@@ -239,6 +258,8 @@ export default function InventoryTab({
   const [cutoutSource, setCutoutSource] = useState(null);
   const [rawPhotoUrl, setRawPhotoUrl] = useState(null);
   const [aiOccasions, setAiOccasions] = useState(null);
+  // The backdrop scene Gemini picked for this garment (e.g. barong -> cultural).
+  const [aiVibe, setAiVibe] = useState(null);
   const [savedThemeKey, setSavedThemeKey] = useState(null);
   const [isApplyingTheme, setIsApplyingTheme] = useState(false);
 
@@ -250,12 +271,13 @@ export default function InventoryTab({
     () =>
       resolveThemeKey({
         override: formData.background_theme,
+        vibe: aiVibe,
         name: formData.name,
         occasions: aiOccasions,
         description: formData.description,
         category: formData.category
       }),
-    [formData.background_theme, formData.name, formData.description, formData.category, aiOccasions]
+    [formData.background_theme, formData.name, formData.description, formData.category, aiOccasions, aiVibe]
   );
 
   /**
@@ -337,6 +359,7 @@ export default function InventoryTab({
 
       if (!isMountedRef.current) return;
       setAiOccasions(analysis?.occasions ?? null);
+      setAiVibe(isThemeKey(analysis?.background_vibe) ? analysis.background_vibe : null);
       setFormData((prev) => ({
         ...prev,
         /*
@@ -365,7 +388,13 @@ export default function InventoryTab({
         price: overwrite
           ? (analysis.price || prev.price)
           : (prev.price !== '' && prev.price != null ? prev.price : (analysis.price || prev.price)),
-        fit_type: analysis.fit_type || prev.fit_type
+        fit_type: analysis.fit_type || prev.fit_type,
+        // Running the AI hands the background back to AUTO, so its vibe applies.
+        background_theme: AUTO_THEME,
+        gender: normaliseGender(analysis.gender) || prev.gender,
+        primary_color: overwrite
+          ? (analysis.colors?.[0] || prev.primary_color)
+          : (prev.primary_color || analysis.colors?.[0] || '')
       }));
 
       /*
@@ -406,7 +435,7 @@ export default function InventoryTab({
           // The occasion the AI just returned decides the background. The category
           // is the fallback for when it returned nothing usable, so a garment the
           // AI could not place still gets a sensible card rather than a default.
-          occasion: analysis?.occasions,
+          occasion: [analysis?.background_vibe, ...(analysis?.occasions ?? [])].filter(Boolean),
           category: analysis?.category,
           onProgress: (value) => {
             if (!isMountedRef.current) return;
@@ -720,7 +749,13 @@ export default function InventoryTab({
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
+    if (file && (!/^image\/(png|jpe?g|webp)$/i.test(file.type) || file.size > 10 * 1024 * 1024)) {
+      setImageAnalysisError('Please choose a PNG, JPG or WEBP image under 10 MB.');
+      e.target.value = '';
+      return;
+    }
     if (file) {
+      setImageAnalysisError('');
       setImageFile(file);
       setPreviewUrl(URL.createObjectURL(file));
       // Drop any cut-out from a previous photo so a stale background-removed
@@ -731,6 +766,7 @@ export default function InventoryTab({
       // The old cut-out and AI tags belong to the PREVIOUS photo.
       setCutoutSource(null);
       setAiOccasions(null);
+      setAiVibe(null);
       setCompositeUrl((prev) => {
         releaseCompositeUrl(prev);
         return '';
@@ -741,29 +777,12 @@ export default function InventoryTab({
       setHasCompletedRun(false);
 
       /*
-       * AUTO-FILL ON SELECTION — the "drop a photo in, get a draft" flow.
-       *
-       * Two defects lived on this one line, and they are the direct cause of
-       * "umiistop ang buong Hiraya" the moment a photo is chosen.
-       *
-       * 1. STALE FILE. `handleAutoFillDetails()` closes over `imageFile`, and in
-       *    this same event handler `setImageFile(file)` has only QUEUED an
-       *    update — the closure still holds the PREVIOUS value. So the first
-       *    upload analysed nothing at all (it returned early on the initial
-       *    `null`), and every upload after that analysed the garment from the
-       *    upload BEFORE it, writing the wrong name, category and price onto a
-       *    photo the admin was looking at. The file is therefore passed
-       *    explicitly instead of being read back out of state.
-       *
-       * 2. NO PAINT BEFORE THE BLOCKING WORK. The call started synchronously
-       *    inside the input's change event, so React set the busy state and
-       *    immediately began seconds of network + main-thread WASM work in the
-       *    same task. The browser never got a frame to render the busy state, so
-       *    the page sat frozen on the pre-upload paint. The `nextPaint()` yield
-       *    inside the pipeline (before it does anything expensive) is what lets
-       *    the progress panel actually appear.
+       * NO AUTO-RUN ON SELECTION. The admin first checks the ORIGINAL preview
+       * (right photo? right garment?) and only then presses "Auto-fill" to
+       * start the AI analysis + background removal. Starting the heavy WASM
+       * cut-out the instant a file was picked froze the console and wasted a
+       * Gemini call on every wrong pick.
        */
-      handleAutoFillDetails(file);
     }
   };
 
@@ -833,6 +852,8 @@ export default function InventoryTab({
     setCutoutSource(null);
     setRawPhotoUrl(null);
     setAiOccasions(null);
+    setAiVibe(null);
+    setColorVariants([]);
     setSavedThemeKey(null);
     setCompositeUrl((prev) => {
       releaseCompositeUrl(prev);
@@ -870,6 +891,9 @@ export default function InventoryTab({
       // claim nobody made — the recommendation engine reads null as "untagged",
       // which is the honest state, so keep whatever is actually stored.
       fit_type: aiTags.fit_type || item.fit_type || '',
+      gender: normaliseGender(item.gender) || 'Unisex',
+      primary_color: (Array.isArray(item.colors) ? item.colors[0] : '') || '',
+      primary_color_hex: aiTags.primary_hex || '#1A1A1A',
       /*
        * The SAVED background opens pre-selected, so editing an unrelated field
        * never silently re-themes a product (the column does not record whether
@@ -883,6 +907,8 @@ export default function InventoryTab({
     const storedOccasions = aiTags.occasions ?? item.occasions ?? null;
     setSavedThemeKey(storedTheme);
     setAiOccasions(storedOccasions);
+    setAiVibe(null);
+    setColorVariants(Array.isArray(item.color_variants) ? item.color_variants.map(variantFromApi) : []);
     // The stored bare matte is the re-theming source; the raw photo is the
     // last resort for rows saved before mattes existed.
     setCutoutSource(loadableUrl(item.ghost_mannequin_url));
@@ -900,7 +926,7 @@ export default function InventoryTab({
     );
 
     setImageFile(null);
-    setPreviewUrl(item.display_image_url || item.image_url || item.image || '');
+    setPreviewUrl(loadableUrl(item.image_url || item.image) || loadableUrl(item.display_image_url) || '');
     setBulkStock('');
     setImageAnalysisError('');
     setSaveError('');
@@ -911,13 +937,26 @@ export default function InventoryTab({
     setTryonBlob(null);
     // (`backgroundInfo` was set above from the stored theme.)
     // Show the already-saved catalog image (if any) as the current cut-out.
-    setCompositeUrl(item.display_image_url || '');
+    setCompositeUrl(loadableUrl(item.display_image_url) || '');
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || isSubmitting || isAnalyzingImage) return;
+
+    const variantProblem = validateVariants(colorVariants, formData.primary_color);
+    const priceValue = parseFloat(formData.price);
+    const formProblem =
+      !formData.name.trim() ? 'Product name is required.'
+        : !Number.isFinite(priceValue) || priceValue <= 0 ? 'Enter a price greater than ₱0.'
+        : !editingId && !imageFile ? 'Upload a photo of the garment.'
+        : Object.keys(formData.sizes || {}).length === 0 ? 'Turn on at least one size this garment comes in.'
+        : variantProblem;
+    if (formProblem) {
+      setSaveError(formProblem);
+      return;
+    }
 
     setIsSubmitting(true);
     setSaveError('');
@@ -936,7 +975,7 @@ export default function InventoryTab({
        * already had the first time somebody edited an unrelated field. Sending
        * only the key we actually own leaves the rest untouched.
        */
-      const aiTagsPayload = { fit_type: formData.fit_type };
+      const aiTagsPayload = { fit_type: formData.fit_type, primary_hex: formData.primary_color_hex };
 
       /*
        * Sent as multipart FormData (not JSON) so the garment photo actually
@@ -979,6 +1018,17 @@ export default function InventoryTab({
       // AI Attributes Direct Payload & JSON Bundle
       payload.append('ai_tags', JSON.stringify(aiTagsPayload));
       payload.append('fit_type', formData.fit_type);
+      payload.append('gender', formData.gender || 'Unisex');
+      /*
+       * The MAIN photo's colour is not typed by the admin any more: the AI
+       * auto-fill supplies it (its first detected colour). It is still sent so
+       * the shop can offer the main photo alongside the added colours.
+       */
+      const mainColor = formData.primary_color.trim()
+        ? formData.primary_color.trim().replace(/^./, (c) => c.toUpperCase())
+        : colorVariants.length > 0 ? 'Original' : '';
+      payload.append('colors', JSON.stringify(mainColor ? [mainColor] : []));
+      appendVariantsToPayload(payload, colorVariants);
 
       // Original upload slot. On edit we only send a NEW file when one is
       // chosen, so existing images are never clobbered.
@@ -1399,6 +1449,18 @@ export default function InventoryTab({
         )}
       </div>
 
+      {zoomPreview && (
+        <div
+          role="dialog"
+          aria-label={zoomPreview.label}
+          onClick={() => setZoomPreview(null)}
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-black/75 p-6 backdrop-blur-sm animate-fadeIn cursor-zoom-out"
+        >
+          <img src={zoomPreview.src} alt={zoomPreview.label} className="max-h-[80vh] max-w-full rounded-xl bg-cream-100 object-contain shadow-2xl" />
+          <p className="text-[11px] font-bold uppercase tracking-widest text-cream-100">{zoomPreview.label} — click anywhere to close</p>
+        </div>
+      )}
+
       {/* UNIFIED ADD / EDIT PRODUCT + AI ATTRIBUTES MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream-deep/80 backdrop-blur-sm p-4 animate-fadeIn">
@@ -1590,36 +1652,47 @@ export default function InventoryTab({
                    * when only the original chip appears, the removal failed.
                    */}
                   {previewUrl && (
-                    <div className="space-y-2 pt-1">
-                      {compositeUrl && (
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="relative w-12 h-[60px] shrink-0 rounded-lg overflow-hidden border-hiraya-accent/50 bg-black"
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <figure className="space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => setZoomPreview({ src: previewUrl, label: 'Original upload' })}
+                          className="block w-full aspect-[4/5] rounded-lg overflow-hidden border border-hiraya-structure-line/80 bg-cream-200/60 cursor-zoom-in"
+                          title="Click to enlarge"
+                        >
+                          <img src={previewUrl} alt="Original upload" className="w-full h-full object-contain" />
+                        </button>
+                        <figcaption className="text-[9px] text-hiraya-ink font-bold uppercase tracking-wider text-center">
+                          1 · Original upload
+                        </figcaption>
+                      </figure>
+                      <figure className="space-y-1">
+                        {compositeUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setZoomPreview({ src: compositeUrl, label: 'Background removed (AI)' })}
+                            className="block w-full aspect-[4/5] rounded-lg overflow-hidden border border-hiraya-accent/50 cursor-zoom-in"
                             style={backgroundInfo?.key ? { backgroundColor: FRAME_PRESETS[backgroundInfo.key]?.base } : undefined}
+                            title="Click to enlarge"
                           >
                             <img src={compositeUrl} alt="Background-removed preview" className="w-full h-full object-contain" />
-                            <span className="absolute bottom-0 inset-x-0 bg-hiraya-accent text-hiraya-on-accent text-[7px] font-black uppercase tracking-wider text-center py-0.5">
-                              No BG
-                            </span>
+                          </button>
+                        ) : (
+                          <div className="w-full aspect-[4/5] rounded-lg border border-dashed border-hiraya-structure-line flex flex-col items-center justify-center gap-1.5 p-2 text-center text-[9px] uppercase tracking-wider text-hiraya-ink-muted">
+                            {isAnalyzingImage ? (
+                              <><Loader2 size={16} className="animate-spin" /> Processing…</>
+                            ) : (
+                              <><Sparkles size={16} /> Press Auto-fill to remove the background</>
+                            )}
                           </div>
-                          <p className="text-[9px] text-hiraya-ink font-bold uppercase leading-snug">
-                            Background removed — this is what shoppers will see
-                          </p>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2.5">
-                        <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden border border-hiraya-structure-line/80 bg-cream-200/60">
-                          <img src={previewUrl} alt="Original preview" className="w-full h-full object-cover" />
-                          {compositeUrl && (
-                            <span className="absolute bottom-0 inset-x-0 bg-hiraya-cream-deep/80 text-hiraya-ink text-[7px] font-black uppercase tracking-wider text-center py-0.5">
-                              Original
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[9px] text-hiraya-ink font-bold uppercase leading-snug">
-                          Ready
-                        </p>
-                      </div>
+                        )}
+                        <figcaption className="text-[9px] text-hiraya-ink font-bold uppercase tracking-wider text-center">
+                          2 · AI background removed
+                        </figcaption>
+                      </figure>
+                      <p className="col-span-2 text-[9px] text-hiraya-ink-muted leading-snug">
+                        Check that the original is the right garment before running the AI. Image 2 is what shoppers will see.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1666,6 +1739,7 @@ export default function InventoryTab({
                       <option value="OUTERWEAR">OUTERWEAR</option>
                       <option value="FORMAL_MEN">FORMAL MEN</option>
                       <option value="FORMAL_WOMEN">FORMAL WOMEN</option>
+                      <option value="FULL_BODY">FULL BODY</option>
                     </select>
                   </div>
 
@@ -1682,8 +1756,8 @@ export default function InventoryTab({
                     />
                   </div>
                 </div>
-              </div>
 
+                  <div>
                   <div>
                     <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Garment Fit Type</label>
                     <select
@@ -1715,47 +1789,31 @@ export default function InventoryTab({
                       <option value="LOOSE">LOOSE / OVERSIZED</option>
                     </select>
 
-                    {/*
-                     * BACKGROUND THEME — the catalog card's backdrop.
-                     *
-                     * "Auto" follows the details above (name, AI occasion,
-                     * description, category), so the default background changes
-                     * with the garment's theme on save. Picking a theme pins it.
-                     * The swatch and the line under the select show the theme
-                     * the SAVE will use, and it is what the shop tiles match.
-                     */}
-                    <label htmlFor="background_theme" className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 mt-3">
-                      Background Theme
+                    <label htmlFor="product_gender" className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 mt-3">
+                      For (Gender)
                     </label>
-                    <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="h-9 w-9 shrink-0 rounded-lg border border-hiraya-ink/15 shadow-neu-inset"
-                        style={{
-                          backgroundColor: FRAME_PRESETS[resolvedThemeKey].base,
-                          boxShadow: `inset 0 0 0 3px ${FRAME_PRESETS[resolvedThemeKey].accent}`
-                        }}
-                      />
-                      <select
-                        id="background_theme"
-                        name="background_theme"
-                        value={formData.background_theme}
-                        onChange={handleInputChange}
-                        disabled={isSubmitting}
-                        className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                      >
-                        <option value={AUTO_THEME}>AUTO — match the details</option>
-                        {Object.entries(FRAME_PRESETS).map(([key, preset]) => (
-                          <option key={key} value={key}>{preset.label.toUpperCase()}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className="mt-1 text-[10px] text-charcoal-600">
-                      Saves on the{' '}
-                      <strong className="text-charcoal-700">{FRAME_PRESETS[resolvedThemeKey].label}</strong>{' '}
-                      background{isStrictTheme ? '' : ' (from the details)'}.
-                    </p>
+                    <select
+                      id="product_gender"
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleInputChange}
+                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
+                    >
+                      <option value="Men">MEN</option>
+                      <option value="Women">WOMEN</option>
+                      <option value="Unisex">UNISEX</option>
+                    </select>
+
+                    {/*
+                     * NO BACKGROUND PICKER. The backdrop is always AUTO: the AI
+                     * auto-fill reads the photo and picks the scene
+                     * (`background_vibe`, e.g. barong -> Cultural), falling back
+                     * to the name / description / category. An edit keeps the
+                     * background already saved until the AI is run again.
+                     */}
                   </div>
+                  </div>
+              </div>
                 </div>
 
                 {/* ============================================================
@@ -1918,8 +1976,18 @@ export default function InventoryTab({
                     </div>
                   </div>
 
+              <div className="mt-4">
+                <ColorVariantsPanel
+                  variants={colorVariants}
+                  onChange={setColorVariants}
+                  offeredSizes={AVAILABLE_SIZES.filter((size) => Object.prototype.hasOwnProperty.call(formData.sizes || {}, size))}
+                  themeKey={resolvedThemeKey}
+                  disabled={isSubmitting || isAnalyzingImage}
+                />
+              </div>
+
               {saveError && (
-                <div className="p-3 bg-red-500/12 border-red-600/40 rounded-xl">
+                <div className="mt-3 p-3 bg-red-500/12 border border-red-600/40 rounded-xl animate-fadeIn" role="alert">
                   <p className="text-[11px] text-red-700">{saveError}</p>
                 </div>
               )}

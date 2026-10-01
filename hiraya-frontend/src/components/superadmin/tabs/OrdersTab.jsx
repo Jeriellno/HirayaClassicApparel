@@ -72,6 +72,22 @@ const STATUS_ACTIONS = [
   { id: 'delivered', label: 'Delivered', icon: CheckCircle2, needsFullPayment: true, className: 'border-emerald-600/35 text-emerald-700 hover:bg-emerald-500/12' },
 ];
 
+// The forward-only order ladder the backend enforces (AdminOrderController::updateStatus).
+const STATUS_LADDER = ['pending', 'processing', 'ready_for_shipping', 'shipped', 'delivered'];
+
+/** Why a status button is unavailable for this order, or '' when it may be pressed. */
+const statusBlockReason = (order, target) => {
+  if (target === 'rejected') return '';
+  if (STATUS_LADDER.indexOf(target) < STATUS_LADDER.indexOf(order.order_status)) {
+    return 'Orders cannot move back to an earlier step';
+  }
+  if (['shipped', 'delivered'].includes(target) && order.payment_status !== 'fully_paid') {
+    return 'Confirm the full payment first';
+  }
+  if (target === 'delivered' && order.order_status !== 'shipped') return 'Mark it shipped first';
+  return '';
+};
+
 // `₱` is the peso sign. Writing it as an escape keeps the file ASCII, so a
 // wrong file encoding can never turn it into "â‚±" again.
 const peso = (value) =>
@@ -498,8 +514,8 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
             </div>
           </section>
 
-          {/* COURIER TRACKING */}
-          {!locked && (
+          {/* COURIER TRACKING — only once the order may actually ship. */}
+          {!locked && order.payment_status === 'fully_paid' && (
             <section className="border-t border-hiraya-structure-line/80 pt-4 space-y-2">
               <label htmlFor={`tracking-${order.id}`} className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-hiraya-sand">
                 <Truck size={11} /> {order.courier === 'lalamove' ? 'Lalamove booking details' : 'LBC tracking number'}
@@ -581,14 +597,15 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                 const Icon = action.icon;
                 const current = order.order_status === action.id;
                 const armed = action.id === 'rejected' && confirmReject;
-                const unpaid = action.needsFullPayment && order.payment_status !== 'fully_paid';
+                const blockedBy = current ? '' : statusBlockReason(order, action.id);
+                const unpaid = Boolean(blockedBy);
                 return (
                   <button
                     key={action.id}
                     type="button"
                     onClick={() => applyStatus(action.id)}
                     disabled={current || unpaid || Boolean(saving)}
-                    title={unpaid && !current ? 'Confirm the full payment first' : undefined}
+                    title={blockedBy || undefined}
                     aria-pressed={current}
                     className={`px-3 py-3 rounded-xl border font-bold uppercase tracking-wider text-[10px] flex items-center justify-center gap-2 transition cursor-pointer disabled:cursor-not-allowed ${current
                         ? 'bg-navy-900 text-cream-50 border-navy-900'

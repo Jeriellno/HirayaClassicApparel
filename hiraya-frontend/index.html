@@ -8,6 +8,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>Hiraya Classic Apparel | AI-Powered Virtual Fitting Room</title>
+    <!-- Apply the saved theme before first paint so dark mode never flashes light. -->
+    <script>
+      try {
+        var t = localStorage.getItem('hiraya.theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
   </head>
 
   <body>

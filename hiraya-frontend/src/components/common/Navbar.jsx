@@ -9,6 +9,8 @@ import { useCart } from '../../hooks/useCart';
 import logoImg from '../../assets/logo.png';
 import Modal from './Modal';
 import NotificationBell from './NotificationBell';
+import PreferenceControls from './PreferenceControls';
+import { useT } from '../../context/PreferencesContext';
 
 /*
  * STYLE HELPERS — presentation only. Each takes the SAME active/inactive
@@ -45,6 +47,7 @@ const Navbar = () => {
     const location = useLocation();
 
     const { cartCount } = useCart();
+    const t = useT();
 
     const [isScrolled, setIsScrolled] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -52,14 +55,6 @@ const Navbar = () => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef(null);
 
-    /*
-     * The console is a full-bleed surface with its own sidebar, so the storefront
-     * navbar is suppressed on it. `/admin` is listed too: it is now only a
-     * redirect to `/superadmin`, but the redirect renders one frame first.
-     */
-    if (location.pathname.startsWith('/superadmin') || location.pathname.startsWith('/admin')) {
-        return null;
-    }
 
     useEffect(() => {
         const handleScroll = () => {
@@ -103,6 +98,18 @@ const Navbar = () => {
         logout();
     };
 
+    /*
+     * (Placed AFTER every hook — returning before them changed the hook count
+     * between storefront and console routes.)
+     *
+     * The console is a full-bleed surface with its own sidebar, so the storefront
+     * navbar is suppressed on it. `/admin` is listed too: it is now only a
+     * redirect to `/superadmin`, but the redirect renders one frame first.
+     */
+    if (location.pathname.startsWith('/superadmin') || location.pathname.startsWith('/admin')) {
+        return null;
+    }
+
     // `/home` is the signed-in landing page, so it lights the Home pill too.
     const isHome = location.pathname === '/' || location.pathname === '/home';
     const isShop = location.pathname === '/shop';
@@ -128,7 +135,7 @@ const Navbar = () => {
              * (inactive) links at 6.8:1. At 75% the muted links fell to 4.4:1.
              */}
             <nav
-                className={`fixed z-40 border text-hiraya-nav-ink backdrop-blur-2xl backdrop-saturate-150 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                className={`theme-locked fixed z-40 border text-hiraya-nav-ink backdrop-blur-2xl backdrop-saturate-150 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isScrolled
                         ? 'top-2 left-2 right-2 sm:top-3 sm:left-5 sm:right-5 lg:left-8 lg:right-8 rounded-2xl px-3 sm:px-5 lg:px-6 py-2 bg-navy-950/85 border-cream-50/10 shadow-neu-dark'
                         : 'top-0 left-0 right-0 rounded-none px-4 sm:px-8 lg:px-12 py-3 md:py-4 bg-navy-950/92 border-transparent'
@@ -159,7 +166,7 @@ const Navbar = () => {
                                 HIRAYA
                             </span>
                             <span className="hidden sm:block text-[7px] md:text-[8px] uppercase tracking-[0.4em] font-medium mt-1 text-hiraya-nav-muted">
-                                Virtual Wardrobe
+                                {t('nav.tagline')}
                             </span>
                         </div>
                     </Link>
@@ -177,14 +184,14 @@ const Navbar = () => {
                             className={`relative rounded-full px-4 py-2 whitespace-nowrap transition-colors duration-300 ${focusRing} ${isHome ? 'text-navy-950' : 'text-hiraya-nav-muted hover:text-hiraya-nav-ink hover:bg-cream-50/[0.06]'}`}
                         >
                             {isHome && <motion.span layoutId="nav-active-pill" transition={ACTIVE_PILL_SPRING} className="absolute inset-0 rounded-full bg-cream-100 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]" />}
-                            <span className="relative">Home</span>
+                            <span className="relative">{t('nav.home')}</span>
                         </Link>
                         <Link
                             to="/shop"
                             className={`relative rounded-full px-4 py-2 whitespace-nowrap transition-colors duration-300 ${focusRing} ${isShop ? 'text-navy-950' : 'text-hiraya-nav-muted hover:text-hiraya-nav-ink hover:bg-cream-50/[0.06]'}`}
                         >
                             {isShop && <motion.span layoutId="nav-active-pill" transition={ACTIVE_PILL_SPRING} className="absolute inset-0 rounded-full bg-cream-100 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]" />}
-                            <span className="relative">Shop</span>
+                            <span className="relative">{t('nav.shop')}</span>
                         </Link>
                         <Link
                             to="/try-on"
@@ -193,7 +200,7 @@ const Navbar = () => {
                             {isTryOn && <motion.span layoutId="nav-active-pill" transition={ACTIVE_PILL_SPRING} className="absolute inset-0 rounded-full bg-cream-100 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]" />}
                             <span className="relative flex items-center gap-1.5">
                                 <Sparkles size={15} className="group-hover:animate-pulse shrink-0" strokeWidth={1.6} />
-                                AI Try-On
+                                {t('nav.tryon')}
                             </span>
                         </Link>
                         {/* Try-On History now lives inside the AI Try-On studio
@@ -204,6 +211,8 @@ const Navbar = () => {
                     <div className="hidden lg:flex items-center gap-2 shrink-0">
                         {/* The Feedback icon that sat here was retired: product
                             reviews from delivered orders replace it. */}
+
+                        <PreferenceControls />
 
                         {/* Notification bell — always visible for members */}
                         {user && <NotificationBell />}
@@ -219,7 +228,7 @@ const Navbar = () => {
                                 className={`${navControl(location.pathname === '/cart')} gap-2 h-9 px-3.5`}
                             >
                                 <ShoppingBag size={17} strokeWidth={1.6} />
-                                <span className="text-[10px] font-bold uppercase tracking-[0.16em]">My Bag</span>
+                                <span className="text-[10px] font-bold uppercase tracking-[0.16em]">{t('nav.bag')}</span>
                                 {cartCount > 0 && (
                                     <span className="absolute -top-1.5 -right-1 bg-cream-400 text-navy-950 font-extrabold text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center ring-2 ring-navy-950">
                                         {cartCount > 99 ? '99+' : cartCount}
@@ -242,7 +251,7 @@ const Navbar = () => {
                                     >
                                         <div className="flex flex-col items-start leading-tight">
                                             <span className="text-[8px] uppercase tracking-[0.22em] text-hiraya-nav-muted font-semibold">
-                                                Member
+                                                {t('nav.member')}
                                             </span>
                                             <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-hiraya-nav-ink">
                                                 {user.full_name?.split(' ')[0]}
@@ -284,13 +293,13 @@ const Navbar = () => {
                                                 <ProfileMenuItem
                                                     to="/orders"
                                                     icon={<Package size={15} />}
-                                                    label="My Orders"
+                                                    label={t('nav.orders')}
                                                     onClick={closeAll}
                                                 />
                                                 <ProfileMenuItem
                                                     to="/settings"
                                                     icon={<Settings size={15} />}
-                                                    label="Account Settings"
+                                                    label={t('nav.settings')}
                                                     onClick={closeAll}
                                                 />
 
@@ -301,7 +310,7 @@ const Navbar = () => {
                                                     }}
                                                     className="w-full flex items-center gap-2.5 px-4 py-3 text-[11px] uppercase tracking-[0.16em] font-bold text-red-800 hover:bg-red-500/10 transition-colors border-t border-hiraya-structure-line"
                                                 >
-                                                    <LogOut size={15} /> Logout
+                                                    <LogOut size={15} /> {t('nav.logout')}
                                                 </button>
                                             </motion.div>
                                         )}
@@ -310,7 +319,7 @@ const Navbar = () => {
                             ) : (
                                 <Link to="/login" className={`${creamPlate} h-9 px-5 text-[11px] shrink-0 whitespace-nowrap`}>
                                     <User size={15} />
-                                    <span>Login</span>
+                                    <span>{t('nav.login')}</span>
                                 </Link>
                             )}
                         </div>
@@ -382,14 +391,14 @@ const Navbar = () => {
                                     onClick={scrollToTop}
                                     className={drawerItem(isHome)}
                                 >
-                                    Home
+                                    {t('nav.home')}
                                 </Link>
                                 <Link
                                     to="/shop"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                     className={drawerItem(location.pathname === '/shop')}
                                 >
-                                    Shop
+                                    {t('nav.shop')}
                                 </Link>
                                 <Link
                                     to="/try-on"
@@ -397,14 +406,14 @@ const Navbar = () => {
                                     className={drawerItem(location.pathname === '/try-on')}
                                 >
                                     <Sparkles size={18} className={location.pathname === '/try-on' ? 'text-navy-950' : 'text-hiraya-nav-muted'}/>
-                                    AI Try-On
+                                    {t('nav.tryon')}
                                 </Link>
                                 <Link
                                     to="/feedback"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                     className={drawerItem(location.pathname === '/feedback')}
                                 >
-                                    <MessageSquare size={18} /> Feedback
+                                    <MessageSquare size={18} /> {t('nav.feedback')}
                                 </Link>
 
                                 {user && (
@@ -415,7 +424,7 @@ const Navbar = () => {
                                             className={`${drawerItem(location.pathname === '/cart')} justify-between`}
                                         >
                                             <span className="flex items-center gap-2">
-                                                <ShoppingBag size={18} /> My Bag
+                                                <ShoppingBag size={18} /> {t('nav.bag')}
                                             </span>
                                             {cartCount > 0 && (
                                                 <span className="bg-cream-400 text-navy-950 text-[10px] font-black px-2 py-0.5 rounded-full">
@@ -431,17 +440,21 @@ const Navbar = () => {
                                             onClick={() => setIsMobileMenuOpen(false)}
                                             className={drawerItem(location.pathname === '/orders')}
                                         >
-                                            <Package size={18} /> My Orders
+                                            <Package size={18} /> {t('nav.orders')}
                                         </Link>
                                         <Link
                                             to="/settings"
                                             onClick={() => setIsMobileMenuOpen(false)}
                                             className={drawerItem(location.pathname === '/settings')}
                                         >
-                                            <Settings size={18} /> Settings
+                                            <Settings size={18} /> {t('nav.settingsShort')}
                                         </Link>
                                     </>
                                 )}
+                            </div>
+
+                            <div className="mt-3 flex justify-center">
+                                <PreferenceControls />
                             </div>
 
                             {/* Mobile Actions */}
@@ -450,7 +463,7 @@ const Navbar = () => {
                                     <div className="flex items-center justify-between w-full">
                                         <div>
                                             <span className="text-[10px] uppercase tracking-widest text-hiraya-nav-muted font-black block">
-                                                Logged in as
+                                                {t('nav.loggedInAs')}
                                             </span>
                                             <span className="text-sm font-bold tracking-wide uppercase text-hiraya-nav-ink">
                                                 {user.full_name}
@@ -460,7 +473,7 @@ const Navbar = () => {
                                             onClick={() => setShowLogoutModal(true)}
                                             className="flex items-center gap-2 px-4 py-2 rounded-full border border-red-400/30 bg-red-500/15 text-red-200 text-xs font-bold transition-colors hover:bg-red-500/25"
                                         >
-                                            <LogOut size={16} /> Logout
+                                            <LogOut size={16} /> {t('nav.logout')}
                                         </button>
                                     </div>
                                 ) : (
@@ -469,7 +482,7 @@ const Navbar = () => {
                                         onClick={() => setIsMobileMenuOpen(false)}
                                         className={`${creamPlate} w-full py-3 text-[11px]`}
                                     >
-                                        <User size={15} /> Login to Account
+                                        <User size={15} /> {t('nav.loginAccount')}
                                     </Link>
                                 )}
                             </div>
@@ -483,10 +496,10 @@ const Navbar = () => {
                 isOpen={showLogoutModal}
                 onClose={() => setShowLogoutModal(false)}
                 onConfirm={handleConfirmLogout}
-                title="Logout"
-                message="Are you sure you want to log out of your Hiraya account? You will need to log in again to access your virtual wardrobe."
-                confirmText="Yes, Logout"
-                cancelText="Cancel"
+                title={t('nav.logoutTitle')}
+                message={t('nav.logoutBody')}
+                confirmText={t('nav.logoutConfirm')}
+                cancelText={t('common.cancel')}
                 isDanger={true}
             />
         </MotionConfig>

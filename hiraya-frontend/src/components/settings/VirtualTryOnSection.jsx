@@ -44,11 +44,11 @@ export const VirtualTryOnSection = ({ formData, handleChange, sizeLabels = SIZE_
         Sizing Profile
       </h2>
       <p className="text-[10px] text-hiraya-ink-muted">
-        These two sizes are the only body information Hiraya stores for you. They drive your size
-        suggestions, your personalised recommendations, and how garments are fitted in AI Try-On.
+        Your sizes, fit style and gender drive your size suggestions, your personalised Home
+        recommendations, and how garments are fitted in AI Try-On.
       </p>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Field label="Upper Body Size">
           <select
             name="upper_body_size"
@@ -91,6 +91,19 @@ export const VirtualTryOnSection = ({ formData, handleChange, sizeLabels = SIZE_
             <option value="slim">Slim / Fitted</option>
             <option value="regular">Regular</option>
             <option value="oversized">Oversized / Loose</option>
+          </select>
+        </Field>
+
+        <Field label="Gender">
+          <select
+            name="gender"
+            value={formData.gender || ''}
+            onChange={handleChange}
+            className="field cursor-pointer"
+          >
+            <option value="" disabled>Choose…</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
           </select>
         </Field>
       </div>

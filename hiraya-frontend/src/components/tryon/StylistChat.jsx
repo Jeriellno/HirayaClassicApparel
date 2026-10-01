@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Send, Loader2, Sparkles, ShoppingBag, ArrowUpRight, X } from 'lucide-react';
 import Currency from '../common/Currency';
 import logoImg from '../../assets/logo.png';
+import { getProductImageUrl } from '../../utils/imageHelper';
 
 /**
  * The Hiraya mark, used wherever the stylist identifies itself.
@@ -67,49 +68,37 @@ const renderRich = (text) => {
  */
 const ProductCard = ({ product, onSelectProduct }) => {
   const clickable = typeof onSelectProduct === 'function';
+  const src = product.image_url ? getProductImageUrl(product.image_url) : '';
 
   return (
     <button
       type="button"
       disabled={!clickable}
       onClick={() => clickable && onSelectProduct(product)}
-      className={`flex w-full items-center gap-2 rounded-lg border border-hiraya-structure-line bg-hiraya-surface-raised p-2 text-left transition ${
-        clickable ? 'cursor-pointer hover:border-hiraya-accent/45' : 'cursor-default'
+      className={`group flex w-[132px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-hiraya-structure-line bg-hiraya-surface-raised text-left shadow-neu-sm transition ${
+        clickable ? 'cursor-pointer hover:-translate-y-0.5 hover:border-hiraya-accent/45' : 'cursor-default'
       }`}
     >
-      {product.image_url ? (
-        <img
-          src={product.image_url}
-          alt={product.name}
-          className="h-10 w-10 shrink-0 rounded-lg object-cover"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-      ) : (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-hiraya-surface-sunken">
-          <ShoppingBag size={14} className="text-hiraya-ink-muted" />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[11px] font-medium text-hiraya-ink">{product.name}</p>
-        <p className="text-[10px] text-hiraya-ink-muted">
-          {product.category}
-          {/*
-           * THE PRICE GOES THROUGH <Currency>.
-           *
-           * This line hard-coded the peso as `` — which the file had stored as
-           * a mojibake pair, so every catalog match in the chat printed two junk
-           * glyphs instead of the sign. <Currency> pins the
-           * glyph-safe stack and adds tabular numerals, so a column of matches
-           * now lines up.
-           */}
-          {product.price ? (
-            <>
-              {' · '}
-              <Currency amount={product.price} decimals={false} />
-            </>
-          ) : ''}
+      {/* The garment PHOTO is the point of a recommendation, so it is large. */}
+      <div className="flex aspect-[4/5] w-full items-center justify-center bg-hiraya-surface-sunken">
+        {src ? (
+          <img
+            src={src}
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+            onError={(e) => {
+              e.currentTarget.src = '/images/placeholder.svg';
+            }}
+          />
+        ) : (
+          <ShoppingBag size={18} className="text-hiraya-ink-muted" />
+        )}
+      </div>
+      <div className="min-w-0 p-2">
+        <p className="line-clamp-2 text-[10.5px] font-semibold leading-snug text-hiraya-ink">{product.name}</p>
+        <p className="mt-0.5 text-[10px] text-hiraya-ink-muted">
+          {product.price ? <Currency amount={product.price} decimals={false} /> : null}
           {product.in_stock === false ? ' · out of stock' : ''}
         </p>
       </div>
@@ -218,13 +207,15 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
 
         {/* Catalog matches for the size just recommended — a shopping surface. */}
         {products.length > 0 && (
-          <div className="space-y-1.5 pl-8">
+          <div className="space-y-1.5 pl-8 animate-fadeIn">
             <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-accent">
-              <Sparkles size={10} /> Available in your size
+              <Sparkles size={10} /> Recommended for you
             </p>
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} onSelectProduct={onSelectProduct} />
-            ))}
+            <div className="-mr-4 flex snap-x gap-2 overflow-x-auto pb-2 pr-4 [scrollbar-width:thin]">
+              {products.map((p) => (
+                <ProductCard key={p.id} product={p} onSelectProduct={onSelectProduct} />
+              ))}
+            </div>
           </div>
         )}
 

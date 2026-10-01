@@ -19,6 +19,7 @@ import PaymentInstructions from '../common/PaymentInstructions';
 import ReviewProductModal from './ReviewProductModal';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
+import { productForColor } from '../../utils/productVariant';
 
 // Customer-facing labels for each backend payment status.
 const PAYMENT_STEPS = {
@@ -115,7 +116,12 @@ const OrdersTab = () => {
     const refFor = (order) => (refDrafts[order.id] || '').trim();
 
     // The file picker submits immediately, so the reference must be in first.
-    const requireReference = (order, input) => {
+    const requireReference = (order, input, file) => {
+        if (file && (!/^image\/(png|jpe?g|webp)$/i.test(file.type) || file.size > 5 * 1024 * 1024)) {
+            setError('The receipt must be a PNG, JPG or WEBP image under 5 MB.');
+            if (input) input.value = '';
+            return false;
+        }
         if (refFor(order).length >= 4) return true;
         setError('Enter the reference number from your GCash or bank receipt before uploading it.');
         if (input) input.value = '';
@@ -146,7 +152,7 @@ const OrdersTab = () => {
 
     // Customer submits proof of the remaining balance.
     const handlePayBalance = async (order, file, input) => {
-        if (!file || !requireReference(order, input)) return;
+        if (!file || !requireReference(order, input, file)) return;
         setBusyId(order.id);
         setError('');
         try {
@@ -166,7 +172,7 @@ const OrdersTab = () => {
 
     // Recovery path: customer replaces a rejected down payment proof.
     const handleReuploadDp = async (order, file, input) => {
-        if (!file || !requireReference(order, input)) return;
+        if (!file || !requireReference(order, input, file)) return;
         setBusyId(order.id);
         setError('');
         try {
@@ -312,7 +318,7 @@ const OrdersTab = () => {
                                                         src={getProductImageUrl(
                                                             // The AI cut-out on the HIRAYA frame, matching
                                                             // what the customer saw when they added it.
-                                                            line.product?.display_image_url
+                                                            productForColor(line.product, line.selected_color)?.display_image_url
                                                             || line.product?.image_url
                                                             || line.product?.image
                                                         )}

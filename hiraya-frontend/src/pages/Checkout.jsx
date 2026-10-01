@@ -5,8 +5,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import Currency from '../components/common/Currency';
 import PaymentInstructions from '../components/common/PaymentInstructions';
+import { useT } from '../context/PreferencesContext';
 
 const Checkout = () => {
+  const t = useT();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -72,8 +74,26 @@ const Checkout = () => {
     e.preventDefault();
     setErrorMessage('');
 
+    if (loading) return;
+    if (formData.customer_name.trim().length < 2) {
+      setErrorMessage('Please enter the full name of the person receiving the order.');
+      return;
+    }
+    // PH mobile: 09XXXXXXXXX or +639XXXXXXXXX (spaces / dashes allowed).
+    if (!/^(\+?63|0)9\d{9}$/.test(formData.contact_number.replace(/[\s-]/g, ''))) {
+      setErrorMessage('Please enter a valid mobile number, e.g. 0917 123 4567.');
+      return;
+    }
+    if (formData.delivery_address.trim().length < 10) {
+      setErrorMessage('Please enter your complete delivery address (house no., street, barangay, city).');
+      return;
+    }
     if (!agreed) {
       setErrorMessage('Please agree to the order guidelines before proceeding.');
+      return;
+    }
+    if (dpProof && (!/^image\/(png|jpe?g|webp)$/i.test(dpProof.type) || dpProof.size > 5 * 1024 * 1024)) {
+      setErrorMessage('The receipt must be a PNG, JPG or WEBP image under 5 MB.');
       return;
     }
     if (!dpProof) {
@@ -151,7 +171,7 @@ const Checkout = () => {
               <CheckCircle2 className="h-6 w-6" />
             </span>
           </div>
-          <h2 className="display-md text-hiraya-ink">Order Received</h2>
+          <h2 className="display-md text-hiraya-ink">{t('checkout.received')}</h2>
           <p className="mt-3 text-xs leading-relaxed text-hiraya-ink-soft">
             We have received your down payment proof. Our team will verify it and update your order
             status within the 3:00 PM same-day processing cutoff.
@@ -191,7 +211,7 @@ const Checkout = () => {
          */}
         <div className="section-head mb-10 border-b border-hiraya-structure-line pb-8">
           <span className="kicker text-hiraya-ink-muted">Secure your order with a 50% down payment</span>
-          <h1 className="display-section mt-2 text-navy-900">Checkout</h1>
+          <h1 className="display-section mt-2 text-navy-900">{t('checkout.title')}</h1>
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">

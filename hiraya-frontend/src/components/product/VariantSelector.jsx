@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { Check, Ban } from 'lucide-react';
+import { useT } from '../../context/PreferencesContext';
 
 /**
  * Maps a colour name to a real CSS colour so the swatch reads as an actual
@@ -65,23 +66,25 @@ const isLightColor = (hex) => {
 /**
  * Colour selector rendered as clickable visual swatches.
  */
-export const ColorSelector = ({ colors = [], selectedColor, onSelectColor }) => {
+export const ColorSelector = ({ colors = [], selectedColor, onSelectColor, swatches = {} }) => {
+  const t = useT();
   if (!colors.length) return null;
 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
-          Colour
+          {t('product.colour')}
         </p>
         <span className="text-[11px] font-medium tracking-wide text-hiraya-ink">
-          {selectedColor || 'Select one'}
+          {selectedColor || t('product.selectOne')}
         </span>
       </div>
 
       <div className="flex flex-wrap gap-2.5">
         {colors.map((color) => {
-          const hex = resolveSwatchColor(color);
+          // The admin's own swatch (colour variants) wins over the name lookup.
+          const hex = /^#[0-9a-f]{6}$/i.test(swatches[color] || '') ? swatches[color] : resolveSwatchColor(color);
           const isSelected = selectedColor === color;
           const light = isLightColor(hex);
 
@@ -142,16 +145,17 @@ export const ColorSelector = ({ colors = [], selectedColor, onSelectColor }) => 
  * customer cannot select something we cannot ship.
  */
 export const SizeSelector = ({ sizes = [], selectedSize, onSelectSize, sizeStocks = {} }) => {
+  const t = useT();
   if (!sizes.length) return null;
 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
-          Size
+          {t('product.size')}
         </p>
         <span className="text-[11px] font-medium tracking-wide text-hiraya-ink">
-          {selectedSize || 'Select one'}
+          {selectedSize || t('product.selectOne')}
         </span>
       </div>
 

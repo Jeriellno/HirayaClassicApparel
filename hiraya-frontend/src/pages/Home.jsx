@@ -14,8 +14,11 @@ import ProductRail from '../components/home/ProductRail';
 import HowItWorksSection from '../components/home/HowItWorksSection';
 import FooterCtaBanner from '../components/home/FooterCtaBanner';
 import FitMatchBadge from '../components/product/FitMatchBadge';
+import { useT } from '../context/PreferencesContext';
 
 const FIT_WORDS = { SLIM: 'slim', REGULAR: 'regular', LOOSE: 'oversized' };
+const PREFERRED_FIT_WORDS = { slim: 'slim', regular: 'regular', oversized: 'oversized' };
+const GENDER_WORDS = { male: 'Men', female: 'Women' };
 
 /*
  * HOME.
@@ -42,6 +45,7 @@ const FIT_WORDS = { SLIM: 'slim', REGULAR: 'regular', LOOSE: 'oversized' };
 const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
 
   // Featured / latest products — SAME KEY AS THE SHOP (`useShopData`), so Home
   // and Shop read one cached payload instead of each fetching the catalog.
@@ -71,7 +75,11 @@ const Home = () => {
   const { cartCount } = useCart();
 
   const hasSizes = recPayload?.has_sizes === true;
-  const fitStyleWord = FIT_WORDS[recPayload?.fit_style] || null;
+  // Prefer the profile value (always present once set) over the feed echo,
+  // which is null whenever the feed itself is empty.
+  const fitStyleWord =
+    PREFERRED_FIT_WORDS[user?.preferred_fit] || FIT_WORDS[recPayload?.fit_style] || null;
+  const genderWord = GENDER_WORDS[user?.gender ?? recPayload?.gender] || null;
 
   const recommendations = useMemo(
     () => (Array.isArray(recPayload?.recommendations) ? recPayload.recommendations : []),
@@ -93,14 +101,47 @@ const Home = () => {
    * The picks rail's copy describes what is ACTUALLY on screen — the same rule
    * the Spotlight header followed: never claim a personalisation no card has.
    */
-  const picksTitle = fitStyleWord ? `Your ${fitStyleWord} fit picks` : 'Picked for your size';
+  const fitLabel = fitStyleWord ? t(`fit.${fitStyleWord}`) : null;
+  const genderLabel = genderWord ? t(genderWord === 'Men' ? 'gender.men' : 'gender.women') : null;
+  const picksTitle = fitLabel ? t('home.picksTitleFit', { fit: fitLabel }) : t('home.picksTitle');
+
+  // What the feed is matched on, shown beside the rail title.
+  const profileChips = [
+    { key: 'fit', label: t('home.chipFit'), value: fitLabel, },
+    { key: 'gender', label: t('home.chipFor'), value: genderLabel },
+    {
+      key: 'size',
+      label: t('home.chipSize'),
+      value: user?.upper_body_size || user?.lower_body_size
+        ? `${user?.upper_body_size || '—'} / ${user?.lower_body_size || '—'}`
+        : null,
+    },
+  ];
+  const picksAction = (
+    <div className="flex flex-wrap items-center gap-2">
+      {profileChips.map((chip) => (
+        <span
+          key={chip.key}
+          className="inline-flex items-center gap-1.5 rounded-full bg-hiraya-surface px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-charcoal-500 shadow-neu-sm ring-1 ring-cream-50/80"
+        >
+          {chip.label}
+          <span className={chip.value ? 'text-navy-900' : 'text-red-700'}>{chip.value || t('common.notSet')}</span>
+        </span>
+      ))}
+      {!genderWord && (
+        <button type="button" onClick={() => navigate('/settings#account-measurements')} className="btn-quiet cursor-pointer">
+          {t('home.setGender')} <ArrowRight size={13} />
+        </button>
+      )}
+    </div>
+  );
   const picksSubtitle = recError
     ? 'Your personalized feed could not be loaded just now.'
     : !hasSizes
     ? 'Set your sizes to unlock personalized picks.'
     : recommendations.length > 0
       ? fitStyleWord
-        ? `${recommendations.length} piece${recommendations.length !== 1 ? 's' : ''} cut for ${fitStyleWord} fits, in your size.`
+        ? `${recommendations.length} piece${recommendations.length !== 1 ? 's' : ''} cut for ${fitStyleWord} fits${genderWord ? ` for ${genderWord.toLowerCase()}` : ''}, in your size.`
         : `${recommendations.length} match${recommendations.length !== 1 ? 'es' : ''} for your measurements.`
       : fitStyleWord
         ? `We have nothing in your size cut for ${fitStyleWord} fits yet — the newest arrivals are below.`
@@ -154,7 +195,7 @@ const Home = () => {
      * scroll container (which would disable `position: sticky` inside it).
      */
     <div className="min-h-screen overflow-x-clip text-hiraya-ink">
-      <HeroSection bagCount={cartCount} fitStyleWord={fitStyleWord} />
+      <HeroSection bagCount={cartCount} fitStyleWord={fitLabel} genderWord={genderLabel} />
 
       <ShortcutDeck bagCount={cartCount} />
 
@@ -164,11 +205,12 @@ const Home = () => {
 
         <ProductRail
           tourId="rail-picks"
-          kicker="Personalized for You"
+          kicker={t('home.picksKicker')}
           title={picksTitle}
           subtitle={picksSubtitle}
           products={recommendations}
           loading={recLoading}
+          action={picksAction}
           isRecommended={() => true}
           renderBadge={(product) => (
             <FitMatchBadge
@@ -185,14 +227,14 @@ const Home = () => {
         {(isLoading || newArrivals.length > 0) && (
           <ProductRail
             tourId="rail-new"
-            kicker="Just Arrived"
-            title="New in the collection"
-            subtitle="The latest garments added to the catalogue, ready for the AI studio."
+            kicker={t('home.newKicker')}
+            title={t('home.newTitle')}
+            subtitle={t('home.newSubtitle')}
             products={newArrivals}
             loading={isLoading}
             action={
               <Link to="/shop" className="btn-quiet group">
-                View Full Shop <PlusCircle size={15} className="transition-transform group-hover:rotate-90" />
+                {t('home.viewShop')} <PlusCircle size={15} className="transition-transform group-hover:rotate-90" />
               </Link>
             }
           />

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import {
   LayoutDashboard,
+  ClipboardList,
   Shirt,
   Package,
   MessageSquare,
@@ -46,9 +47,11 @@ import logoImg from '../../assets/logo.png';
  * groups and no second list to keep in step.
  */
 export const superAdminNavLinks = [
+  { id: 'overview', name: "Today's Work", icon: ClipboardList, group: 'MAIN' },
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, group: 'MAIN' },
   { id: 'inventory', name: 'Inventory Catalog', icon: Shirt, group: 'MAIN' },
   { id: 'orders', name: 'Orders', icon: Package, group: 'MAIN' },
+  { id: 'stock-history', name: 'Stock History', icon: History, group: 'MAIN' },
   { id: 'customers', name: 'Customers', icon: Users, group: 'MAIN' },
   { id: 'api', name: 'API & AI', icon: KeyRound, group: 'ANALYTICS' },
   { id: 'feedback', name: 'User Feedback', icon: MessageSquare, group: 'ENGAGEMENT' },
@@ -181,7 +184,7 @@ const SuperadminLayout = ({
 
       {/* ---- SIDEBAR — a floating navy panel ---- */}
       <aside
-        className={`fixed inset-y-3 left-3 z-50 flex w-64 flex-col overflow-hidden rounded-[26px] bg-[linear-gradient(180deg,#1D2C45_0%,#152036_42%,#0D1524_100%)] text-cream-100 shadow-[10px_14px_34px_-10px_rgba(13,21,36,0.65),-6px_-6px_16px_rgba(255,255,255,0.6)] ring-1 ring-cream-50/10 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:translate-x-0 ${
+        className={`theme-locked fixed inset-y-3 left-3 z-50 flex w-64 flex-col overflow-hidden rounded-[26px] bg-[linear-gradient(180deg,#1D2C45_0%,#152036_42%,#0D1524_100%)] text-cream-100 shadow-[10px_14px_34px_-10px_rgba(13,21,36,0.65),-6px_-6px_16px_rgba(255,255,255,0.6)] ring-1 ring-cream-50/10 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:translate-x-0 ${
           drawerOpen ? 'translate-x-0' : '-translate-x-[calc(100%+1.5rem)]'
         }`}
       >

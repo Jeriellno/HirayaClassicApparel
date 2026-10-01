@@ -83,6 +83,7 @@ public function getRecommendations(User $user, int $limit = 6): Collection
     $upper = SizeChart::normaliseLabel($user->upper_body_size);
     $lower = SizeChart::normaliseLabel($user->lower_body_size);
     $fit = $this->customerFitStyle($user->preferred_fit);
+    $gender = $this->customerGender($user->gender ?? null);
 
         // No sizing profile on file: recommend nothing rather than pretend a
         // match exists. The Home Spotlight shows the "set your sizes" CTA.
@@ -94,9 +95,9 @@ public function getRecommendations(User $user, int $limit = 6): Collection
         $productsVersion = Product::max('updated_at') ?? 'none';
         // v5: garment fit tags are now actually read (see garmentFitStyle), so
         // results cached under v4 carry a wrong `garment_fit` / `fit_score`.
-        $cacheKey = "user_recommendations_v5_{$user->id}_" . md5($user->updated_at . '|' . $productsVersion . '|' . $limit . '|' . $upper . '|' . $lower . '|' . ($fit ?? 'any'));
+        $cacheKey = "user_recommendations_v6_{$user->id}_" . md5($user->updated_at . '|' . $productsVersion . '|' . $limit . '|' . $upper . '|' . $lower . '|' . ($fit ?? 'any') . '|' . ($gender ?? 'any'));
 
-        return Cache::remember($cacheKey, now()->addHours(6), function () use ($limit, $upper, $lower, $fit) {
+        return Cache::remember($cacheKey, now()->addHours(6), function () use ($limit, $upper, $lower, $fit, $gender) {
             /*
              * `display_image_url` MUST be selected.
              *
@@ -127,6 +128,9 @@ public function getRecommendations(User $user, int $limit = 6): Collection
                 // the database happened to return, which varies between engines.
                 ->orderByDesc('id')
                 ->get()
+                // THE GENDER GATE — menswear for men, womenswear for women;
+                // Unisex and untagged pieces are shown to everyone.
+                ->filter(fn ($product) => $this->genderMatches($product->gender, $gender))
                 ->map(function ($product) use ($upper, $lower, $fit) {
                     // THE GATE — the garment must be stocked in a size the
                     // customer wears. Without this there is no recommendation
@@ -168,6 +172,38 @@ public function getRecommendations(User $user, int $limit = 6): Collection
                 ->take($limit)
                 ->values();
         });
+    }
+
+    /**
+     * The customer's gender in the CATALOG's vocabulary (Men / Women), or null
+     * when the account has none on file — the feed is then not gender-filtered.
+     */
+    private function customerGender(mixed $gender): ?string
+    {
+        if (! is_string($gender)) {
+            return null;
+        }
+
+        return match (strtolower(trim($gender))) {
+            'male', 'man', 'men' => 'Men',
+            'female', 'woman', 'women' => 'Women',
+            default => null,
+        };
+    }
+
+    /**
+     * Whether a product's gender tag suits the customer. Unisex and untagged
+     * products always pass.
+     */
+    private function genderMatches(mixed $productGender, ?string $customerGender): bool
+    {
+        if ($customerGender === null || ! is_string($productGender) || trim($productGender) === '') {
+            return true;
+        }
+
+        $tag = $this->customerGender($productGender);
+
+        return $tag === null || $tag === $customerGender;
     }
 
     /**

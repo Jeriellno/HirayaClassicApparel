@@ -55,9 +55,11 @@
 
 /** Every section id in the console, in sidebar order. */
 export const ALL_SECTIONS = [
+    'overview',
     'dashboard',
     'inventory',
     'orders',
+    'stock-history',
     'customers',
     'api',
     'feedback',
@@ -116,7 +118,12 @@ export const resolveSectionAlias = (sectionId) =>
  * think about it. Deny-lists leak silently; allow-lists fail closed.
  */
 export const SECTIONS_BY_ROLE = {
-    admin: ['inventory', 'orders'],
+    /*
+     * Staff run the shop floor: their work queue (overview), the catalogue,
+     * orders, and the stock log that explains every count change. Customers,
+     * analytics, keys, accounts, audit logs and settings stay superadmin-only.
+     */
+    admin: ['overview', 'inventory', 'orders', 'stock-history'],
     superadmin: ALL_SECTIONS,
 };
 

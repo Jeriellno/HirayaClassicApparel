@@ -24,6 +24,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import { roleHome } from './utils/consoleAccess';
 import Navbar from './components/common/Navbar';
 import TourButton from './components/common/TourButton';
+import Toaster from './components/common/Toaster';
 
 const ScrollToTop = () => {
     const { pathname } = useLocation();
@@ -82,6 +83,8 @@ const AppRoutes = () => {
     return (
         <>
             <ScrollToTop />
+            {/* App-wide popup notices (utils/notify.js) — storefront and console. */}
+            <Toaster />
             {showNavbar && (
                 /*
                  * Navbar only: it already renders the NotificationBell itself

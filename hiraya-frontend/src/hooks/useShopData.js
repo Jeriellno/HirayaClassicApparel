@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { parseVariants } from '../utils/stylistHelper';
 import { normalizeCartPayload } from '../utils/cartShape';
+import { notify } from '../utils/notify';
 
 const FIXED_CATEGORIES = [
   'Tops',
@@ -218,12 +219,13 @@ export const useShopData = () => {
     },
     onError: (err) => {
       console.error('Add to Bag Failed:', err?.response?.data || err.message);
+      notify(err?.response?.data?.message || 'Could not add this piece to your bag. Please try again.', 'error');
     },
   });
 
   const handleAddToBag = (product, customSize = null, customColor = null) => {
     if (!user) {
-      alert("Please log in to add items to your bag.");
+      notify('Please log in to add items to your bag.');
       return Promise.reject("User not authenticated");
     }
     return bagMutation.mutateAsync({ product, customSize, customColor });
@@ -315,12 +317,13 @@ export const useShopData = () => {
     },
     onError: (err) => {
       console.error('Bag Toggle Failed:', err?.response?.data || err.message);
+      notify(err?.response?.data?.message || 'Could not update your bag. Please try again.', 'error');
     },
   });
 
   const handleToggleBag = (product, customSize = null, customColor = null) => {
     if (!user) {
-      alert('Please log in to save pieces to your bag.');
+      notify('Please log in to save pieces to your bag.');
       return Promise.reject('User not authenticated');
     }
     return bagToggleMutation.mutateAsync({ product, customSize, customColor });
@@ -329,7 +332,7 @@ export const useShopData = () => {
   const handleTryOn = useCallback(
     async (product, customSize = null, customColor = null) => {
       if (!user) {
-        alert("Please log in to try on items.");
+        notify('Please log in to try on items.');
         return;
       }
       try {

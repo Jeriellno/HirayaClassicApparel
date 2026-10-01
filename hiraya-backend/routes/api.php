@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\BackgroundRemovalAssetsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\TryOnController;
-use App\Http\Controllers\Api\GarmentController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\OutfitRecommendationController;
 use App\Http\Controllers\Api\CheckoutController;
@@ -111,7 +110,15 @@ Route::get('/size-chart', [SizeChartController::class, 'show']);
  * Declared BEFORE /products/{product} so the literal path is not swallowed as a
  * {product} route parameter.
  */
-Route::post('/products/analyze-image', [ProductImageAnalysisController::class, 'analyze']);
+/*
+ * NOW STAFF-ONLY. The same reasoning as the product writes below applies: an
+ * open endpoint let anyone on the internet spend the store's Gemini quota with
+ * arbitrary images. The console already holds the aal2 staff session that the
+ * Save button needs, so the Auto-fill button carries it too. Rate-limited so a
+ * stuck retry loop cannot burn through the key.
+ */
+Route::middleware(['supabase.aal2', 'supabase.user', 'admin', 'throttle:30,1'])
+    ->post('/products/analyze-image', [ProductImageAnalysisController::class, 'analyze']);
 
 /*
  * PERSON VERIFICATION — the gate that enforces "no person, no canvas".
@@ -127,7 +134,7 @@ Route::post('/products/analyze-image', [ProductImageAnalysisController::class, '
  * chosen, and a customer is signed in anyway. An unauthenticated caller can
  * only ask "is there a person here?", which is not sensitive.
  */
-Route::post('/tryon/verify-person', [PersonVerificationController::class, 'verify']);
+Route::middleware('throttle:20,1')->post('/tryon/verify-person', [PersonVerificationController::class, 'verify']);
 
 /*
  * PRODUCT WRITE OPERATIONS — MOVED BACK BEHIND THE `admin` GATE.
@@ -168,8 +175,6 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
 Route::get('/products/{product}', [ProductController::class, 'show']);
 // Public, read-only: the reviews shown on a product's detail page.
 Route::get('/products/{product}/reviews', [ProductReviewController::class, 'forProduct']);
-Route::get('/garments',[GarmentController::class, 'index']);
-Route::get('/garments/catalog', [GarmentController::class, 'catalog']);
 
 Route::get('/payment-instructions', function () {
     return response()->json([
@@ -179,8 +184,10 @@ Route::get('/payment-instructions', function () {
     ]);
 });
 
-Route::post('/products/{id}/track-canvas', [AnalyticsController::class, 'trackCanvas']);
-Route::post('/products/{id}/track-tryon', [AnalyticsController::class, 'trackTryOn']);
+Route::middleware('throttle:60,1')->group(function () {
+    Route::post('/products/{id}/track-canvas', [AnalyticsController::class, 'trackCanvas']);
+    Route::post('/products/{id}/track-tryon', [AnalyticsController::class, 'trackTryOn']);
+});
 
 /*
  * Feedback intake — SIGNED-IN ACCOUNTS ONLY.
@@ -304,9 +311,6 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboardMetrics']);
     Route::get('/stock-adjustments', [AdminStockMovementController::class, 'index']);
 
-    Route::post('/garments', [GarmentController::class, 'storeOrUpdate']);
-    Route::put('/garments/{id}', [GarmentController::class, 'storeOrUpdate']);
-    Route::post('/garments/{id}', [GarmentController::class, 'storeOrUpdate']);
 
     // Order management
     Route::get('/orders', [AdminOrderController::class, 'index']);
@@ -619,7 +623,8 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
         $user = $request->user();
         $validated = $request->validate([
             'full_name'     => 'sometimes|string|max:255',
-            'preferred_fit' => 'sometimes|string|max:50',
+            'preferred_fit' => 'sometimes|string|in:slim,regular,oversized',
+            'gender'        => 'sometimes|nullable|string|in:male,female',
         ]);
         if ($user) {
             $user->update($validated);
@@ -644,17 +649,10 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
 });
 
 /*
- * Personalized garment recommendations are computed FROM the authenticated
- * user's body measurements, so this route MUST sit behind auth:sanctum.
- * Without it `$request->user()` is null and the controller's very first
- * measurement read (GarmentController.php:103) threw:
- *
- *   Attempt to read property "bodyMeasurement" on null  -> HTTP 500
- *
- * which is why the Spotlight never showed a recommendation for anybody.
- * Guests still get the public fallback via `GET /products/spotlight`.
+ * The legacy `garments` catalogue (GarmentController, /garments*) was removed:
+ * `products` is the only catalogue, nothing in the SPA called those routes and
+ * the tables were empty. See 2026_10_20_000003_drop_unused_legacy_tables.
  */
-Route::middleware('auth:sanctum')->get('/garments/spotlight-recommendations', [GarmentController::class, 'getSpotlightRecommendations']);
 
 /*
  * Personalized recommendations are computed FROM the user's body measurements,

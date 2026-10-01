@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Product;
+use App\Support\ProductVariants;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -96,7 +98,6 @@ class OrderController extends Controller
 
             return response()->json([
                 'message' => 'Failed to submit balance payment.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -128,6 +129,26 @@ class OrderController extends Controller
 
         try {
             DB::transaction(function () use ($request, $order, $validated) {
+                /*
+                 * RE-RESERVE THE STOCK. Rejecting the down payment returned every
+                 * unit to inventory, so putting the order back in the queue
+                 * without taking them again let an approved order ship stock it
+                 * no longer held — and a second rejection credited it twice.
+                 */
+                $order->loadMissing('orderItems');
+                foreach ($order->orderItems as $item) {
+                    $product = $item->product_id
+                        ? Product::whereKey($item->product_id)->lockForUpdate()->first()
+                        : null;
+                    if (! $product) {
+                        throw new \RuntimeException('An item in this order is no longer sold. Please contact Hiraya support.');
+                    }
+                    if (ProductVariants::available($product, $item->selected_size, $item->selected_color) < (int) $item->quantity) {
+                        throw new \RuntimeException($product->name . ' (size ' . $item->selected_size . ') is no longer in stock. Please contact Hiraya support.');
+                    }
+                    ProductVariants::adjust($product, $item->selected_size, $item->selected_color, -(int) $item->quantity);
+                }
+
                 $path = $request->file('dp_proof_image')
                     ->store('orders/dp-proofs', 'public');
 
@@ -145,12 +166,14 @@ class OrderController extends Controller
                 'order' => $order->fresh(),
             ]);
 
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+
         } catch (\Throwable $e) {
             Log::error('Reupload DP Error: ' . $e->getMessage());
 
             return response()->json([
                 'message' => 'Failed to re-submit your down payment proof.',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }

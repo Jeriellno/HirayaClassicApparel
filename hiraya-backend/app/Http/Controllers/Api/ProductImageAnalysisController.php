@@ -305,7 +305,19 @@ class ProductImageAnalysisController extends Controller
         );
 
         $occasions = $analysis['occasions'];
-        $occasionKey = $this->backgrounds->resolveFromOccasions($occasions);
+
+        /*
+         * THE AI'S OWN BACKGROUND PICK WINS. The prompt asks Gemini for a
+         * `background_vibe` from the six scene keys, so a barong lands on the
+         * Cultural backdrop because the model recognised a barong — not because
+         * "TRADITIONAL" happened to be listed after "FORMAL". The occasions
+         * resolver is only the fallback for an answer outside the vocabulary.
+         */
+        $vibe = strtolower(trim((string) ($analysis['background_vibe'] ?? '')));
+        $occasionKey = array_key_exists($vibe, config('hiraya_backgrounds.occasions', []))
+            ? $vibe
+            : $this->backgrounds->resolveFromOccasions($occasions);
+        $analysis['background_vibe'] = $occasionKey;
 
         // Keep the AI's own wording but ensure the canonical key is first, so
         // downstream surfaces have a stable, matchable value to display.
@@ -472,10 +484,11 @@ class ProductImageAnalysisController extends Controller
     private function prompt(): array
     {
         return ['prompt' => <<<'PROMPT'
-Analyze this garment catalog image and return ONLY valid JSON with these keys: name, description, category, material, gender, colors, undertone, fit_type, body_shapes, occasions.
+Analyze this garment catalog image and return ONLY valid JSON with these keys: name, description, category, material, gender, colors, undertone, fit_type, body_shapes, occasions, background_vibe.
 category must be TOPS, BOTTOMS, DRESSES, OUTERWEAR, FORMAL_MEN, FORMAL_WOMEN, or FULL_BODY. gender must be Men, Women, or Unisex. colors, body_shapes, and occasions must be arrays. undertone must be WARM, COOL, or NEUTRAL. fit_type must be SLIM, REGULAR, or LOOSE. Never invent exact body measurements; those are entered separately.
 Judge fit_type from the CUT of the garment as it actually hangs on the body, not from the model wearing it: a shirt that tapers at the waist with little ease through the chest is SLIM, one that falls straight from the shoulder with ordinary room is REGULAR, and one visibly wider than the wearer with dropped shoulders or extra drape is LOOSE. This value drives the storefront's "recommended for you" feed, so an inaccurate answer sends a shopper the wrong silhouette. When you genuinely cannot tell, return REGULAR.
 description must be one short shopper-facing sentence about fabric, cut and feel — no measurements, no size chart, no marketing superlatives.
+background_vibe picks the catalog backdrop scene for this garment and must be exactly ONE of: summer, cultural, formal, business, streetwear, everyday. Choose by what the garment is worn for: Filipino or other traditional/heritage wear (barong tagalog, filipiniana, terno, baro't saya, malong) is cultural; gowns, cocktail and evening wear is formal; suits, tuxedos, blazers, slacks, dress shirts and office wear is business; beach, resort, linen, floral, shorts and swimwear is summer; hoodies, cargo, graphic tees, bombers and sneakers-culture pieces is streetwear; plain tees, jeans and basics is everyday.
 PROMPT];
     }
 

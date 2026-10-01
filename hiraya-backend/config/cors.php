@@ -35,7 +35,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'], // Gawing wildcard muna para tanggapin ang kahit anong port/host
+    /*
+     * Set CORS_ALLOWED_ORIGINS (comma-separated, e.g.
+     * "https://hiraya.example,https://console.hiraya.example") in production.
+     * Unset keeps the wildcard for local / LAN demos; auth is a bearer token,
+     * not a cookie, so the wildcard never exposes a session on its own.
+     */
+    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', '*'))))),
 
     'allowed_origins_patterns' => [],
 

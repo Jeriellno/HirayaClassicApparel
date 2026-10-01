@@ -43,6 +43,8 @@ class OutfitRecommendationController extends Controller
             return response()->json([
                 'has_sizes' => false,
                 'fit_style' => null,
+                'gender' => $user->gender,
+                'preferred_fit' => $user->preferred_fit,
                 'recommendations' => [],
             ]);
         }
@@ -60,6 +62,10 @@ class OutfitRecommendationController extends Controller
              * on the size gate alone and says so.
              */
             'fit_style' => $recommendations->first()?->customer_fit,
+            // The raw profile values, so Home can show "Men · Slim fit" even
+            // when the feed is empty.
+            'gender' => $user->gender,
+            'preferred_fit' => $user->preferred_fit,
             'recommendations' => $recommendations,
         ]);
     }

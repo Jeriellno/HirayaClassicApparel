@@ -72,6 +72,8 @@ class User extends Authenticatable
         'lower_body_size',
 
         'preferred_fit',
+        // male / female — filters the Home recommendation feed by product gender.
+        'gender',
         'user_photo_url',
         'portrait_base64',
     ];

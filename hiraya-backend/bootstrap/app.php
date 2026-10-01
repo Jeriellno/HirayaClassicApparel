@@ -79,4 +79,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(function ($request) {
             return $request->is('api/*') || $request->expectsJson();
         });
+
+        /*
+         * NEVER LEAK INTERNALS TO THE UI.
+         *
+         * With APP_DEBUG=true an unhandled error (a failed SQL query, a missing
+         * column, a PHP TypeError) rendered its raw message, SQL text and stack
+         * trace straight into the API response — and from there into toasts on
+         * the storefront. Unexpected errors on /api/* now answer one generic
+         * message; the full detail still goes to storage/logs. HTTP exceptions
+         * (404, 403, 401, 422 validation, 429) keep their own safe messages.
+         */
+        $exceptions->render(function (\Throwable $e, $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+            if ($e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof \Illuminate\Auth\AuthenticationException
+                || $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                || $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException
+                || $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Something went wrong on our side. Please try again in a moment.',
+            ], 500);
+        });
     })->create();

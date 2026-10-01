@@ -5,6 +5,8 @@ import { useCart } from '../hooks/useCart';
 import { getProductImageUrl } from '../utils/imageHelper';
 import { themeSurfaceFor } from '../utils/framePresets';
 import Currency from '../components/common/Currency';
+import { productForColor } from '../utils/productVariant';
+import { useT } from '../context/PreferencesContext';
 
 /*
  * NOTE: the My Bag STYLE STACK (coverflow carousel) was removed from this page.
@@ -26,6 +28,7 @@ const toPrice = (value) => {
 };
 
 const Cart = () => {
+  const t = useT();
   const navigate = useNavigate();
   const {
     cartItems,
@@ -136,7 +139,7 @@ const Cart = () => {
       <div className="min-h-screen flex items-center justify-center px-6">
         <div className="glass w-full max-w-xs px-8 py-10 text-center">
           <Loader2 className="mx-auto mb-4 h-6 w-6 animate-spin text-hiraya-accent" />
-          <p className="text-hiraya-ink-muted uppercase tracking-[0.3em] text-[11px]">Loading Your Bag...</p>
+          <p className="text-hiraya-ink-muted uppercase tracking-[0.3em] text-[11px]">{t('cart.loading')}</p>
         </div>
       </div>
     );
@@ -149,7 +152,7 @@ const Cart = () => {
             total and the studio hand-off underneath, Clear Bag opposite. */}
         <div className="flex flex-wrap items-end justify-between gap-6 border-b border-hiraya-structure-line pb-8" data-tour="cart-header">
           <div className="section-head">
-            <span className="kicker text-hiraya-ink-muted">Your pre-purchase edit</span>
+            <span className="kicker text-hiraya-ink-muted">{t('cart.kicker')}</span>
             <h2 className="display-section mt-2 flex items-center gap-4 text-navy-900">
               My Bag
               <span className="inline-flex h-11 min-w-11 items-center justify-center rounded-2xl bg-navy-900 px-3 font-serif text-lg text-cream-100 shadow-neu-sm">
@@ -198,7 +201,7 @@ const Cart = () => {
                 <ShoppingBag className="w-5 h-5" />
               </span>
             </span>
-            <p className="text-xs text-hiraya-ink tracking-[0.2em] uppercase">Your bag is empty.</p>
+            <p className="text-xs text-hiraya-ink tracking-[0.2em] uppercase">{t('cart.empty')}</p>
             <p className="text-[11px] text-hiraya-ink-muted max-w-sm mx-auto mt-3 leading-relaxed normal-case tracking-normal">
               Every piece you save, heart, or add to bag lands here — and flows straight
               into the AI Try-On studio.
@@ -237,7 +240,7 @@ const Cart = () => {
                     aria-label={`Select ${item.product?.name || 'item'} for checkout`}
                   />
                   <img
-                    src={getProductImageUrl(item.product?.display_image_url || item.product?.image_url)}
+                    src={getProductImageUrl(productForColor(item.product, item.selected_color)?.display_image_url || item.product?.image_url)}
                     alt={item.product?.name || 'Garment'}
                     onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/images/placeholder.svg'; }}
                     className="w-24 h-28 object-contain rounded-2xl bg-black shrink-0 shadow-[0_12px_24px_-14px_rgba(0,0,0,0.8)]"
@@ -308,7 +311,7 @@ const Cart = () => {
                       fight `sm:ml-auto`, so the number floated away from its
                       row. */}
                   <div className="shrink-0 text-right self-center">
-                    <p className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">Subtotal</p>
+                    <p className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">{t('cart.subtotal')}</p>
                     <Currency
                       amount={toPrice(item.product?.price) * Number(item.quantity || 1)}
                       className="text-sm font-semibold text-hiraya-ink"
@@ -339,7 +342,7 @@ const Cart = () => {
                     <span>{selectedUnitCount}</span>
                   </div>
                   <div className="flex justify-between text-base pt-1">
-                    <span className="text-hiraya-ink uppercase tracking-[0.16em] text-[9px] self-center">Total</span>
+                    <span className="text-hiraya-ink uppercase tracking-[0.16em] text-[9px] self-center">{t('cart.total')}</span>
                     <Currency amount={selectedTotal} className="text-hiraya-ink font-semibold" />
                   </div>
                 </div>
@@ -350,7 +353,7 @@ const Cart = () => {
                     <Currency amount={safeDp} className="text-sm font-semibold text-cream-50" />
                   </div>
                   <div className="rounded-2xl bg-cream-200/70 py-3.5 text-center shadow-neu-inset">
-                    <p className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted mb-1">Balance</p>
+                    <p className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted mb-1">{t('cart.balance')}</p>
                     <Currency amount={safeBalance} className="text-sm text-hiraya-ink" />
                   </div>
                 </div>

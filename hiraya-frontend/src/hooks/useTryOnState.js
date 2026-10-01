@@ -9,6 +9,7 @@ import { validateBodyPhoto } from '../utils/validateBodyPhoto';
 import { runFitCheck } from '../utils/fitCheck';
 import { isBackendReachable } from '../utils/backendHealth';
 import { MAX_FILE_UPLOAD_SIZE } from '../constants/config';
+import { productForColor } from '../utils/productVariant';
 
 /**
  * Gate a focused-window refetch on the backend actually being reachable.
@@ -558,7 +559,8 @@ export const useTryOnState = () => {
 
     const ingest = (item, source) => {
       if (!item) return;
-      const prod = item?.product || item;
+      // The chosen colour's own photos when it is a colour variant.
+      const prod = productForColor(item?.product || item, item?.selected_color);
       const productId = prod?.id ?? item?.product_id;
       if (!productId) return;
 

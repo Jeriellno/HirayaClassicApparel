@@ -467,8 +467,8 @@ TXT;
         // rather than making the client poll a session that is already failed.
         if ($isSync && $session->status === TryOnSession::STATUS_FAILED) {
             $payload['progress'] = 0;
-            $payload['message'] = $session->error_message;
-            $payload['ai_feedback'] = $session->ai_feedback ?? $session->error_message;
+            $payload['message'] = $this->customerFacingTryOnError((string) $session->error_message);
+            $payload['ai_feedback'] = $payload['message'];
 
             return response()->json($payload, 200);
         }
@@ -919,11 +919,37 @@ TXT;
             $response['recommended_size'] = $this->extractRecommendedSize($session);
         } elseif ($session->status === TryOnSession::STATUS_FAILED) {
             $response['progress'] = 0;
-            $response['ai_feedback'] = $session->ai_feedback ?? $session->error_message;
-            $response['message'] = $session->error_message;
+            /*
+             * The stored `error_message` is for staff (it names the provider,
+             * HTTP codes and credit state — see the API & AI console). The
+             * shopper gets a plain sentence; photo problems stay specific
+             * because those are things they can fix.
+             */
+            $friendly = $this->customerFacingTryOnError((string) $session->error_message);
+            $response['ai_feedback'] = $friendly;
+            $response['message'] = $friendly;
         }
 
         return response()->json($response);
+    }
+
+    /**
+     * A failed render's reason, rewritten for the shopper.
+     */
+    private function customerFacingTryOnError(string $raw): string
+    {
+        $lower = Str::lower($raw);
+
+        if (Str::contains($lower, ['person', 'body', 'pose', 'face', 'photo', 'image is', 'full-body'])
+            && ! Str::contains($lower, ['api', 'http', 'credit', 'quota', 'timeout', 'exception', 'sql'])) {
+            return $raw;
+        }
+
+        if (Str::contains($lower, ['402', 'credit', 'quota', '429', 'rate limit', 'overloaded', '503'])) {
+            return 'The fitting service is busy right now. Please try again in a few minutes.';
+        }
+
+        return 'We could not finish this fitting. Please try again, or use a clearer full-body photo.';
     }
 
     /**
@@ -1270,6 +1296,24 @@ TXT;
         $garments = array_values(array_filter($validated['context']['selected_garments'] ?? []));
         $hasImage = ! empty($validated['context']['has_generated_image']);
 
+        /*
+         * NO CENTIMETRES SENT? USE THE SAVED PROFILE. Every account records an
+         * upper and a lower size; the chart behind those labels supplies the
+         * numbers, so a signed-in shopper is never told to "add your sizes".
+         */
+        $user = $request->user();
+        if (empty($measurements) && $user && ($user->upper_body_size || $user->lower_body_size)) {
+            $upper = SizeChart::measurementsFor((string) ($user->upper_body_size ?: $user->lower_body_size)) ?? [];
+            $lower = SizeChart::measurementsFor((string) ($user->lower_body_size ?: $user->upper_body_size)) ?? [];
+            $measurements = array_filter([
+                'chest_bust' => $upper['chest_bust'] ?? null,
+                'shoulder_width' => $upper['shoulder_width'] ?? null,
+                'sleeve_length' => $upper['sleeve_length'] ?? null,
+                'waist' => $lower['waist'] ?? null,
+                'hips' => $lower['hips'] ?? null,
+            ], fn ($v) => $v !== null);
+        }
+
         $chest = $measurements['chest_bust'] ?? $measurements['chest'] ?? null;
         $waist = $measurements['waist'] ?? null;
         $hips  = $measurements['hips'] ?? null;
@@ -1285,7 +1329,14 @@ TXT;
          * single query is cheaper than two. Silently empty on any failure — a
          * dead catalog must never break the chat.
          */
-        $products = $this->catalogForSize($size);
+        /*
+         * The shopper's saved profile fills what the request did not send: the
+         * Studio only derives centimetres when it has them, but every account
+         * now carries an upper size and a gender.
+         */
+        $size = $size ?? ($user?->upper_body_size ? Str::upper($user->upper_body_size) : null);
+
+        $products = $this->catalogForChat($message, $size, $user?->gender);
 
         $intent = $this->detectIntent($message);
 
@@ -1763,6 +1814,120 @@ TXT;
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * CHAT RECOMMENDATIONS — catalogue pieces that answer what was ASKED.
+     *
+     * `catalogForSize` alone returned "the newest four in your size" whatever
+     * the shopper typed, so "barong for a wedding" and "something casual" got
+     * the same cards. This scores each product on the words in the message
+     * (name, description, category, occasion / vibe, colours), keeps it to the
+     * shopper's gender (Unisex always fits), and prefers pieces stocked in
+     * their size. With no useful words it falls back to the size match.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function catalogForChat(string $message, ?string $size, ?string $gender, int $limit = 4): array
+    {
+        $synonyms = [
+            'wedding' => ['formal', 'barong', 'gown', 'cultural', 'suit'],
+            'kasal' => ['formal', 'barong', 'gown', 'cultural'],
+            'office' => ['business', 'blazer', 'slacks', 'polo'],
+            'work' => ['business', 'blazer', 'slacks', 'polo'],
+            'trabaho' => ['business', 'polo', 'slacks'],
+            'beach' => ['summer', 'shorts', 'linen'],
+            'party' => ['formal', 'cocktail', 'streetwear'],
+            'casual' => ['everyday', 'shirt', 'tee', 'jeans'],
+            'filipino' => ['barong', 'filipiniana', 'cultural'],
+            'traditional' => ['barong', 'filipiniana', 'cultural'],
+        ];
+
+        $words = array_values(array_filter(
+            preg_split('/[^a-z0-9]+/', Str::lower($message)) ?: [],
+            fn ($w) => strlen($w) >= 3 && ! in_array($w, ['the', 'and', 'for', 'what', 'can', 'you', 'show', 'recommend', 'something', 'with', 'size', 'mga', 'ano', 'para', 'ang', 'ko', 'please'], true)
+        ));
+        foreach ($words as $w) {
+            foreach ($synonyms[$w] ?? [] as $extra) {
+                $words[] = $extra;
+            }
+        }
+        $words = array_unique($words);
+
+        $wantGender = match (Str::lower((string) $gender)) {
+            'male' => 'men',
+            'female' => 'women',
+            default => null,
+        };
+
+        try {
+            $catalog = Product::query()->latest('id')->limit(80)->get();
+        } catch (\Throwable $e) {
+            Log::info('Stylist catalog lookup failed: ' . $e->getMessage());
+
+            return [];
+        }
+
+        $scored = [];
+        foreach ($catalog as $product) {
+            $productGender = Str::lower((string) $product->gender);
+            if ($wantGender && $productGender !== '' && $productGender !== 'unisex' && $productGender !== $wantGender) {
+                continue;
+            }
+
+            $tags = is_array($product->ai_tags) ? $product->ai_tags : [];
+            $haystack = Str::lower(implode(' ', array_filter([
+                $product->name,
+                $product->description,
+                str_replace('_', ' ', (string) $product->category),
+                $product->background_occasion,
+                implode(' ', (array) ($tags['occasions'] ?? [])),
+                implode(' ', (array) ($product->colors ?? [])),
+            ])));
+
+            $hits = 0;
+            foreach ($words as $w) {
+                if (str_contains($haystack, $w)) {
+                    $hits++;
+                }
+            }
+
+            $sizes = $this->normaliseSizeLabels($product->sizes);
+            $fitsSize = $size && in_array(Str::upper($size), $sizes, true);
+
+            $scored[] = ['product' => $product, 'hits' => $hits, 'score' => $hits * 3 + ($fitsSize ? 2 : 0) + ((int) $product->stock > 0 ? 1 : 0), 'sizes' => $sizes];
+        }
+
+        // Nothing in the message matched anything: answer with the size match.
+        if (! collect($scored)->contains(fn ($row) => $row['hits'] > 0)) {
+            return $this->catalogForSize($size, $limit);
+        }
+
+        usort($scored, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        $out = [];
+        foreach ($scored as $row) {
+            if ($row['hits'] === 0) {
+                continue;
+            }
+            $product = $row['product'];
+            $out[] = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'category' => $product->category,
+                'price' => (float) $product->price,
+                'image_url' => $product->display_image_url ?: $product->image_url,
+                'in_stock' => (int) ($product->stock ?? 0) > 0,
+                'sizes' => $row['sizes'],
+                'stock_in_this_size' => $size ? $this->stockForSize($product, Str::upper($size)) : null,
+                'url' => '/product/' . $product->id,
+            ];
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
     private function catalogForSize(?string $size, int $limit = 4): array
     {
         if (! $size) {

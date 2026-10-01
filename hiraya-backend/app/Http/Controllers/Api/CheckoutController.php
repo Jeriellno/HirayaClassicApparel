@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Support\ProductVariants;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,9 +38,10 @@ class CheckoutController extends Controller
         {
             $validated = $request->validate([
                 'courier'          => 'required|in:lalamove,lbc',
-                'customer_name'    => 'required|string|max:255',
-                'contact_number'   => 'required|string|max:30',
-                'delivery_address' => 'required|string',
+                'customer_name'    => 'required|string|min:2|max:255',
+                // PH mobile number: 09XXXXXXXXX or +639XXXXXXXXX, spaces/dashes allowed.
+                'contact_number'   => ['required', 'string', 'max:30', 'regex:/^(\+?63|0)9[\d\s-]{9,13}$/'],
+                'delivery_address' => 'required|string|min:10|max:500',
                 'dp_proof_image'   => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
                 // The GCash / bank transaction reference the admin checks against.
                 'dp_reference_number' => 'required|string|min:4|max:64',
@@ -62,6 +64,9 @@ class CheckoutController extends Controller
                 'quantity'                     => 'nullable|integer|min:1',
                 'size'                         => 'nullable|string|max:50',
                 'color'                        => 'nullable|string|max:50',
+            ], [
+                'contact_number.regex'         => 'Please enter a valid mobile number, e.g. 0917 123 4567.',
+                'delivery_address.min'         => 'Please enter your complete delivery address.',
             ]);
 
             // LBC requires a complete delivery address to generate the shipment.
@@ -120,7 +125,7 @@ class CheckoutController extends Controller
                         $qty = (int) $line['quantity'];
                         $size = $line['size'];
 
-                        $this->assertStockAvailable($product, $size, $qty);
+                        $this->assertStockAvailable($product, $size, $qty, $line['color'] ?? null);
 
                         $unitPrice = (float) $product->price;
                         $subtotal = round($unitPrice * $qty, 2);
@@ -179,7 +184,7 @@ class CheckoutController extends Controller
                             'line_total'            => $row['subtotal'],
                         ]);
 
-                        $this->decrementStock($row['product'], $row['size'], $row['quantity']);
+                        ProductVariants::adjust($row['product'], $row['size'], $row['color'] ?? null, -$row['quantity']);
                     }
 
                     // 7. Remove only the selected bag rows. Legacy clients that
@@ -242,54 +247,17 @@ class CheckoutController extends Controller
          * Falls back to the aggregate `stock` column when no per-size data exists,
          * so products without size_stocks still sell correctly.
          */
-        private function assertStockAvailable(Product $product, ?string $size, int $qty): void
+        private function assertStockAvailable(Product $product, ?string $size, int $qty, ?string $color = null): void
         {
-            $available = $this->availableStockFor($product, $size);
+            // Per colour: a variant colour has its own stock (see ProductVariants).
+            $available = ProductVariants::available($product, $size, $color);
 
             if ($available < $qty) {
                 throw new \RuntimeException(
-                    self::ERR_OUT_OF_STOCK . ' (' . $product->name . ($size ? ' — size ' . $size : '') . ')'
+                    self::ERR_OUT_OF_STOCK . ' (' . $product->name
+                        . ($color && strcasecmp($color, 'Standard') !== 0 ? ' — ' . $color : '')
+                        . ($size ? ' — size ' . $size : '') . ')'
                 );
             }
-        }
-
-        /**
-         * How many units of this product/size are currently sellable.
-         */
-        private function availableStockFor(Product $product, ?string $size): int
-        {
-            $sizeStocks = $product->size_stocks;
-
-            if (is_string($sizeStocks)) {
-                $sizeStocks = json_decode($sizeStocks, true) ?: [];
-            }
-
-            if ($size && is_array($sizeStocks) && array_key_exists($size, $sizeStocks)) {
-                return max(0, (int) $sizeStocks[$size]);
-            }
-
-            // No per-size breakdown: fall back to the product-level stock.
-            return max(0, (int) $product->stock);
-        }
-
-        /**
-         * Reserve stock: decrement the per-size bucket and the aggregate column.
-         * The Product row is already locked by the caller's transaction.
-         */
-        private function decrementStock(Product $product, ?string $size, int $qty): void
-        {
-            $sizeStocks = $product->size_stocks;
-
-            if (is_string($sizeStocks)) {
-                $sizeStocks = json_decode($sizeStocks, true) ?: [];
-            }
-
-            if ($size && is_array($sizeStocks) && array_key_exists($size, $sizeStocks)) {
-                $sizeStocks[$size] = max(0, (int) $sizeStocks[$size] - $qty);
-                $product->size_stocks = $sizeStocks;
-            }
-
-            $product->stock = max(0, (int) $product->stock - $qty);
-            $product->save();
         }
     }

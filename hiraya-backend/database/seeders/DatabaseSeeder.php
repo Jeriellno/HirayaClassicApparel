@@ -19,7 +19,6 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,    // Idagdag mo ito
             SizeChartSeeder::class,
             ProductSeeder::class,
-            GarmentSeeder::class,
         ]);
     }
 }

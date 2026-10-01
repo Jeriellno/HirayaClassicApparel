@@ -1,82 +1,123 @@
-import React from 'react';
+import PropTypes from 'prop-types';
 
-const SizeTable = ({ category }) => {
-    // 1. Logic para sa Table Headers depende sa category
-    const isTop = category?.toLowerCase() === 'tops' || category?.toLowerCase() === 'shirt';
-    const headers = isTop 
-        ? ['Size', 'Chest', 'Length', 'Shoulder'] 
-        : ['Size', 'Waist', 'Hip', 'Inseam'];
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL'];
+const LOWER_WORDS = ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'];
 
-    // 2. Data para sa Tops (Example measurements in cm)
-    const topSizes = [
-        { size: 'S', col1: '104 cm', col2: '68 cm', col3: '44 cm' },
-        { size: 'M', col1: '110 cm', col2: '70 cm', col3: '46 cm' },
-        { size: 'L', col1: '116 cm', col2: '72 cm', col3: '48 cm' },
-        { size: 'XL', col1: '122 cm', col2: '74 cm', col3: '50 cm' },
-    ];
+// The store's standard chart (mirrors App\Services\SizeChart), used for any
+// stocked size the product has no measurements saved for.
+const STANDARD = {
+  XS: { chest_bust: 81, waist: 63, hips: 87, shoulder_width: 37, sleeve_length: 57 },
+  S: { chest_bust: 88, waist: 70, hips: 94, shoulder_width: 39.5, sleeve_length: 59.5 },
+  M: { chest_bust: 95, waist: 77, hips: 101, shoulder_width: 41.5, sleeve_length: 61.5 },
+  L: { chest_bust: 102, waist: 84, hips: 108, shoulder_width: 43.5, sleeve_length: 63.5 },
+  XL: { chest_bust: 109, waist: 91, hips: 115, shoulder_width: 45.5, sleeve_length: 65.5 },
+  '2XL': { chest_bust: 116.5, waist: 98.5, hips: 122.5, shoulder_width: 47.5, sleeve_length: 67.5 },
+};
 
-    // 3. Data para sa Bottoms (Example measurements in cm)
-    const bottomSizes = [
-        { size: 'S', col1: '72-76 cm', col2: '96 cm', col3: '70 cm' },
-        { size: 'M', col1: '76-80 cm', col2: '100 cm', col3: '72 cm' },
-        { size: 'L', col1: '80-84 cm', col2: '104 cm', col3: '74 cm' },
-        { size: 'XL', col1: '84-88 cm', col2: '108 cm', col3: '76 cm' },
-    ];
+const COLUMNS = {
+  upper: [
+    ['chest_bust', 'Chest'],
+    ['waist', 'Waist'],
+    ['shoulder_width', 'Shoulder'],
+    ['sleeve_length', 'Sleeve'],
+  ],
+  lower: [
+    ['waist', 'Waist'],
+    ['hips', 'Hip'],
+  ],
+};
 
-    // Piliin kung anong data ang gagamitin base sa category
-    const activeData = isTop ? topSizes : bottomSizes;
+export const sortSizes = (sizes) =>
+  [...sizes].sort((a, b) => {
+    const ia = SIZE_ORDER.indexOf(String(a).toUpperCase());
+    const ib = SIZE_ORDER.indexOf(String(b).toUpperCase());
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
 
+/*
+ * SIZE GUIDE — the product's OWN measurements.
+ *
+ * This used to print one of two hard-coded example tables (a trouser table for
+ * anything not literally called "tops", so a barong showed waist / hip /
+ * inseam). It now reads `size_measurements`, which the backend fills from the
+ * store's size chart for every size the garment is stocked in, and picks the
+ * upper- or lower-body columns from the category.
+ */
+const SizeTable = ({ category = '', name = '', measurements = null, sizes: stocked = [], highlight = '' }) => {
+  const text = `${category} ${name}`.toLowerCase();
+  const columns = LOWER_WORDS.some((w) => text.includes(w)) ? COLUMNS.lower : COLUMNS.upper;
+
+  const table = { ...(measurements && typeof measurements === 'object' ? measurements : {}) };
+  stocked.forEach((size) => {
+    const key = String(size).toUpperCase();
+    if (!table[size] && STANDARD[key]) table[size] = STANDARD[key];
+  });
+  const sizes = sortSizes(Object.keys(table)).filter((size) => table[size] && typeof table[size] === 'object');
+  const shown = columns.filter(([key]) => sizes.some((size) => table[size][key] != null));
+
+  if (sizes.length === 0 || shown.length === 0) {
     return (
-        <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink">
-                    Size Guide (cm)
-                </p>
-                {/* `italic` was doing nothing except adding a slant to a caption;
-                    it is now a plain muted note. */}
-                <span className="text-[9px] text-hiraya-ink-muted">*Measured flat-lay</span>
-            </div>
-
-            {/*
-             * THE TABLE USES THE SYSTEM HAIRLINE, NOT `sand`.
-             *
-             * Every rule in this table was `border-hiraya-sand`. `sand` is now
-             * INDIGO, so the header rule, the row dividers and the outer edge were
-             * all being struck in full-strength dark ink — the table read as a
-             * set of gate bars rather than as ruled stock. The dividers are the
-             * `structure-line` parchment, and the row hover is the accent wash
-             * (it was `hover:bg-hiraya-olive` — an indigo flood under dark text,
-             * measured 1.00:1, so a hovered row became unreadable).
-             */}
-            <div className="overflow-x-auto">
-                <table className="w-full border-t border-hiraya-structure-line text-left text-[11px] tracking-wider">
-                    <thead>
-                        <tr className="text-hiraya-ink-muted">
-                            {headers.map((header) => (
-                                <th key={header} className="border-b border-hiraya-structure-line py-3 font-semibold uppercase">
-                                    {header}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="text-hiraya-ink-soft">
-                        {activeData.map((row) => (
-                            <tr key={row.size} className="border-b border-hiraya-structure-line transition-colors hover:bg-hiraya-accent-wash">
-                                <td className="py-3 font-semibold text-hiraya-ink">{row.size}</td>
-                                <td className="py-3 font-normal">{row.col1}</td>
-                                <td className="py-3 font-normal">{row.col2}</td>
-                                <td className="py-3 font-normal">{row.col3}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            <p className="mt-3 text-[10px] leading-relaxed text-hiraya-ink-muted">
-                Tip: If you&apos;re between sizes, we recommend sizing up for a more relaxed, Hiraya-style fit.
-            </p>
-        </div>
+      <p className="mt-4 text-[11px] leading-relaxed text-hiraya-ink-muted">
+        Measurements for this piece are not available yet. Message us and we will measure it for you.
+      </p>
     );
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink">Size Guide (cm)</p>
+        <span className="text-[9px] text-hiraya-ink-muted">*Body measurements each size fits</span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-t border-hiraya-structure-line text-left text-[11px] tracking-wider">
+          <thead>
+            <tr className="text-hiraya-ink-muted">
+              <th className="border-b border-hiraya-structure-line py-3 font-semibold uppercase">Size</th>
+              {shown.map(([key, label]) => (
+                <th key={key} className="border-b border-hiraya-structure-line py-3 font-semibold uppercase">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="text-hiraya-ink-soft">
+            {sizes.map((size) => (
+              <tr
+                key={size}
+                className={`border-b border-hiraya-structure-line transition-colors hover:bg-hiraya-accent-wash ${
+                  size === highlight ? 'bg-hiraya-accent-wash' : ''
+                }`}
+              >
+                <td className="py-3 font-semibold text-hiraya-ink">
+                  {size}
+                  {size === highlight && <span className="ml-1.5 text-[9px] text-hiraya-ink-muted">(yours)</span>}
+                </td>
+                {shown.map(([key]) => (
+                  <td key={key} className="py-3 font-normal">
+                    {table[size][key] != null ? `${table[size][key]} cm` : '—'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="mt-3 text-[10px] leading-relaxed text-hiraya-ink-muted">
+        Tip: If you&apos;re between sizes, size up for a more relaxed, Hiraya-style fit.
+      </p>
+    </div>
+  );
+};
+
+SizeTable.propTypes = {
+  category: PropTypes.string,
+  name: PropTypes.string,
+  measurements: PropTypes.object,
+  sizes: PropTypes.arrayOf(PropTypes.string),
+  highlight: PropTypes.string,
 };
 
 export default SizeTable;

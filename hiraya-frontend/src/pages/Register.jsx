@@ -9,6 +9,7 @@ import {
     meetsPasswordPolicy,
     passwordPolicyError,
 } from '../utils/passwordPolicy';
+import { useT } from '../context/PreferencesContext';
 
 // Shared field styling, drawn from the .field primitive so every input on this
 // page stays identical without repeating a long class string per input. Only the
@@ -93,7 +94,14 @@ const FIT_OPTIONS = [
     { value: 'oversized', text: 'Oversized / Loose' },
 ];
 
+// Matches `in:male,female` in AuthController::register.
+const GENDER_OPTIONS = [
+    { value: 'male', text: 'Male' },
+    { value: 'female', text: 'Female' },
+];
+
 const Register = () => {
+    const t = useT();
     const [formData, setFormData] = useState({
         full_name: '',
         email: '',
@@ -102,6 +110,7 @@ const Register = () => {
         upper_body_size: '',
         lower_body_size: '',
         preferred_fit: '',
+        gender: '',
         agree_terms: false,
     });
 
@@ -155,6 +164,10 @@ const Register = () => {
         else if (!FIT_OPTIONS.some((f) => f.value === formData.preferred_fit)) {
             errs.preferred_fit = "Please choose a valid fit style.";
         }
+        if (!formData.gender) errs.gender = "Please choose your gender.";
+        else if (!GENDER_OPTIONS.some((g) => g.value === formData.gender)) {
+            errs.gender = "Please choose a valid gender.";
+        }
         if (!formData.password) errs.password = "Password is required";
         else if (!isPasswordValid) errs.password = passwordPolicyError(formData.password);
         if (formData.password !== formData.password_confirmation) {
@@ -192,6 +205,7 @@ const Register = () => {
                 upper_body_size: formData.upper_body_size,
                 lower_body_size: formData.lower_body_size,
                 preferred_fit: formData.preferred_fit,
+                gender: formData.gender,
             };
 
             const response = await register(payload);
@@ -248,7 +262,7 @@ const Register = () => {
                         <div>
                             <input
                                 type="text"
-                                placeholder="Full Name"
+                                placeholder={t('auth.fullName')}
                                 autoComplete="name"
                                 className={fieldClass(errors.full_name)}
                                 value={formData.full_name}
@@ -261,7 +275,7 @@ const Register = () => {
                         <div>
                             <input
                                 type="email"
-                                placeholder="Email Address"
+                                placeholder={t('auth.email')}
                                 autoComplete="email"
                                 className={fieldClass(errors.email)}
                                 value={formData.email}
@@ -277,7 +291,7 @@ const Register = () => {
                             <div className="relative">
                                 <input
                                     type={showPassword ? "text" : "password"}
-                                    placeholder="Password"
+                                    placeholder={t('auth.password')}
                                     autoComplete="new-password"
                                     className={`${fieldClass(errors.password)} pr-12`}
                                     value={formData.password}
@@ -314,7 +328,7 @@ const Register = () => {
                             <div className="relative">
                                 <input
                                     type={showConfirmPassword ? "text" : "password"}
-                                    placeholder="Confirm Password"
+                                    placeholder={t('auth.confirmPassword')}
                                     autoComplete="new-password"
                                     className={`${fieldClass(errors.password_confirmation)} pr-20`}
                                     value={formData.password_confirmation}
@@ -360,14 +374,14 @@ const Register = () => {
                          * before it is touched.
                          */}
                         <div className="pt-2">
-                            <p className="kicker mb-2.5 text-hiraya-ink-muted">Sizing Profile</p>
-                            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                            <p className="kicker mb-2.5 text-hiraya-ink-muted">{t('auth.sizingProfile')}</p>
+                            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                                 <div>
                                     <label
                                         htmlFor="upper_body_size"
                                         className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
                                     >
-                                        Upper Body Size
+                                        {t('auth.upperSize')}
                                     </label>
                                     <select
                                         id="upper_body_size"
@@ -397,7 +411,7 @@ const Register = () => {
                                         htmlFor="lower_body_size"
                                         className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
                                     >
-                                        Lower Body Size
+                                        {t('auth.lowerSize')}
                                     </label>
                                     <select
                                         id="lower_body_size"
@@ -427,7 +441,7 @@ const Register = () => {
                                         htmlFor="preferred_fit"
                                         className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
                                     >
-                                        Fit Style
+                                        {t('auth.fitStyle')}
                                     </label>
                                     <select
                                         id="preferred_fit"
@@ -451,11 +465,41 @@ const Register = () => {
                                         </p>
                                     )}
                                 </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="gender"
+                                        className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
+                                    >
+                                        {t('auth.gender')}
+                                    </label>
+                                    <select
+                                        id="gender"
+                                        name="gender"
+                                        className={`${fieldClass(errors.gender)} cursor-pointer px-3 text-[13px]`}
+                                        value={formData.gender}
+                                        onChange={(e) => updateField('gender', e.target.value)}
+                                    >
+                                        <option value="" disabled>
+                                            Gender
+                                        </option>
+                                        {GENDER_OPTIONS.map((g) => (
+                                            <option key={g.value} value={g.value}>
+                                                {g.text}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.gender && (
+                                        <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">
+                                            {errors.gender}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                             <p className="mt-2.5 pl-1 text-[10px] leading-relaxed text-hiraya-ink-muted">
                                 You can change these any time in{' '}
                                 <span className="font-semibold text-hiraya-ink">Account Settings</span> — they
-                                power size suggestions and AI try-on fits.
+                                power size suggestions, your Home picks and AI try-on fits.
                             </p>
                         </div>
 
@@ -491,10 +535,10 @@ const Register = () => {
                         >
                             {isLoading ? (
                                 <>
-                                    <Loader2 size={14} className="animate-spin" /> Creating Account...
+                                    <Loader2 size={14} className="animate-spin" /> {t('auth.creating')}
                                 </>
                             ) : (
-                                <>Create Account <ChevronRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" /></>
+                                <>{t('auth.createAccount')} <ChevronRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" /></>
                             )}
                         </button>
                         {/* "Sign in" now lives in the shell's overlay (desktop)

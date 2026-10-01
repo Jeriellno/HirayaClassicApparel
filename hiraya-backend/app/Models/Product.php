@@ -43,6 +43,8 @@ class Product extends Model
         'background_occasion',
         'images',
         'colors',
+        // Other colours of this garment, each with its own photos and stock.
+        'color_variants',
         'sizes',
         'size_measurements',
         'size_stocks',
@@ -66,6 +68,7 @@ class Product extends Model
         'try_on_count'           => 'integer',
         'images'                 => 'array',
         'colors'                 => 'array',
+        'color_variants'         => 'array',
         'sizes'                  => 'array',
         'size_measurements'      => 'array',
         'size_stocks'            => 'array',

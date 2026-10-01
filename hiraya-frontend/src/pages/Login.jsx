@@ -17,6 +17,7 @@ import {
     verifyMfaChallenge,
     signOutSupabase,
 } from '../services/supabaseMfa';
+import { useT } from '../context/PreferencesContext';
 
 /*
  * Login — THE ONE DOOR.
@@ -58,6 +59,7 @@ import {
  * copy of the challenge logic, and a way for the two to disagree.
  */
 const Login = () => {
+    const t = useT();
     const { login } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -388,7 +390,7 @@ const Login = () => {
                         <div>
                             <input
                                 type="email"
-                                placeholder="Email Address"
+                                placeholder={t('auth.email')}
                                 autoComplete="email"
                                 className={`field ${fieldErrors.email
                                         ? 'border-red-500/50 focus:border-red-500'
@@ -411,7 +413,7 @@ const Login = () => {
                             <div className="relative">
                                 <input
                                     type={showPassword ? 'text' : 'password'}
-                                    placeholder="Password"
+                                    placeholder={t('auth.password')}
                                     autoComplete="current-password"
                                     className={`field pr-12 ${fieldErrors.password
                                             ? 'border-red-500/50 focus:border-red-500'
@@ -446,7 +448,7 @@ const Login = () => {
                                         onChange={(e) => setRememberMe(e.target.checked)}
                                         className="cursor-pointer accent-hiraya-accent focus:ring-0"
                                     />
-                                    <span className="text-[11px]">Remember me</span>
+                                    <span className="text-[11px]">{t('auth.rememberMe')}</span>
                                 </label>
                                 <Link
                                     to="/forgot-password"

@@ -1,4 +1,4 @@
-﻿import { Check, Save, Loader2, User, Sparkles, ShieldCheck, AlertTriangle } from 'lucide-react';
+﻿import { Check, Save, Loader2, User, Sparkles, ShieldCheck, AlertTriangle, Palette } from 'lucide-react';
 
 /*
  * The in-page index. Plain anchors to the sections' own ids — scrolling only,
@@ -8,6 +8,7 @@
 const SECTION_INDEX = [
   { href: '#account-profile', label: 'Personal', Icon: User },
   { href: '#account-measurements', label: 'Sizing', Icon: Sparkles },
+  { href: '#account-preferences', label: 'Display', Icon: Palette },
   { href: '#account-security', label: 'Security', Icon: ShieldCheck },
   { href: '#account-danger', label: 'Danger zone', Icon: AlertTriangle },
 ];
@@ -21,6 +22,7 @@ import { SettingsHeader } from '../components/settings/SettingsHeader';
 import { PersonalInfoSection } from '../components/settings/PersonalInfoSection';
 import { VirtualTryOnSection } from '../components/settings/VirtualTryOnSection';
 import { SecuritySection } from '../components/settings/SecuritySection';
+import { PreferencesSection } from '../components/settings/PreferencesSection';
 import { DangerZoneSection } from '../components/settings/DangerZoneSection';
 import { loadSizeChart, getSizeLabels } from '../hooks/useTryOnState';
 
@@ -73,6 +75,7 @@ const AccountSettings = () => {
     lower_body_size: '',
 
     preferredFit: 'regular',
+    gender: '',
 
     currentPassword: '',
     newPassword: '',
@@ -88,6 +91,7 @@ const AccountSettings = () => {
         upper_body_size: user.upper_body_size || '',
         lower_body_size: user.lower_body_size || '',
         preferredFit:   user.preferred_fit || 'regular',
+        gender:         user.gender || '',
       }));
     }
   }, [user]);
@@ -133,6 +137,7 @@ const AccountSettings = () => {
       const profilePayload = {
         full_name:     formData.fullName,
         preferred_fit: formData.preferredFit,
+        ...(formData.gender ? { gender: formData.gender } : {}),
       };
       const profileRes = await api.put('/user/profile', profilePayload);
 
@@ -258,6 +263,7 @@ const AccountSettings = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <PersonalInfoSection formData={formData} handleChange={handleChange} />
           <VirtualTryOnSection formData={formData} handleChange={handleChange} sizeLabels={sizeLabels} />
+          <PreferencesSection />
           <SecuritySection formData={formData} handleChange={handleChange} />
 
           <div className="flex items-center gap-4 pt-2" data-tour="account-save">

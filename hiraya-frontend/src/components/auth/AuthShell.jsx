@@ -11,6 +11,7 @@ import {
 } from 'framer-motion';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 import logoImg from '../../assets/logo.png';
+import PreferenceControls from '../common/PreferenceControls';
 
 /*
  * ============================================================================
@@ -229,6 +230,11 @@ const AuthShell = ({ mode, title, kicker, icon = null, allowSwitch = true, child
                 <img src={logoImg} alt="" className="h-8 w-8 object-contain" />
                 <span className="font-serif text-lg font-semibold tracking-[0.08em]">HIRAYA</span>
             </Link>
+
+            {/* Language + theme, reachable before signing in (no navbar here). */}
+            <div className="theme-locked absolute right-4 top-4 z-20 rounded-full bg-navy-950/90 p-1 shadow-neu-dark sm:right-8">
+                <PreferenceControls />
+            </div>
 
             <motion.div
                 initial={arrived || reduce ? false : { opacity: 0, y: 20 }}

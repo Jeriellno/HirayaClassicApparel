@@ -99,3 +99,9 @@ Schedule::command(RefreshApiKeys::class, ['--verify' => true, '--quiet-ok' => tr
     ->everyFiveMinutes()
     ->withoutOverlapping(10)
     ->runInBackground();
+
+/*
+ * Expired login tokens (30-day Sanctum tokens) are dead rows: prune them daily
+ * so `personal_access_tokens` does not grow forever.
+ */
+Schedule::command('sanctum:prune-expired', ['--hours' => 24])->daily();

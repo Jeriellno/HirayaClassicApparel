@@ -9,7 +9,7 @@ class ProductRequest extends FormRequest
 {
     private const JSON_FIELDS = [
         'sizes', 'size_stocks', 'size_measurements',
-        'colors', 'images', 'body_shapes',
+        'colors', 'color_variants', 'images', 'body_shapes',
         'occasions', 'ai_tags', 'garment_specifications'
     ];
 
@@ -175,12 +175,32 @@ class ProductRequest extends FormRequest
             'display_image_file'       => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
             'images'                   => 'nullable|array',
             'colors'                   => 'nullable|array',
+            'colors.*'                 => 'nullable|string|max:50',
+            /*
+             * COLOR VARIANTS — see App\Support\ProductVariants. Photos for a
+             * variant arrive as files keyed by the variant's client id.
+             */
+            'color_variants'                   => 'nullable|array|max:12',
+            'color_variants.*.id'              => 'required|string|max:40|regex:/^[A-Za-z0-9_-]+$/',
+            'color_variants.*.color'           => 'required|string|max:50',
+            'color_variants.*.hex'             => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'color_variants.*.name'            => 'nullable|string|max:255',
+            'color_variants.*.description'     => 'nullable|string|max:2000',
+            'color_variants.*.size_stocks'     => 'nullable|array',
+            'color_variants.*.size_stocks.*'   => 'nullable|integer|min:0|max:100000',
+            'color_variants.*.background_occasion' => ['nullable', 'string', Rule::in(array_keys(config('hiraya_backgrounds.occasions', [])))],
+            'variant_image_files'              => 'nullable|array',
+            'variant_image_files.*'            => 'image|mimes:jpeg,png,jpg,webp|max:5120',
+            'variant_display_files'            => 'nullable|array',
+            'variant_display_files.*'          => 'image|mimes:jpeg,png,jpg,webp|max:10240',
+            'variant_tryon_files'              => 'nullable|array',
+            'variant_tryon_files.*'            => 'image|mimes:jpeg,png,jpg,webp|max:10240',
             'sizes'                    => 'nullable|array',
             'size_stocks'              => 'nullable|array',
             'size_measurements'        => 'nullable|array',
             'size_measurements.*'      => 'nullable|array',
             'material'                 => 'nullable|string|max:255',
-            'gender'                   => 'nullable|string|max:255',
+            'gender'                   => 'nullable|string|in:Men,Women,Unisex,men,women,unisex',
             'featured'                 => 'nullable|boolean',
             'stock'                    => 'nullable|integer|min:0',
             'undertone'                => 'nullable|string|in:WARM,COOL,NEUTRAL',

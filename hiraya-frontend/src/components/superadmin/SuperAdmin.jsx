@@ -30,6 +30,8 @@ import SettingsTab from './tabs/SettingsTab';
 import AuditLogsTab from './tabs/AuditLogsTab';
 import ApiStatusTab from './tabs/ApiStatusTab';
 import ApiCredentialsTab from './tabs/ApiCredentialsTab';
+import StaffOverviewTab from './tabs/StaffOverviewTab';
+import StockHistoryTab from './tabs/StockHistoryTab';
 
 /*
  * The hardcoded dev super-admin accounts (superadmin@hiraya.com /
@@ -378,8 +380,10 @@ const SuperAdmin = ({ onLogout }) => {
    * them (Inventory, Feedback).
    */
   const TAB_DATASETS = useMemo(() => ({
+    overview: [],          // StaffOverviewTab self-fetches.
     dashboard: [],
     inventory: ['products'],
+    'stock-history': [],   // StockHistoryTab self-fetches.
     orders: [],            // OrdersTab self-fetches (read-only, its own endpoint).
     customers: [],         // CustomersTab self-fetches.
     api: [],               // ApiStatusTab / ApiCredentialsTab self-fetch.
@@ -1350,6 +1354,10 @@ const SuperAdmin = ({ onLogout }) => {
           initialOrderId={ordersFocus?.orderId}
         />
       )}
+      {activeTab === 'overview' && (
+        <StaffOverviewTab onOpenSection={(id) => setActiveTab(resolveSection(role, id) ?? 'overview')} />
+      )}
+      {activeTab === 'stock-history' && <StockHistoryTab />}
       {activeTab === 'customers' && <CustomersTab onViewOrders={viewCustomerOrders} />}
       {activeTab === 'feedback' && <FeedbackTab feedbacks={feedbacks} />}
       {activeTab === 'admins' && (

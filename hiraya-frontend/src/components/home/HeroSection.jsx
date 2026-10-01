@@ -12,9 +12,11 @@ import {
   Shirt,
   ShoppingBag,
   Scissors,
+  User,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { trackSpotlight } from '../../utils/pointerSpotlight';
+import { useT } from '../../context/PreferencesContext';
 
 /*
  * THE CANVAS READINESS PREVIEW — logic unchanged.
@@ -31,9 +33,8 @@ import { trackSpotlight } from '../../utils/pointerSpotlight';
  * about them and says so instead.
  */
 const getTryOnReadiness = (user) => {
-    const hasMeasurements = Boolean(
-        user?.chest_bust || user?.waist || user?.hips || user?.shoulder_width || user?.sleeve_length
-    );
+    // The sizing profile is two size labels now (the five cm columns are gone).
+    const hasMeasurements = Boolean(user?.upper_body_size || user?.lower_body_size);
     const hasSavedPhoto = Boolean(user?.body_photo_path);
 
     return {
@@ -68,9 +69,10 @@ const greetingFor = (date) => {
  * Collection → /shop, the console CTA → /try-on, Measurements → /settings,
  * Find a piece → /shop.
  */
-const HeroSection = ({ bagCount = 0, fitStyleWord = null }) => {
+const HeroSection = ({ bagCount = 0, fitStyleWord = null, genderWord = null }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const t = useT();
   const reduce = useReducedMotion();
 
   // Derived on every render: `user` is already the live source for all of it.
@@ -90,20 +92,26 @@ const HeroSection = ({ bagCount = 0, fitStyleWord = null }) => {
     {
       key: 'bag',
       icon: ShoppingBag,
-      label: 'Bag',
-      value: bagCount > 0 ? `${bagCount} ${bagCount === 1 ? 'piece' : 'pieces'}` : 'Empty',
+      label: t('home.statusBag'),
+      value: bagCount > 0 ? `${bagCount} ${bagCount === 1 ? 'piece' : 'pieces'}` : t('home.empty'),
     },
     {
       key: 'sizing',
       icon: Ruler,
-      label: 'Sizes',
-      value: readiness.hasMeasurements ? 'Saved' : 'Not set',
+      label: t('home.statusSizes'),
+      value: readiness.hasMeasurements ? t('home.saved') : t('common.notSet'),
     },
     {
       key: 'fit',
       icon: Scissors,
-      label: 'Fit',
-      value: fitStyleWord ? fitStyleWord.charAt(0).toUpperCase() + fitStyleWord.slice(1) : 'Not set',
+      label: t('home.statusFit'),
+      value: fitStyleWord || t('common.notSet'),
+    },
+    {
+      key: 'gender',
+      icon: User,
+      label: t('home.statusFor'),
+      value: genderWord || t('common.notSet'),
     },
   ];
 
@@ -179,7 +187,7 @@ const HeroSection = ({ bagCount = 0, fitStyleWord = null }) => {
             initial={reduce ? false : 'hidden'}
             animate="show"
             variants={{ show: { transition: { staggerChildren: 0.08, delayChildren: 0.34 } } }}
-            className="mt-10 grid max-w-xl grid-cols-3 gap-2.5 sm:gap-3"
+            className="mt-10 grid max-w-2xl grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3"
           >
             {status.map(({ key, icon: Icon, label, value }) => (
               <motion.div
@@ -242,7 +250,7 @@ const HeroSection = ({ bagCount = 0, fitStyleWord = null }) => {
                       key: 'measurements',
                       label: 'Measurements saved',
                       done: readiness.hasMeasurements,
-                      hint: 'Enter your 5 core sizes',
+                      hint: 'Set your upper & lower body size',
                   },
                   {
                       key: 'photo',
@@ -335,6 +343,7 @@ const HeroSection = ({ bagCount = 0, fitStyleWord = null }) => {
 HeroSection.propTypes = {
   bagCount: PropTypes.number,
   fitStyleWord: PropTypes.string,
+  genderWord: PropTypes.string,
 };
 
 export default HeroSection;

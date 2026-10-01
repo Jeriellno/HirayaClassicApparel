@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
 use App\Services\SizeChart;
+use App\Support\ProductVariants;
 use App\Support\SupabaseStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
@@ -33,7 +35,7 @@ class ProductController extends Controller
             return response()->json($products, 200);
         } catch (\Throwable $e) {
             Log::error('Error fetching products: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Products could not be loaded right now.'], 500);
         }
     }
 
@@ -73,7 +75,7 @@ class ProductController extends Controller
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Error fetching spotlight recommendations: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Products could not be loaded right now.'], 500);
         }
     }
 
@@ -91,6 +93,7 @@ class ProductController extends Controller
         try {
             $validated = $request->validated();
             $validated = $this->handleImageUpload($request, $validated);
+            $validated = $this->handleColorVariants($request, $validated);
             $validated = $this->prepareAiTags($validated);
             $validated = $this->processProductInventoryAndMeasurements($validated, $request);
 
@@ -108,9 +111,11 @@ class ProductController extends Controller
                 'success' => true,
                 'data'    => $product
             ], 201);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('Error storing product: ' . $e->getMessage());
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json(['message' => 'The product could not be saved. Please try again.'], 500);
         }
     }
 
@@ -124,6 +129,7 @@ class ProductController extends Controller
 
             $validated = $request->validated();
             $validated = $this->handleImageUpload($request, $validated, $product);
+            $validated = $this->handleColorVariants($request, $validated, $product);
             $validated = $this->prepareAiTags($validated, is_array($product->ai_tags) ? $product->ai_tags : []);
             $validated = $this->processProductInventoryAndMeasurements($validated, $request);
 
@@ -163,9 +169,11 @@ class ProductController extends Controller
                 'success' => true,
                 'data'    => $product
             ], 200);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('Error updating product: ' . $e->getMessage());
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json(['message' => 'The product changes could not be saved. Please try again.'], 500);
         }
     }
 
@@ -225,7 +233,7 @@ class ProductController extends Controller
             ], 200);
         } catch (\Throwable $e) {
             Log::error('Error updating AI tags: ' . $e->getMessage());
-            return response()->json(['message' => $e->getMessage()], 500);
+            return response()->json(['message' => 'The styling tags could not be saved. Please try again.'], 500);
         }
     }
 
@@ -269,7 +277,12 @@ class ProductController extends Controller
          * the product is gone even if the bucket is unreachable. Any object left
          * behind is a cosmetic orphan, recoverable later, never a user-facing error.
          */
-        foreach ([$product->image_url, $product->display_image_url, $product->ghost_mannequin_url] as $reference) {
+        $variantImages = [];
+        foreach (ProductVariants::all($product) as $variant) {
+            array_push($variantImages, $variant['image_url'] ?? null, $variant['display_image_url'] ?? null, $variant['ghost_mannequin_url'] ?? null);
+        }
+
+        foreach ([$product->image_url, $product->display_image_url, $product->ghost_mannequin_url, ...$variantImages] as $reference) {
             try {
                 $this->deleteProductImage($reference);
             } catch (\Throwable $e) {
@@ -433,6 +446,109 @@ class ProductController extends Controller
     }
 
     /**
+     * COLOR VARIANTS — store each variant's photos and normalise its stock.
+     *
+     * Image URLs are NEVER taken from the request body: a variant keeps the
+     * URLs already stored under its id, and only an uploaded file
+     * (`variant_*_files[<id>]`) can replace them. Every variant must end up
+     * with a background-removed card, so a colour can never be listed with no
+     * picture. Variants dropped from the list have their photos deleted.
+     *
+     * `colors` is rebuilt as [primary colour, ...variant colours] so every
+     * older surface that reads `colors` still lists the full set.
+     */
+    private function handleColorVariants(Request $request, array $validated, ?Product $product = null): array
+    {
+        $existing = [];
+        foreach (ProductVariants::all($product ?? new Product()) as $variant) {
+            if (isset($variant['id'])) {
+                $existing[$variant['id']] = $variant;
+            }
+        }
+
+        unset($validated['variant_image_files'], $validated['variant_display_files'], $validated['variant_tryon_files']);
+
+        if (! array_key_exists('color_variants', $validated)) {
+            return $validated;
+        }
+
+        $primary = trim((string) (($validated['colors'] ?? [])[0] ?? (($product?->colors ?? [])[0] ?? '')));
+        $seen = $primary !== '' ? [strtolower($primary)] : [];
+        $out = [];
+
+        foreach ($validated['color_variants'] ?? [] as $incoming) {
+            $id = $incoming['id'];
+            $color = trim($incoming['color']);
+            if (in_array(strtolower($color), $seen, true)) {
+                throw ValidationException::withMessages([
+                    'color_variants' => ["The colour \"{$color}\" is listed more than once."],
+                ]);
+            }
+            $seen[] = strtolower($color);
+
+            $stored = $existing[$id] ?? [];
+            $variant = [
+                'id'                  => $id,
+                'color'               => $color,
+                'hex'                 => $incoming['hex'] ?? null,
+                'name'                => filled($incoming['name'] ?? null) ? trim($incoming['name']) : null,
+                'description'         => filled($incoming['description'] ?? null) ? trim($incoming['description']) : null,
+                'image_url'           => $stored['image_url'] ?? null,
+                'display_image_url'   => $stored['display_image_url'] ?? null,
+                'ghost_mannequin_url' => $stored['ghost_mannequin_url'] ?? null,
+                'background_occasion' => $incoming['background_occasion'] ?? ($stored['background_occasion'] ?? null),
+            ];
+
+            foreach ([
+                'variant_image_files'   => ['image_url', 'products'],
+                'variant_display_files' => ['display_image_url', 'catalog'],
+                'variant_tryon_files'   => ['ghost_mannequin_url', 'catalog'],
+            ] as $field => [$column, $folder]) {
+                $file = $request->file("{$field}.{$id}");
+                if ($file) {
+                    if (! empty($variant[$column])) {
+                        $this->deleteProductImage($variant[$column]);
+                    }
+                    $variant[$column] = SupabaseStorage::putUploadedFile($file, $folder);
+                }
+            }
+
+            if (empty($variant['display_image_url'])) {
+                throw ValidationException::withMessages([
+                    'color_variants' => ["Please upload a photo for the {$color} colour."],
+                ]);
+            }
+
+            $sizeStocks = [];
+            foreach ((array) ($incoming['size_stocks'] ?? []) as $size => $qty) {
+                $sizeStocks[(string) $size] = max(0, (int) $qty);
+            }
+            $variant['size_stocks'] = $sizeStocks;
+            $variant['stock'] = array_sum($sizeStocks);
+
+            $out[] = $variant;
+            unset($existing[$id]);
+        }
+
+        // Variants removed in this save: their photos are no longer referenced.
+        foreach ($existing as $removed) {
+            foreach (['image_url', 'display_image_url', 'ghost_mannequin_url'] as $column) {
+                if (! empty($removed[$column])) {
+                    $this->deleteProductImage($removed[$column]);
+                }
+            }
+        }
+
+        $validated['color_variants'] = $out;
+        $validated['colors'] = array_values(array_filter(array_merge(
+            [$primary],
+            array_column($out, 'color'),
+        ), fn ($c) => $c !== ''));
+
+        return $validated;
+    }
+
+    /**
      * Delete a previously stored product image, but ONLY when it is a file this
      * application owns — in the Supabase `products` bucket, or (for rows written
      * before the move) on the local `public` disk.
@@ -531,7 +647,22 @@ class ProductController extends Controller
 
         $incomingMeasurements = $request->input('size_measurements', null);
         if ($incomingMeasurements) {
-            $validated['size_measurements'] = is_string($incomingMeasurements) ? json_decode($incomingMeasurements, true) : $incomingMeasurements;
+            $measurements = is_string($incomingMeasurements) ? json_decode($incomingMeasurements, true) : $incomingMeasurements;
+            $measurements = is_array($measurements) ? $measurements : [];
+
+            // Any stocked size the payload carries no numbers for gets the
+            // standard chart, so the shop's size guide covers every size sold.
+            foreach ((array) ($validated['sizes'] ?? []) as $key => $value) {
+                $label = is_array($value) ? ($value['size_label'] ?? $value['size'] ?? $key) : (is_string($key) ? $key : $value);
+                if (is_string($label) && ! isset($measurements[$label])) {
+                    $chartEntry = SizeChart::measurementsFor($label);
+                    if ($chartEntry !== null) {
+                        $measurements[$label] = $chartEntry;
+                    }
+                }
+            }
+
+            $validated['size_measurements'] = $measurements;
         } else {
             /*
              * No measurements supplied -> fall back to the standard chart for

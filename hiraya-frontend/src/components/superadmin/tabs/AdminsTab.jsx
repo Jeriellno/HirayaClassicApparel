@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import useConfirm from '../../../hooks/useConfirm';
 import { UserPlus, Trash2, X, Mail, Key, ToggleLeft, ToggleRight, Edit3, Save, UserCheck, AlertTriangle, ShieldAlert, RefreshCw, Clock } from 'lucide-react';
+import { notify } from '../../../utils/notify';
 
 /**
  * ADMIN ACCOUNTS — ONE PERSON, ONE ACCOUNT.
@@ -217,7 +218,7 @@ export default function AdminsTab({ adminAccounts = [], onInviteAdmin, onDeleteA
     try {
       await onDeleteAdmin(id);
     } catch (err) {
-      window.alert(err?.response?.data?.message || 'Failed to revoke the admin account.');
+      notify(err?.response?.data?.message || 'Failed to revoke the admin account.', 'error');
     }
   };
 

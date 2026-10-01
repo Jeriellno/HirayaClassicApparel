@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CartItem;
+use App\Models\Product;
+use App\Support\ProductVariants;
 use Illuminate\Http\Request;
 
 class CartController extends Controller {
@@ -38,7 +40,7 @@ class CartController extends Controller {
     public function store(Request $request) {
         $request->validate([
             'product_id' => 'required|exists:products,id',
-            'quantity' => 'nullable|integer|min:1',
+            'quantity' => 'nullable|integer|min:1|max:50',
             'selected_size' => 'nullable|string|max:50',
             'selected_color' => 'nullable|string|max:50',
         ]);
@@ -53,6 +55,16 @@ class CartController extends Controller {
             ->where('selected_size', $size)
             ->where('selected_color', $color)
             ->first();
+
+        /*
+         * STOCK GUARD — a bag can never hold more of a colour + size than is
+         * actually in stock (variant colours have their own stock).
+         */
+        $product = Product::find($request->product_id);
+        $available = ProductVariants::available($product, $size, $color);
+        if ($available < $quantity + (int) ($existing?->quantity ?? 0)) {
+            return response()->json(['message' => $this->stockMessage($available, $color)], 422);
+        }
 
         if ($existing) {
             $existing->increment('quantity', $quantity);
@@ -100,6 +112,14 @@ class CartController extends Controller {
             return response()->json(['status' => 'removed', 'message' => 'Item removed from your bag']);
         }
 
+        $cartItem->loadMissing('product');
+        if ($cartItem->product) {
+            $available = ProductVariants::available($cartItem->product, $cartItem->selected_size, $cartItem->selected_color);
+            if ((int) $request->quantity > $available) {
+                return response()->json(['message' => $this->stockMessage($available, $cartItem->selected_color)], 422);
+            }
+        }
+
         $cartItem->update(['quantity' => $request->quantity]);
 
         return response()->json([
@@ -130,6 +150,13 @@ class CartController extends Controller {
         $request->user()->cartItems()->delete();
 
         return response()->json(['message' => 'Cart cleared']);
+    }
+
+    private function stockMessage(int $available, ?string $color): string
+    {
+        $what = $color && strcasecmp($color, 'Standard') !== 0 ? 'this colour and size' : 'this size';
+
+        return $available > 0 ? "Only {$available} left in {$what}." : ucfirst($what) . ' is out of stock.';
     }
 
     /**
