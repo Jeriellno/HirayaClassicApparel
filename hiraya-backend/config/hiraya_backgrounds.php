@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * HIRAYA â€” Garment catalog OCCASION BACKGROUNDS.
