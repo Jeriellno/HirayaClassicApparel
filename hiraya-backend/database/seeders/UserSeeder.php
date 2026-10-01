@@ -36,8 +36,8 @@ class UserSeeder extends Seeder
         /*
          * The admin@hiraya.com / superadmin@hiraya.com dev accounts were
          * REMOVED per request (not in use yet). Only the customer seed above is
-         * created. Use `php artisan hiraya:make-admin <email>` to promote a real
-         * account when an admin is needed.
+         * created. Use `php artisan hiraya:make-admin --email=... --name="..."`
+         * to create an individual admin account when one is needed.
          */
     }
 }
