@@ -10,6 +10,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -376,108 +377,258 @@ class SuperAdminController extends Controller
     /**
      * GET /api/admin/audit-logs
      */
-    public function auditLogs()
+    public function auditLogs(Request $request)
     {
+        /*
+         * TWO VIEWS OF ONE TRAIL.
+         *
+         * The route is open to admins (they audit customer accounts), so the
+         * reduction is decided here from the SIGNED-IN role, never from a query
+         * flag a client could flip:
+         *
+         *   superadmin — every row, unmasked, with IP addresses.
+         *   admin      — customer-area rows only (USER_ACCOUNTS, CUSTOMERS),
+         *                emails masked, IPs withheld. Settings, credentials,
+         *                staff accounts and exports stay owner-only.
+         *
+         * `subject_user_id` narrows the list to one customer's history, which
+         * is what the customer profile's "Account activity" panel reads.
+         */
+        $request->validate([
+            'subject_user_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $role = strtolower(str_replace(['-', '_'], '', (string) $request->user()?->role));
+        $isOwner = $role === 'superadmin';
+
+        $query = AuditLog::latest();
+
+        if (!$isOwner) {
+            $query->whereIn('target', AuditLog::CUSTOMER_TARGETS);
+            // An admin sees nothing from before their own account existed.
+            if ($request->user()?->created_at) {
+                $query->where('created_at', '>=', $request->user()->created_at);
+            }
+        }
+
+        if ($request->filled('subject_user_id')) {
+            $query->where('subject_user_id', (int) $request->query('subject_user_id'));
+        }
+
+        $rows = $query->limit(500)->get();
+
         return response()->json(
-            AuditLog::latest()->limit(500)->get()
+            $isOwner ? $rows : $rows->map(fn (AuditLog $log) => $log->toLimitedArray())->values()
         );
     }
 
     /**
-     * GET /api/admin/export
+     * GET /api/admin/export?format=json|sql
      *
-     * A full JSON backup of the catalog, orders, customers and privileged
-     * accounts — the real replacement for the old stub alert.
+     * A FULL, RESTORABLE BACKUP of the application data — the safety net in
+     * case rows are ever corrupted or deleted by mistake.
      *
-     * ACTUALLY STREAMED, NOT BUFFERED IN DISGUISE.
-     * --------------------------------------------
-     * This method used to build the ENTIRE payload first (`Product::all()`,
-     * `Order::with('orderItems')->get()`, …) and only then hand the assembled
-     * array to `streamDownload`. That loads every row of the database into memory
-     * before a single byte is sent, so on a large catalog the export could
-     * exhaust memory — the exact opposite of the "streamed (not buffered)"
-     * guarantee the old comment claimed.
+     *   json — every table as `{ "tables": { "tbl_users": [ ... ], ... } }`.
+     *          Human-readable; good for keeping and inspecting.
+     *   sql  — a PostgreSQL script of INSERT statements (ON CONFLICT DO NOTHING)
+     *          plus sequence resets. Paste it into the Supabase SQL editor to
+     *          put missing rows back without touching rows that are intact.
      *
-     * Each collection is now read in BOUNDED CHUNKS and written out as it is
-     * scanned (`chunkById`, which is stable against concurrent inserts unlike
-     * `chunk`), so peak memory is one chunk rather than one table.
+     * WHAT IS INCLUDED: every table in the `public` schema, discovered at run
+     * time (so a table added later is backed up without code changes), read
+     * with the query builder so hidden model attributes (password hashes) are
+     * kept — a backup that cannot restore logins is not a backup.
      *
-     * The file is still VALID JSON. The top-level object is opened first, each
-     * collection is emitted as an array whose elements are written one at a time,
-     * and the object is closed at the end — the output is byte-identical in shape
-     * to `json_encode($payload, JSON_PRETTY_PRINT)`, just never materialised all
-     * at once. Existing importers therefore keep working.
+     * WHAT IS LEFT OUT: transient tables that are rebuilt on their own (cache,
+     * jobs, queue batches, failed jobs, sessions), live sign-in tokens, and
+     * `api_credentials` — encrypted third-party keys are re-entered, never
+     * shipped around in a download.
+     *
+     * STREAMED, NOT BUFFERED: each table is read in bounded chunks (by primary
+     * key) and written as it is scanned, so peak memory is one chunk. Product
+     * IMAGES live in Supabase Storage, not the database; the backup keeps their
+     * URLs.
      */
-    public function export()
+    public function export(Request $request)
     {
-        $filename = 'hiraya_backup_' . now()->format('Y-m-d_His') . '.json';
-        $chunkSize = 500;
+        $format = $request->query('format', 'json');
+        if (!in_array($format, ['json', 'sql'], true)) {
+            return response()->json(['message' => 'The format must be json or sql.'], 422);
+        }
 
-        return response()->streamDownload(function () use ($chunkSize) {
-            /*
-             * Section name -> a builder for that table. Names are read from the
-             * ARRAY KEYS, so the emitted JSON keys and the query builders can
-             * never drift apart.
-             */
-            $sections = [
-                'products'  => fn () => Product::query()->orderBy('id'),
-                'orders'    => fn () => Order::query()->with('orderItems')->orderBy('id'),
-                'customers' => fn () => User::query()->where('role', 'user')->orderBy('id'),
-                'admins'    => fn () => User::query()->whereIn('role', ['admin', 'superadmin'])->orderBy('id'),
-                'settings'  => fn () => SystemSetting::query()->orderBy('id'),
-            ];
+        $tables = $this->backupTables();
+        $stamp = now()->format('Y-m-d_His');
+        $filename = "hiraya_backup_{$stamp}.{$format}";
 
-            // NOTE: every newline below is a DOUBLE-quoted "\n". The original
-            // single-quoted '{\n' emitted a literal backslash-n, which is not
-            // valid JSON whitespace — that alone corrupted the document.
-            echo "{\n";
-            echo '  "generated_at": ' . json_encode(now()->toIso8601String()) . ",\n";
+        // Record WHO took a copy of the database, and which tables it held.
+        try {
+            AuditLog::create([
+                'admin_email' => $request->user()?->email,
+                'actor_role' => strtolower(str_replace(['-', '_'], '', (string) $request->user()?->role)) ?: null,
+                'action' => 'EXPORT_DATABASE',
+                'target' => 'SYSTEM',
+                'details' => strtoupper($format) . ' backup of ' . count($tables) . ' tables: ' . implode(', ', array_keys($tables)) . '.',
+                'ip_address' => $request->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Export audit write failed: ' . $e->getMessage());
+        }
 
-            $names = array_keys($sections);
-            $sectionCount = count($names);
+        $writer = $format === 'sql'
+            ? fn () => $this->streamSql($tables)
+            : fn () => $this->streamJson($tables);
 
-            foreach ($names as $index => $key) {
-                echo '  ' . json_encode($key) . ': [';
+        return response()->streamDownload($writer, $filename, [
+            'Content-Type' => $format === 'sql' ? 'application/sql; charset=utf-8' : 'application/json; charset=utf-8',
+        ]);
+    }
 
-                /*
-                 * The "has this array emitted an element yet" flag is tracked in
-                 * a variable the WRITE callback and the closing `echo` BOTH see.
-                 * It was previously a closure-local `$first` read after the loop,
-                 * which was always still `true` — so the array was never closed.
-                 */
-                $emitted = 0;
-                // `chunkById` walks the table by primary key, so it never holds
-                // more than one page in memory and is not disturbed by rows
-                // inserted behind the cursor.
-                $sections[$key]()->chunkById($chunkSize, function ($rows) use (&$emitted) {
-                    foreach ($rows as $row) {
-                        // Pretty-print each record and indent it to sit inside the
-                        // enclosing array, so the streamed output reads exactly
-                        // like a normal pretty-printed JSON document.
-                        $encoded = json_encode(
-                            $row->toArray(),
-                            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
-                        );
-                        echo $emitted === 0 ? "\n" : ",\n";
-                        echo '    ' . $encoded;
-                        $emitted++;
-                    }
-                });
+    /** Tables never written to a backup (transient state or secrets). */
+    private const BACKUP_SKIP = [
+        'cache', 'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
+        'sessions', 'personal_access_tokens', 'api_credentials',
+    ];
 
-                // Close the array; an empty table emits `[]` with no newline.
-                echo $emitted === 0 ? ']' : "\n  ]";
-                echo $index < $sectionCount - 1 ? ",\n" : "\n";
+    /**
+     * short name => [full table name, primary-key column or null], for every
+     * backed-up table in the public schema.
+     */
+    private function backupTables(): array
+    {
+        $prefix = DB::getTablePrefix();
+        $rows = DB::select(
+            "select c.relname,
+                    (select a.attname
+                       from pg_index i
+                       join pg_attribute a on a.attrelid = i.indrelid and a.attnum = i.indkey[0]
+                      where i.indrelid = c.oid and i.indisprimary and i.indnatts = 1
+                      limit 1) as pk
+               from pg_class c
+               join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and c.relkind in ('r', 'p')
+              order by c.relname"
+        );
 
-                // Release the flushed output so a long backup does not accumulate
-                // in PHP's output buffer.
-                if (ob_get_level() > 0) {
-                    @ob_flush();
+        $tables = [];
+        foreach ($rows as $row) {
+            if ($prefix !== '' && !str_starts_with($row->relname, $prefix)) {
+                continue;
+            }
+            $short = substr($row->relname, strlen($prefix));
+            if (in_array($short, self::BACKUP_SKIP, true)) {
+                continue;
+            }
+            $tables[$short] = [$row->relname, $row->pk];
+        }
+
+        return $tables;
+    }
+
+    /** Calls $each for every row of a table, one bounded chunk at a time. */
+    private function eachRow(string $short, ?string $pk, callable $each): void
+    {
+        $query = DB::table($short);
+        if ($pk) {
+            $query->chunkById(500, function ($rows) use ($each) {
+                foreach ($rows as $row) {
+                    $each((array) $row);
                 }
-                flush();
+            }, $pk);
+
+            return;
+        }
+        // No single-column key: small tables only (none of the backed-up ones today).
+        foreach ($query->get() as $row) {
+            $each((array) $row);
+        }
+    }
+
+    private function flushOutput(): void
+    {
+        if (ob_get_level() > 0) {
+            @ob_flush();
+        }
+        flush();
+    }
+
+    private function streamJson(array $tables): void
+    {
+        echo "{\n";
+        echo '  "format": "hiraya-backup-v2",' . "\n";
+        echo '  "generated_at": ' . json_encode(now()->toIso8601String()) . ",\n";
+        echo '  "tables": {';
+
+        $first = true;
+        foreach ($tables as $short => [$full, $pk]) {
+            echo ($first ? "\n" : ",\n") . '    ' . json_encode($full) . ': [';
+            $first = false;
+            $emitted = 0;
+            $this->eachRow($short, $pk, function (array $row) use (&$emitted) {
+                echo ($emitted === 0 ? "\n" : ",\n") . '      '
+                    . json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                $emitted++;
+            });
+            echo $emitted === 0 ? ']' : "\n    ]";
+            $this->flushOutput();
+        }
+
+        echo "\n  }\n}\n";
+    }
+
+    private function streamSql(array $tables): void
+    {
+        $pdo = DB::getPdo();
+        $q = fn (string $ident) => '"' . str_replace('"', '""', $ident) . '"';
+        $literal = function ($value) use ($pdo) {
+            if ($value === null) {
+                return 'NULL';
+            }
+            if (is_bool($value)) {
+                return $value ? 'TRUE' : 'FALSE';
+            }
+            if (is_int($value) || is_float($value)) {
+                return (string) $value;
             }
 
-            echo "}\n";
-        }, $filename, ['Content-Type' => 'application/json']);
+            return $pdo->quote((string) $value);
+        };
+
+        echo "-- Hiraya database backup\n";
+        echo '-- Generated ' . now()->toIso8601String() . "\n";
+        echo "--\n";
+        echo "-- RESTORE: paste into the Supabase SQL editor and run.\n";
+        echo "--   * Rows that still exist are left untouched (ON CONFLICT DO NOTHING);\n";
+        echo "--     missing or deleted rows are put back.\n";
+        echo "--   * To restore a table COMPLETELY, first run e.g.\n";
+        echo "--       TRUNCATE public.\"tbl_orders\" CASCADE;\n";
+        echo "--     for the damaged table(s) only, then run this script.\n";
+        echo "-- Foreign-key checks are relaxed for the session so tables load in any order.\n\n";
+        echo "BEGIN;\n";
+        echo "SET LOCAL session_replication_role = replica;\n\n";
+
+        foreach ($tables as $short => [$full, $pk]) {
+            echo '-- ' . $full . "\n";
+            $this->eachRow($short, $pk, function (array $row) use ($full, $q, $literal) {
+                $columns = implode(', ', array_map($q, array_keys($row)));
+                $values = implode(', ', array_map($literal, array_values($row)));
+                echo 'INSERT INTO public.' . $q($full) . " ({$columns}) VALUES ({$values}) ON CONFLICT DO NOTHING;\n";
+            });
+
+            // Move the id sequence past the restored rows, so new inserts never
+            // collide. Only tables that HAVE a serial sequence: a uuid key such
+            // as notifications.id has none, and MAX(uuid) does not exist.
+            $sequence = $pk
+                ? DB::selectOne('select pg_get_serial_sequence(?, ?) as seq', ['public.' . $q($full), $pk])?->seq
+                : null;
+            if ($sequence) {
+                echo 'SELECT setval(' . $literal($sequence) . ', '
+                    . 'GREATEST(COALESCE((SELECT MAX(' . $q($pk) . ') FROM public.' . $q($full) . '), 0), 1));' . "\n";
+            }
+            echo "\n";
+            $this->flushOutput();
+        }
+
+        echo "COMMIT;\n";
     }
 
     /**

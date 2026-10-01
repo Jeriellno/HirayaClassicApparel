@@ -16,4 +16,15 @@ class SystemSetting extends Model
         'value',
         'updated_by',
     ];
+
+    /**
+     * Is a store switch ON? A missing row means ON (the default for every
+     * switch), so a fresh database never locks customers out by accident.
+     */
+    public static function isOn(string $key): bool
+    {
+        $value = static::query()->where('key', $key)->value('value');
+
+        return $value === null || filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== false;
+    }
 }

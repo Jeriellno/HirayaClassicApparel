@@ -321,9 +321,12 @@ const removeViaWasm = async (imageUrl, onProgress) => {
     model: 'isnet_fp16',
     progress: (key, current, total) => {
       if (!onProgress || !total) return;
-      // Report the model download + inference as one monotonic 0..1 scale.
+      // Report this phase's 0..1 fraction, plus WHICH phase it is (`key` is
+      // e.g. "fetch:/models/isnet_fp16" or "compute:inference"). The fraction
+      // restarts at 0 for every phase, so a caller showing one overall bar
+      // needs the key to keep it moving forward (see AutoFillProgress).
       try {
-        onProgress(Math.min(1, current / total));
+        onProgress(Math.min(1, current / total), key);
       } catch {
         /* progress reporting must never break the pipeline */
       }

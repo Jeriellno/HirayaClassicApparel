@@ -55,17 +55,16 @@
 
 /** Every section id in the console, in sidebar order. */
 export const ALL_SECTIONS = [
-    'overview',
     'dashboard',
     'inventory',
     'orders',
-    'stock-history',
     'customers',
-    'api',
     'feedback',
     'admins',
     'audit-logs',
     'settings',
+    'manual',
+    'support',
 ];
 
 /**
@@ -93,16 +92,17 @@ export const ALL_SECTIONS = [
  * that simply moved.
  */
 export const SECTION_ALIASES = {
-    'api-status': 'api',
-    'api-keys': 'api',
     'analytics': 'dashboard',
+    // "Today's Work" was folded into the Dashboard's work-queue card.
+    'overview': 'dashboard',
+    // Stock History is now a sub-tab of Audit Logs.
+    'stock-history': 'audit-logs',
 };
 
 /** The sub-tab an aliased section should OPEN ON, so 'api-keys' lands on Keys. */
 export const ALIASED_SUBTAB = {
-    'api-keys': 'keys',
     'analytics': 'analytics',
-    'api-status': 'status',
+    'stock-history': 'stock',
 };
 
 /** Resolves a possibly-stale section id to the section that now hosts it. */
@@ -119,11 +119,16 @@ export const resolveSectionAlias = (sectionId) =>
  */
 export const SECTIONS_BY_ROLE = {
     /*
-     * Staff run the shop floor: their work queue (overview), the catalogue,
-     * orders, and the stock log that explains every count change. Customers,
-     * analytics, keys, accounts, audit logs and settings stay superadmin-only.
+     * Staff run the shop floor: the analytics dashboard (with its work queue),
+     * the catalogue, orders, customers and their feedback, plus the User
+     * Manual and Contact Support.
+     *
+     * `customers` and `audit-logs` open for an admin in a LIMITED form —
+     * masked emails, no IPs, no sizes or spend, customer-area audit rows only.
+     * The reduction is done by the API from the signed-in role, not by this
+     * list. Admin Management and System Settings stay superadmin-only.
      */
-    admin: ['overview', 'inventory', 'orders', 'stock-history'],
+    admin: ['dashboard', 'inventory', 'orders', 'customers', 'feedback', 'audit-logs', 'manual', 'support'],
     superadmin: ALL_SECTIONS,
 };
 

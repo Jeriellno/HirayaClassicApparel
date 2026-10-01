@@ -51,8 +51,7 @@ class AdminAccountController extends Controller
                 'full_name',
                 'email',
                 'role',
-                'inventory_permissions',
-                'ai_rules_access',
+                'contact_number',
                 'last_login_at',
                 'mfa_enrolled_at',
                 'created_at',
@@ -280,6 +279,8 @@ class AdminAccountController extends Controller
              * particular must never be the weak one.
              */
             'password' => ['required', 'confirmed', new PasswordStrength('password')],
+            'full_name' => ['nullable', 'string', 'max:255'],
+            'contact_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+()\-\s]{7,30}$/'],
         ]);
 
         try {
@@ -290,6 +291,25 @@ class AdminAccountController extends Controller
             );
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        // The invitee's own details, so the super admin knows who joined.
+        $user->forceFill(array_filter([
+            'full_name' => trim((string) ($validated['full_name'] ?? '')) ?: null,
+            'contact_number' => $validated['contact_number'] ?? null,
+        ]))->save();
+
+        try {
+            \App\Models\AuditLog::create([
+                'admin_email' => $user->email,
+                'actor_role' => 'admin',
+                'action' => 'ACCEPT_ADMIN_INVITATION',
+                'target' => 'ADMINS',
+                'details' => "{$user->full_name} <{$user->email}> accepted the admin invitation.",
+                'ip_address' => $request->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            // The account exists either way.
         }
 
         return response()->json([
@@ -434,8 +454,6 @@ class AdminAccountController extends Controller
 
         $validated = $request->validate([
             'role' => ['sometimes', 'string', Rule::in(['admin', 'superadmin'])],
-            'inventory_permissions' => ['sometimes', 'string', Rule::in(['READ_WRITE', 'READ_ONLY'])],
-            'ai_rules_access' => ['sometimes', 'boolean'],
         ]);
 
         // Guard rail: never let a superadmin demote themselves (self-lockout).
@@ -476,14 +494,6 @@ class AdminAccountController extends Controller
             $user->role = $newRole;
         }
 
-        if (array_key_exists('inventory_permissions', $validated)) {
-            $user->inventory_permissions = $validated['inventory_permissions'];
-        }
-
-        if (array_key_exists('ai_rules_access', $validated)) {
-            $user->ai_rules_access = $validated['ai_rules_access'];
-        }
-
         $user->save();
 
         return response()->json([
@@ -493,8 +503,6 @@ class AdminAccountController extends Controller
                 'full_name',
                 'email',
                 'role',
-                'inventory_permissions',
-                'ai_rules_access',
                 'last_login_at',
                 'created_at',
             ]),
@@ -502,47 +510,195 @@ class AdminAccountController extends Controller
     }
 
     /**
+     * POST /api/admin/accounts
+     *
+     * ADMIN MANAGEMENT — the super admin creates an admin account directly:
+     * name, e-mail, contact number and the password. The password is either
+     * typed by the super admin or generated, and returned ONCE in the response
+     * so it can be handed over. It is stored only as a hash (never readable
+     * later, never in the audit log); "Reset password" issues a new one.
+     *
+     * The new admin still has to enrol an authenticator app on first sign-in
+     * (the console requires a second factor for every staff account), so a
+     * password that two people know is not enough on its own to get in.
+     */
+    public function store(Request $request)
+    {
+        if (!$this->isSuperAdmin($request->user()) && !$this->devAuthBypass()) {
+            return response()->json(['message' => 'Only a Super Admin can add administrators.'], 403);
+        }
+
+        $request->merge(['email' => SupabaseIdentity::canonicalEmail((string) $request->input('email'))]);
+
+        $validated = $request->validate([
+            'full_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'contact_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+()\-\s]{7,30}$/'],
+            'password' => ['nullable', 'string', new PasswordStrength('password')],
+        ], [
+            'email.unique' => 'An account with that e-mail already exists.',
+            'contact_number.regex' => 'Enter a valid contact number.',
+        ]);
+
+        if (SupabaseIdentity::findAuthId($validated['email']) !== null) {
+            return response()->json([
+                'message' => 'A sign-in already exists for that e-mail. Use a different address.',
+            ], 422);
+        }
+
+        $password = $validated['password'] ?? $this->generatePassword();
+
+        try {
+            $authId = SupabaseIdentity::createWithPassword($validated['email'], $password, $validated['full_name']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+
+        $user = User::create([
+            'full_name' => $validated['full_name'],
+            'email' => $validated['email'],
+            'password' => \Illuminate\Support\Facades\Hash::make($password),
+            'role' => 'admin',
+        ]);
+        $user->forceFill([
+            'contact_number' => $validated['contact_number'] ?? null,
+            'auth_id' => $authId ?: null,
+        ])->save();
+
+        $this->audit($request, 'CREATE_ADMIN', "Created admin {$user->full_name} <{$user->email}> (#{$user->id}).");
+
+        return response()->json([
+            'message' => "Admin account created for {$user->full_name}.",
+            'account' => $user->only(['id', 'full_name', 'email', 'contact_number', 'role', 'last_login_at', 'mfa_enrolled_at', 'created_at']),
+            // Shown ONCE in the console so the super admin can hand it over.
+            'password' => $password,
+        ], 201);
+    }
+
+    /**
+     * POST /api/admin/accounts/{user}/reset-password
+     *
+     * Sets a new password (typed or generated) for an admin and returns it
+     * once. Every existing session of that admin is signed out.
+     */
+    public function resetPassword(Request $request, User $user)
+    {
+        if (!$this->isSuperAdmin($request->user()) && !$this->devAuthBypass()) {
+            return response()->json(['message' => 'Only a Super Admin can reset admin passwords.'], 403);
+        }
+        if (strtolower((string) $user->role) !== 'admin') {
+            return response()->json(['message' => 'Only admin accounts can be reset here.'], 422);
+        }
+
+        $validated = $request->validate([
+            'password' => ['nullable', 'string', new PasswordStrength('password')],
+        ]);
+        $password = $validated['password'] ?? $this->generatePassword();
+
+        try {
+            if (SupabaseIdentity::findAuthId($user->email)) {
+                SupabaseIdentity::setPassword($user->email, $password);
+            } else {
+                $authId = SupabaseIdentity::createWithPassword($user->email, $password, $user->full_name);
+                $user->forceFill(['auth_id' => $authId ?: null]);
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+
+        $user->forceFill(['password' => \Illuminate\Support\Facades\Hash::make($password)])->save();
+        $user->tokens()->delete();
+
+        $this->audit($request, 'RESET_ADMIN_PASSWORD', "Reset the password of {$user->full_name} <{$user->email}> (#{$user->id}).");
+
+        return response()->json([
+            'message' => "New password set for {$user->full_name}.",
+            'password' => $password,
+        ]);
+    }
+
+    /**
      * DELETE /api/admin/accounts/{user}
      *
-     * Revokes an admin account. Superadmin-only, with self- and last-superadmin
-     * lockout protection.
+     * REMOVES an admin who has left (resigned, contract ended…). A reason is
+     * required and recorded. Their console sign-in is deleted first, so access
+     * ends immediately; then the account itself is deleted. If records still
+     * point at it (e.g. stock changes they made), the account is kept but
+     * locked — demoted, suspended and given an unknown password — so history
+     * stays intact and nobody can sign in with it.
      */
     public function destroy(Request $request, User $user)
     {
         if (!$this->isPrivileged($user)) {
             return response()->json(['message' => 'That account is not an administrator.'], 422);
         }
-
         if (!$this->isSuperAdmin($request->user()) && !$this->devAuthBypass()) {
-            return response()->json([
-                'message' => 'Only a Super Admin can revoke administrator accounts.',
-            ], 403);
+            return response()->json(['message' => 'Only a Super Admin can remove administrators.'], 403);
         }
-
         if ($user->id === $request->user()?->id) {
-            return response()->json([
-                'message' => 'You cannot revoke your own account while signed in.',
-            ], 422);
+            return response()->json(['message' => 'You cannot remove your own account while signed in.'], 422);
+        }
+        if (strtolower((string) $user->role) === 'superadmin' && User::where('role', 'superadmin')->count() <= 1) {
+            return response()->json(['message' => 'Cannot remove the last Super Admin account.'], 422);
         }
 
-        if (
-            strtolower((string) $user->role) === 'superadmin' &&
-            User::where('role', 'superadmin')->count() <= 1
-        ) {
-            return response()->json([
-                'message' => 'Cannot remove the last Super Admin account.',
-            ], 422);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', Rule::in(['resigned', 'contract_ended', 'terminated', 'other'])],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            SupabaseIdentity::deleteIdentity($user->email);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
         }
 
-        // Soft-revoke: demote back to a customer instead of hard-deleting, so the
-        // account's orders / history survive the audit trail. Hard-delete of a
-        // user with orders would cascade or orphan records.
-        $user->role = 'user';
-        $user->inventory_permissions = null;
-        $user->ai_rules_access = null;
-        $user->save();
+        $label = "{$user->full_name} <{$user->email}> (#{$user->id})";
+        $user->tokens()->delete();
 
-        return response()->json(['message' => 'Administrator access revoked.']);
+        try {
+            $user->delete();
+            $outcome = 'account deleted';
+        } catch (\Throwable $e) {
+            $user->forceFill([
+                'role' => 'user',
+                'suspended_at' => now(),
+                'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(64)),
+            ])->save();
+            $outcome = 'account locked (linked records kept)';
+        }
+
+        $reason = str_replace('_', ' ', $validated['reason']);
+        $this->audit($request, 'REMOVE_ADMIN', "Removed admin {$label} — reason: {$reason}"
+            . (!empty($validated['note']) ? " ({$validated['note']})" : '') . "; {$outcome}.");
+
+        return response()->json(['message' => 'Administrator removed. They can no longer sign in.']);
+    }
+
+    /** A strong password that satisfies PasswordStrength (letters, a capital, a digit). */
+    private function generatePassword(): string
+    {
+        do {
+            $password = \Illuminate\Support\Str::password(14, true, true, false);
+        } while (!preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password) || !preg_match('/[a-z]/', $password));
+
+        return $password;
+    }
+
+    private function audit(Request $request, string $action, string $details): void
+    {
+        try {
+            \App\Models\AuditLog::create([
+                'admin_email' => $request->user()?->email,
+                'actor_role' => strtolower(str_replace(['-', '_'], '', (string) $request->user()?->role)) ?: null,
+                'action' => $action,
+                'target' => 'ADMINS',
+                'details' => $details,
+                'ip_address' => $request->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Audit write failed for {$action}: " . $e->getMessage());
+        }
     }
 
     /** True when the given user holds an admin or superadmin role. */

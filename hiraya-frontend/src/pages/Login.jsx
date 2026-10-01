@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react';
+import api from '../api/axios';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ArrowRight,
@@ -112,6 +113,8 @@ const Login = () => {
      * to ask for.
      */
     const finishStaffSignIn = (resolvedRole) => {
+        // Audit Logs: record the staff sign-in (fire-and-forget; never blocks entry).
+        api.post('/admin/console/signed-in').catch(() => {});
         navigate(redirectTo || roleHome(resolvedRole), { replace: true });
     };
 

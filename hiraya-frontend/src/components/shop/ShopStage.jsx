@@ -203,7 +203,12 @@ const Stage = ({ featured }) => {
                     </span>
                 </div>
 
-                <div className="relative min-h-[15rem]" aria-live={playing ? 'off' : 'polite'}>
+                {/*
+                  * FIXED HEIGHT, CLAMPED TEXT: the controls below must not move
+                  * when the next piece has a longer name. A min-height let a
+                  * two- or three-line name push "Up next" down on every slide.
+                  */}
+                <div className="relative h-[19rem] overflow-hidden sm:h-[18rem]" aria-live={playing ? 'off' : 'polite'}>
                     <AnimatePresence mode="wait" initial={false} custom={direction}>
                         <motion.div
                             key={current.id}
@@ -214,11 +219,11 @@ const Stage = ({ featured }) => {
                             <span className="inline-flex rounded-full border border-navy-900/15 bg-cream-50/70 px-3 py-1 text-[0.58rem] font-semibold uppercase tracking-[0.22em] text-navy-800 shadow-neu-sm">
                                 {categoryOf(current)}
                             </span>
-                            <h2 className="mt-5 font-serif text-[clamp(1.8rem,3.2vw,2.8rem)] uppercase leading-[1.06] tracking-[0.04em] text-navy-900">
+                            <h2 title={current.name || undefined} className="mt-5 line-clamp-2 font-serif text-[clamp(1.8rem,3.2vw,2.8rem)] uppercase leading-[1.06] tracking-[0.04em] text-navy-900">
                                 {current.name || 'Untitled Item'}
                             </h2>
                             {current.description && (
-                                <p className="mt-4 line-clamp-3 max-w-md text-[0.9rem] leading-relaxed text-charcoal-600">
+                                <p className="mt-4 line-clamp-2 max-w-md text-[0.9rem] leading-relaxed text-charcoal-600">
                                     {current.description}
                                 </p>
                             )}
@@ -235,8 +240,8 @@ const Stage = ({ featured }) => {
 
                 {/* Controls: arrows, the autoplay thread with pause, and "up next". */}
                 {hasMany && (
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-4 lg:flex-nowrap">
+                        <div className="flex shrink-0 items-center gap-2">
                             {[
                                 { step: -1, icon: ChevronLeft, label: 'Previous piece' },
                                 { step: 1, icon: ChevronRight, label: 'Next piece' },

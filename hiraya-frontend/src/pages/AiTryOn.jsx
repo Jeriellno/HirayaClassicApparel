@@ -117,7 +117,7 @@ const AiTryOn = () => {
      * `lg` the floor stacks in the order the flow asks for: the canvas (photo
      * first), then the stack. Layout only — every prop below is unchanged.
      */
-    <div className="flex min-h-screen w-full flex-col gap-4 px-3 pb-4 pt-24 text-hiraya-ink sm:px-4 lg:h-screen lg:flex-row lg:overflow-hidden lg:pt-[6.5rem]">
+    <div className="flex min-h-screen w-full flex-col gap-4 px-3 pb-24 pt-24 lg:pb-4 text-hiraya-ink sm:px-4 lg:h-screen lg:flex-row lg:overflow-hidden lg:pt-[6.5rem]">
       {/* 1. LEFT PANEL: MY BAG STYLE STACK (locked until a body photo exists) */}
       <StyleStack
         garmentsByCategory={garmentsByCategory}
@@ -218,7 +218,7 @@ const AiTryOn = () => {
         animate={{ x: anyDrawerOpen ? 90 : 0, opacity: anyDrawerOpen ? 0 : 1 }}
         transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 30 }}
         whileHover={reduce || anyDrawerOpen ? undefined : { x: -4 }}
-        className="group fixed bottom-4 right-4 z-[75] flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-navy-900 text-cream-100 shadow-[0_18px_36px_-14px_rgba(13,21,36,0.85)] ring-1 ring-cream-50/10 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-navy-600 lg:bottom-auto lg:right-0 lg:top-1/2 lg:h-auto lg:w-auto lg:-translate-y-1/2 lg:flex-col lg:gap-3 lg:rounded-l-[20px] lg:rounded-r-none lg:px-3 lg:py-5"
+        className="group fixed bottom-4 right-4 z-[75] flex h-12 w-12 sm:h-14 sm:w-14 cursor-pointer items-center justify-center rounded-full bg-navy-900 text-cream-100 shadow-[0_18px_36px_-14px_rgba(13,21,36,0.85)] ring-1 ring-cream-50/10 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-navy-600 lg:bottom-auto lg:right-0 lg:top-1/2 lg:h-auto lg:w-auto lg:-translate-y-1/2 lg:flex-col lg:gap-3 lg:rounded-l-[20px] lg:rounded-r-none lg:px-3 lg:py-5"
         style={{ pointerEvents: anyDrawerOpen ? 'none' : 'auto' }}
       >
         <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-cream-100 text-navy-900">

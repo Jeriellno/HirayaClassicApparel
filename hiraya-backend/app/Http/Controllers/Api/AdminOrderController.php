@@ -231,6 +231,11 @@ class AdminOrderController extends Controller
      */
     private function restoreStock(Order $order): void
     {
+        // A demo order never took stock (DemoOrderController), so it returns none.
+        if ($order->is_demo) {
+            return;
+        }
+
         $order->loadMissing('orderItems');
 
         foreach ($order->orderItems as $item) {

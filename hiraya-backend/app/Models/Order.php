@@ -35,6 +35,7 @@ class Order extends Model
         'balance_amount' => 'decimal:2',
         'dp_submitted_at' => 'datetime',
         'balance_proof_submitted_at' => 'datetime',
+        'is_demo' => 'boolean',
     ];
 
     /**

@@ -157,8 +157,9 @@ export const fetchAuthoritativeRole = async (user) => {
     if (!email) return fromClaims;
 
     try {
+        // Every Hiraya table carries the `tbl_` prefix (Laravel DB_PREFIX).
         const { data, error } = await supabase
-            .from('users')
+            .from('tbl_users')
             .select('role')
             .eq('email', email)
             .maybeSingle();
@@ -352,9 +353,20 @@ export const createMfaChallenge = async (factorType = 'totp') => {
  * (aal2) access token replaces the old aal1 one in local storage.
  */
 export const verifyMfaChallenge = async (factorId, challengeId, code) => {
-    const { data, error } = await supabase.auth.mfa.verify({
+    /*
+     * CHALLENGE AND VERIFY IN ONE CALL — the fix for "challenge mismatch".
+     *
+     * GoTrue only accepts a code from the SAME IP that opened the challenge,
+     * and a challenge goes stale. The login page used to open the challenge
+     * right after the password and verify it only when the code was typed —
+     * any network change in between (IPv6 address rotation, mobile data, VPN)
+     * or a slow typist got "challenge … mismatch" / "expired". Opening a fresh
+     * challenge at the moment of verifying removes both failure modes.
+     * `challengeId` is kept in the signature for existing callers.
+     */
+    void challengeId;
+    const { data, error } = await supabase.auth.mfa.challengeAndVerify({
         factorId,
-        challengeId,
         code: String(code || '').replace(/\D/g, ''),
     });
     if (error) throw error;
@@ -450,6 +462,30 @@ export const cleanupUnverifiedFactors = async () => {
  *   NORMALISED on the way out: the wire shape is `totp.qr_code`, so callers get
  *   `qrCodeSvg` and never touch Supabase's snake_case.
  */
+/**
+ * The QR as a SAFE <img> source.
+ *
+ * Supabase returns `totp.qr_code` as a DATA URI ("data:image/svg+xml;utf-8,<svg…"),
+ * not as bare SVG markup. Injecting it as HTML rendered the prefix as stray text
+ * and an unsized SVG that page styles could distort — phones could not scan it.
+ * The SVG is extracted and re-encoded (a raw "#" in a data URI would cut it off).
+ */
+export const toQrImageSrc = (qr) => {
+    const raw = String(qr || '');
+    let svg = raw;
+    const comma = raw.indexOf(',');
+    if (raw.startsWith('data:') && comma !== -1) {
+        svg = raw.slice(comma + 1);
+        try {
+            if (/;base64/i.test(raw.slice(0, comma))) svg = atob(svg);
+            else if (/%3C/i.test(svg.slice(0, 6))) svg = decodeURIComponent(svg);
+        } catch {
+            /* keep as-is */
+        }
+    }
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
 export const startMfaEnrollment = async (friendlyName = 'Hiraya Authenticator') => {
     await cleanupUnverifiedFactors();
 
@@ -501,6 +537,7 @@ export const startMfaEnrollment = async (friendlyName = 'Hiraya Authenticator') 
         friendlyName: data.friendly_name ?? friendlyName,
         secret: data.totp.secret,
         qrCodeSvg: data.totp.qr_code,
+        qrCodeSrc: toQrImageSrc(data.totp.qr_code),
     };
 };
 

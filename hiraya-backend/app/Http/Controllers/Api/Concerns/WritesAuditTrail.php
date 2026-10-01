@@ -58,9 +58,13 @@ trait WritesAuditTrail
                  * authenticated actor.
                  */
                 'admin_email' => $request->user()?->email,
+                'actor_role' => $request->user()
+                    ? strtolower(str_replace(['-', '_'], '', (string) $request->user()->role))
+                    : null,
                 'action' => $action,
                 'target' => $target,
                 'details' => $details,
+                'ip_address' => $request->ip(),
             ]);
         } catch (\Throwable $e) {
             Log::warning("Audit write failed for {$action}: " . $e->getMessage());

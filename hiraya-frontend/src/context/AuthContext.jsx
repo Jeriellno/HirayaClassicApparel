@@ -54,7 +54,14 @@ const persistSession = (token, userData, remember = true) => {
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(readStoredUser);
-    const [loading, setLoading] = useState(true);
+    /*
+     * OPTIMISTIC START. With a stored token AND user, the app renders at once
+     * and `checkUser` confirms the session in the background (a 401 still signs
+     * the user out). Blocking every page on GET /user cost 4-6 s on the
+     * single-threaded dev server — the whole app sat on "Loading your session"
+     * and every page request (e.g. Personalized for You) queued behind it.
+     */
+    const [loading, setLoading] = useState(() => !(getAuthToken() && readStoredUser()));
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -260,25 +267,26 @@ export const AuthProvider = ({ children }) => {
         if (logoutStarted.current) return;
         logoutStarted.current = true;
 
-        // 1. Burahin agad ang local storage para instant UI response
+        /*
+         * CAPTURE THE TOKEN FIRST, NAVIGATE IMMEDIATELY, REVOKE IN THE BACKGROUND.
+         *
+         * The old order cleared storage and THEN called /logout, so that request
+         * went out with no token: the server never revoked it (401) and the 401
+         * handling could fire on the way out. It also awaited the network before
+         * navigating, while `setUser(null)` had already made the route guards
+         * redirect — two navigations, which read as a lag/flicker on logout.
+         */
+        const token = getAuthToken();
+
         clearStoredSession();
         setUser(null);
-
-        // 2. Itapon ang mga naka-cache na query (cart, orders, notifications).
-        //    Without this the NEXT sign-in would briefly render the previous
-        //    account's data straight out of the react-query cache.
+        // Drop cached cart/orders/notifications so the next account never sees them.
         queryClient.clear();
+        navigate('/login', { replace: true });
 
-        try {
-            // 3. Subukang tawagin ang backend sa background
-            await api.post('/logout');
-        } catch (err) {
-            console.warn('Backend logout endpoint skipped or unreachable:', err);
-        } finally {
-            // 4. In-app navigation, `replace` so Back does not return to a page
-            //    that will only bounce straight back here. See the note on
-            //    `logoutStarted` for why this is no longer a full page load.
-            navigate('/login', { replace: true });
+        if (token) {
+            api.post('/logout', null, { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 })
+                .catch((err) => console.warn('Backend logout skipped or unreachable:', err?.message));
         }
     };
 

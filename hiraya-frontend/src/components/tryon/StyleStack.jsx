@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Layers, ShoppingBag, Trash2, Shirt, Loader2, ChevronLeft, ChevronRight, Sparkles, Lock } from 'lucide-react';
+import { Layers, ShoppingBag, Trash2, Shirt, Loader2, ChevronLeft, ChevronRight, Sparkles, Lock, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -58,6 +58,7 @@ const bucketBagItems = (items) => {
       raw_image_url: product.image_url || product.image_base64 || product.image || '',
       display_image_url: product.display_image_url || '',
       ghost_mannequin_url: product.ghost_mannequin_url || '',
+      pairedProducts: product.paired_products || [],
       selected_size: item.selected_size || '',
       selected_color: item.selected_color || '',
       source: 'bag',
@@ -233,6 +234,34 @@ export const StyleStack = ({
   const wornImages = wornPieces.map((g) => g.display_image_url || g.image_url).filter(Boolean);
   const wornCutouts = useFloatingCutouts(wornImages);
 
+  /*
+   * PAIRED LOOKS — the try-on half of garment pairing.
+   *
+   * For every worn piece, the pieces an admin paired with it that are NOT
+   * worn yet. A partner already in the bag can be worn with one tap; one that
+   * is not in the bag links to its product page (a size has to be chosen
+   * before it can join the bag). Each partner is listed once even when two
+   * worn pieces both point to it.
+   */
+  const pairSuggestions = useMemo(() => {
+    const inBag = new Map();
+    Object.values(resolvedByCategory || {}).forEach((rows) =>
+      (rows || []).forEach((g) => inBag.set(Number(g.productId), g)),
+    );
+    const wornIds = new Set(wornPieces.map((g) => Number(g.productId)));
+    const seen = new Set();
+    const out = [];
+    wornPieces.forEach((worn) => {
+      (worn.pairedProducts || []).forEach((pair) => {
+        const pid = Number(pair?.id);
+        if (!pid || wornIds.has(pid) || seen.has(pid)) return;
+        seen.add(pid);
+        out.push({ pair, with: worn.name, garment: inBag.get(pid) || null });
+      });
+    });
+    return out;
+  }, [resolvedByCategory, wornPieces]);
+
   const handleToggle = useCallback(
     (garment) => {
       if (typeof toggleGarment === 'function') toggleGarment(garment);
@@ -368,6 +397,40 @@ export const StyleStack = ({
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="mx-1 mb-1 rounded-[18px] bg-cream-200/50 p-3 shadow-neu-inset"
           >
+            {pairSuggestions.length > 0 && !locked && (
+              <div className="mb-3 rounded-xl border border-hiraya-structure-line/80 bg-hiraya-surface/70 p-2.5">
+                <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink-muted">
+                  <Link2 size={10} className="text-navy-800" /> Paired looks
+                </p>
+                <ul className="space-y-1.5">
+                  {pairSuggestions.slice(0, 3).map(({ pair, with: withName, garment }) => (
+                    <li key={pair.id} className="flex items-center justify-between gap-2 text-[10px]">
+                      <span className="min-w-0 text-hiraya-ink">
+                        <span className="block truncate font-semibold">{pair.name}</span>
+                        <span className="block truncate text-[9px] text-hiraya-ink-muted">pairs with {withName}</span>
+                      </span>
+                      {garment ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(garment)}
+                          className="shrink-0 cursor-pointer rounded-full bg-navy-900 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-cream-100 transition-colors hover:bg-navy-800"
+                        >
+                          Wear together
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/product/${pair.id}`)}
+                          className="shrink-0 cursor-pointer rounded-full border border-hiraya-structure-line px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-hiraya-ink transition-colors hover:bg-cream-200"
+                        >
+                          View piece
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mb-2 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink-muted">
               <Sparkles size={10} className="text-navy-800" /> Active outfit
             </div>

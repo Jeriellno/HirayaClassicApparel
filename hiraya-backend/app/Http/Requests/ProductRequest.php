@@ -10,7 +10,8 @@ class ProductRequest extends FormRequest
     private const JSON_FIELDS = [
         'sizes', 'size_stocks', 'size_measurements',
         'colors', 'color_variants', 'images', 'body_shapes',
-        'occasions', 'ai_tags', 'garment_specifications'
+        'occasions', 'ai_tags', 'garment_specifications',
+        'paired_product_ids',
     ];
 
     /*
@@ -211,6 +212,10 @@ class ProductRequest extends FormRequest
             'occasions.*'              => ['string', Rule::in(self::OCCASIONS)],
             'ai_tags'                  => 'nullable|array',
             'garment_specifications'   => 'nullable|array',
+            // Garment pairing ("pairs well with"). Compatibility between the two
+            // categories is checked in ProductController::syncPairings.
+            'paired_product_ids'       => 'nullable|array|max:' . \App\Support\GarmentPairing::MAX_PAIRS,
+            'paired_product_ids.*'     => 'integer|distinct|exists:products,id',
             '_method'                  => 'nullable|string|in:PUT,PATCH,DELETE',
         ];
     }

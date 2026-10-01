@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import PropTypes from 'prop-types';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import {
   LayoutDashboard,
-  ClipboardList,
   Shirt,
   Package,
   MessageSquare,
@@ -11,12 +10,14 @@ import {
   Users,
   UserCog,
   History,
-  KeyRound,
   LogOut,
-  Radio,
   Menu,
   X,
+  BookOpen,
+  LifeBuoy,
+  KeyRound,
 } from 'lucide-react';
+import ChangePasswordForm from './ChangePasswordForm';
 import logoImg from '../../assets/logo.png';
 
 
@@ -47,17 +48,16 @@ import logoImg from '../../assets/logo.png';
  * groups and no second list to keep in step.
  */
 export const superAdminNavLinks = [
-  { id: 'overview', name: "Today's Work", icon: ClipboardList, group: 'MAIN' },
   { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, group: 'MAIN' },
-  { id: 'inventory', name: 'Inventory Catalog', icon: Shirt, group: 'MAIN' },
-  { id: 'orders', name: 'Orders', icon: Package, group: 'MAIN' },
-  { id: 'stock-history', name: 'Stock History', icon: History, group: 'MAIN' },
-  { id: 'customers', name: 'Customers', icon: Users, group: 'MAIN' },
-  { id: 'api', name: 'API & AI', icon: KeyRound, group: 'ANALYTICS' },
-  { id: 'feedback', name: 'User Feedback', icon: MessageSquare, group: 'ENGAGEMENT' },
-  { id: 'admins', name: 'Admin Accounts', icon: UserCog, group: 'ADMINISTRATION' },
+  { id: 'inventory', name: 'Inventory Management', icon: Shirt, group: 'MAIN' },
+  { id: 'orders', name: 'Orders Management', icon: Package, group: 'MAIN' },
+  { id: 'customers', name: 'Customers Management', icon: Users, group: 'MAIN' },
+  { id: 'feedback', name: 'Customers Feedback', icon: MessageSquare, group: 'MAIN' },
+  { id: 'admins', name: 'Admin Management', icon: UserCog, group: 'ADMINISTRATION' },
   { id: 'audit-logs', name: 'Audit Logs', icon: History, group: 'ADMINISTRATION' },
   { id: 'settings', name: 'System Settings', icon: Sliders, group: 'ADMINISTRATION' },
+  { id: 'manual', name: 'User Manual', icon: BookOpen, group: 'HELP' },
+  { id: 'support', name: 'Contact Support', icon: LifeBuoy, group: 'HELP' },
 ];
 
 /**
@@ -73,14 +73,15 @@ export const superAdminNavLinks = [
  * the 'analytics' sub-tab.
  */
 export const SECTION_SUBTABS = {
-  api: [
-    { id: 'status', name: 'API & AI Status' },
-    { id: 'keys', name: 'API Key Manager' },
+  // Stock changes are an audit trail too: they live under Audit Logs.
+  'audit-logs': [
+    { id: 'activity', name: 'Activity Log' },
+    { id: 'stock', name: 'Stock History' },
   ],
 };
 
 /** The group headings and their order. */
-export const NAV_GROUPS = ['MAIN', 'ANALYTICS', 'ENGAGEMENT', 'ADMINISTRATION'];
+export const NAV_GROUPS = ['MAIN', 'ADMINISTRATION', 'HELP'];
 
 /** HOW MANY SECTIONS EACH ROLE IS OFFERED — shown next to the console title. */
 const ROLE_LABEL = {
@@ -114,10 +115,12 @@ const SuperadminLayout = ({
   activeSubTab,
   setActiveSubTab,
   canSignOut = true,
+  headerExtra = null,
   children,
 }) => {
   // Mobile drawer — pure UI state.
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   /*
    * RENDER THE SIDEBAR AS GROUPS OF SECTIONS.
@@ -151,7 +154,6 @@ const SuperadminLayout = ({
    * sub-tabs, so they are never repeated under every heading.
    */
   const activeNavEntry = navLinks.find((link) => link.id === activeTab);
-  const activeGroupKey = activeNavEntry?.group || 'MAIN';
 
   const chooseSection = (id) => {
     setActiveTab(id);
@@ -226,8 +228,8 @@ const SuperadminLayout = ({
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
                   return (
+                    <Fragment key={item.id}>
                     <button
-                      key={item.id}
                       onClick={() => chooseSection(item.id)}
                       aria-current={isActive ? 'page' : undefined}
                       className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[12px] font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100/60 ${
@@ -250,6 +252,28 @@ const SuperadminLayout = ({
                       </span>
                       <span className="relative truncate">{item.name}</span>
                     </button>
+                {isActive && subtabs.length > 0 && (
+                    <div className="mb-1 ml-7 mt-1 flex flex-col gap-0.5 border-l border-cream-50/15 pl-3">
+                      {subtabs.map((sub) => {
+                        const isSubActive = activeSubTab === sub.id;
+                        return (
+                          <button
+                            key={sub.id}
+                            onClick={() => setActiveSubTab?.(sub.id)}
+                            aria-current={isSubActive ? 'page' : undefined}
+                            className={`w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-[11px] transition-colors ${
+                              isSubActive
+                                ? 'bg-cream-50/10 font-semibold text-cream-50'
+                                : 'text-cream-400 hover:text-cream-50'
+                            }`}
+                          >
+                            {sub.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                    </Fragment>
                   );
                 })}
 
@@ -258,27 +282,6 @@ const SuperadminLayout = ({
                   * the group that section belongs to (the group guard is what
                   * stops the sub-tabs repeating under every heading).
                   */}
-                {group.key === activeGroupKey && subtabs.length > 0 && (
-                  <div className="mb-1 ml-7 mt-1 flex flex-col gap-0.5 border-l border-cream-50/15 pl-3">
-                    {subtabs.map((sub) => {
-                      const isSubActive = activeSubTab === sub.id;
-                      return (
-                        <button
-                          key={sub.id}
-                          onClick={() => setActiveSubTab?.(sub.id)}
-                          aria-current={isSubActive ? 'page' : undefined}
-                          className={`w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-[11px] transition-colors ${
-                            isSubActive
-                              ? 'bg-cream-50/10 font-semibold text-cream-50'
-                              : 'text-cream-400 hover:text-cream-50'
-                          }`}
-                        >
-                          {sub.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             </div>
           ))}
@@ -288,6 +291,13 @@ const SuperadminLayout = ({
         <div className="relative m-3 rounded-2xl bg-navy-950/60 px-4 py-3 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.45),inset_-2px_-2px_6px_rgba(54,74,106,0.18)]">
           <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-cream-400">Signed in at</p>
           <p className="mt-0.5 text-[11px] font-semibold text-cream-100">{ROLE_LABEL[role] ?? 'Admin Level'}</p>
+          <button
+            type="button"
+            onClick={() => setPasswordOpen(true)}
+            className="mt-2 flex cursor-pointer items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-cream-300 hover:text-cream-50"
+          >
+            <KeyRound size={11} /> Change password
+          </button>
         </div>
       </aside>
 
@@ -306,15 +316,11 @@ const SuperadminLayout = ({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="truncate font-serif text-sm uppercase tracking-[0.12em] text-navy-900 sm:text-base">
-                Hiraya Master Console
+                {activeNavEntry?.name ?? 'Control Panel'}
               </h1>
-              {/* The live-sync badge: green is a STATE colour, so it stays green. */}
-              <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
-                <Radio size={9} className="animate-pulse" /> Live
-              </span>
             </div>
             <span className="mt-0.5 inline-block text-[9px] font-medium uppercase tracking-[0.14em] text-charcoal-500">
-              {activeNavEntry?.name ?? ROLE_LABEL[role] ?? 'Admin Level'}
+              {ROLE_LABEL[role] ?? 'Admin Level'}
             </span>
           </div>
         </div>
@@ -324,6 +330,8 @@ const SuperadminLayout = ({
          * ProtectedRoute (staff role + aal2), so every user of this layout IS
          * signed in and must be able to sign out.
          */}
+        <div className="flex shrink-0 items-center gap-2">
+        {headerExtra}
         {canSignOut && (
           <button
             onClick={onLogout}
@@ -332,9 +340,22 @@ const SuperadminLayout = ({
             <LogOut size={14} /> <span className="hidden sm:inline">Exit Console</span>
           </button>
         )}
+        </div>
       </header>
 
       {/* Page content — offset by the floating sidebar on md+. */}
+      {passwordOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-navy-950/45 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-sm rounded-[22px] bg-hiraya-surface p-5 shadow-2xl ring-1 ring-cream-50/80">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-serif text-lg uppercase tracking-[0.05em] text-navy-900">Change password</h3>
+              <button type="button" onClick={() => setPasswordOpen(false)} aria-label="Close" className="cursor-pointer rounded-lg p-1 hover:bg-cream-200"><X size={16} /></button>
+            </div>
+            <ChangePasswordForm />
+          </div>
+        </div>
+      )}
+
       <main className="px-3 pb-12 pt-28 sm:px-6 md:pl-[calc(16rem+2.5rem)] md:pr-8">
         <div className="mx-auto w-full max-w-[1280px]">{children}</div>
       </main>
@@ -352,6 +373,7 @@ SuperadminLayout.propTypes = {
   activeSubTab: PropTypes.string,
   setActiveSubTab: PropTypes.func,
   canSignOut: PropTypes.bool,
+  headerExtra: PropTypes.node,
   children: PropTypes.node,
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Package, Plus, Image as ImageIcon, X, Trash2, Edit3, Sparkles, Loader2, Shirt, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Plus, Image as ImageIcon, X, Trash2, Edit3, Sparkles, Loader2, ChevronDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 // THE single shared background-removal entry point, so products added here also
 // get a transparent, framed catalog image instead of the raw photo.
 import { generateGarmentCatalogImage } from '../../../utils/removeBackground';
@@ -7,9 +7,26 @@ import { releaseCompositeUrl, reframeCutout } from '../../../utils/garmentCompos
 import { FRAME_PRESETS, isThemeKey, resolveThemeKey } from '../../../utils/framePresets';
 import { getProductImageUrl } from '../../../utils/imageHelper';
 import ColorVariantsPanel, { appendVariantsToPayload, validateVariants, variantFromApi } from './ColorVariantsPanel';
+import PairingPanel from './PairingPanel';
+import AutoFillProgress from './AutoFillProgress';
+import { canPair, pairedIdsOf } from '../../../utils/garmentPairing';
 import useConfirm from '../../../hooks/useConfirm';
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
+
+/** A numbered step heading in the product form; turns into a check when done. */
+const SectionTitle = ({ n, title, hint, done }) => (
+  <div className="mb-3 flex items-start gap-2.5">
+    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${done ? 'bg-emerald-600 text-white' : 'bg-navy-900 text-cream-100'}`}>
+      {done ? <Check size={11} /> : n}
+    </span>
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-hiraya-ink">{title}</p>
+      {hint && <p className="mt-0.5 text-[10px] leading-snug text-hiraya-ink-muted">{hint}</p>}
+    </div>
+  </div>
+);
+
 
 /** Products per inventory page; the sixth starts page two. */
 const PAGE_SIZE = 5;
@@ -173,7 +190,7 @@ export default function InventoryTab({
    * correcting what it produced. Nothing about the payload depends on it — a
    * save with no new file still leaves the stored image untouched.
    */
-  const [isEditingExistingImage, setIsEditingExistingImage] = useState(false);
+  const [, setIsEditingExistingImage] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [bulkStock, setBulkStock] = useState('');
@@ -191,6 +208,11 @@ export default function InventoryTab({
    */
   const [autoFillStage, setAutoFillStage] = useState(null);
   const [cutoutProgress, setCutoutProgress] = useState(0);
+  // Which engine phase that fraction belongs to ("fetch:…", "compute:inference");
+  // lets AutoFillProgress turn per-phase fractions into one forward-only bar.
+  const [cutoutPhase, setCutoutPhase] = useState('');
+  // Bumped per run so the progress panel restarts its clock and bar.
+  const [autoFillRunId, setAutoFillRunId] = useState(0);
 
   /*
    * HAS THE PIPELINE EVER COMPLETED FOR THE CURRENT PHOTO?
@@ -209,6 +231,8 @@ export default function InventoryTab({
   const [zoomPreview, setZoomPreview] = useState(null);
   // Extra colours of this garment (see ColorVariantsPanel).
   const [colorVariants, setColorVariants] = useState([]);
+  // Catalog pieces paired with this one ("pairs well with"); see PairingPanel.
+  const [pairedIds, setPairedIds] = useState([]);
   const [saveError, setSaveError] = useState('');
 
   /*
@@ -340,6 +364,8 @@ export default function InventoryTab({
     setIsAnalyzingImage(true);
     setImageAnalysisError('');
     setCutoutProgress(0);
+    setCutoutPhase('');
+    setAutoFillRunId((n) => n + 1);
 
     // Paint "reading the photo" before anything expensive starts.
     setAutoFillStage(AUTO_FILL_STAGES.READING);
@@ -437,9 +463,10 @@ export default function InventoryTab({
           // AI could not place still gets a sensible card rather than a default.
           occasion: [analysis?.background_vibe, ...(analysis?.occasions ?? [])].filter(Boolean),
           category: analysis?.category,
-          onProgress: (value) => {
+          onProgress: (value, phase) => {
             if (!isMountedRef.current) return;
             setCutoutProgress(Math.max(0, Math.min(1, Number(value) || 0)));
+            if (phase) setCutoutPhase(String(phase));
           }
         });
 
@@ -854,6 +881,7 @@ export default function InventoryTab({
     setAiOccasions(null);
     setAiVibe(null);
     setColorVariants([]);
+    setPairedIds([]);
     setSavedThemeKey(null);
     setCompositeUrl((prev) => {
       releaseCompositeUrl(prev);
@@ -909,6 +937,7 @@ export default function InventoryTab({
     setAiOccasions(storedOccasions);
     setAiVibe(null);
     setColorVariants(Array.isArray(item.color_variants) ? item.color_variants.map(variantFromApi) : []);
+    setPairedIds(pairedIdsOf(item));
     // The stored bare matte is the re-theming source; the raw photo is the
     // last resort for rows saved before mattes existed.
     setCutoutSource(loadableUrl(item.ghost_mannequin_url));
@@ -1029,6 +1058,17 @@ export default function InventoryTab({
         : colorVariants.length > 0 ? 'Original' : '';
       payload.append('colors', JSON.stringify(mainColor ? [mainColor] : []));
       appendVariantsToPayload(payload, colorVariants);
+
+      /*
+       * PAIRINGS. Always sent (an empty list unpairs everything). Pairs that no
+       * longer fit the category being saved — the admin changed it after
+       * picking — are dropped here, so the save is never refused for them.
+       */
+      const pairable = pairedIds.filter((id) => {
+        const partner = products.find((p) => Number(p.id) === Number(id));
+        return partner && canPair(formData.category, partner.category);
+      });
+      payload.append('paired_product_ids', JSON.stringify(pairable));
 
       // Original upload slot. On edit we only send a NEW file when one is
       // chosen, so existing images are never clobbered.
@@ -1170,7 +1210,40 @@ export default function InventoryTab({
 
       {/* INVENTORY TABLE */}
       <div className="bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 overflow-hidden text-xs">
-        <div className="overflow-x-auto">
+        {/* PHONES: one card per product — the table hid stock, price and actions off-screen. */}
+        <ul className="divide-y divide-hiraya-structure-line/70 md:hidden">
+          {products.length === 0 ? (
+            <li className="px-4 py-10 text-center text-[11px] text-hiraya-ink-muted">No products yet.</li>
+          ) : (
+            pagedProducts.map((item, idx) => {
+              const totalStock = totalStockOf(item);
+              const raw = item.display_image_url || item.image_url || item.image;
+              return (
+                <li key={item.id ?? `m-${idx}`} className="flex items-center gap-3 px-4 py-3">
+                  <div className="h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-cream-200/60">
+                    {raw && <img src={getProductImageUrl(raw)} alt="" className="h-full w-full object-cover" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12px] font-semibold text-hiraya-ink">{item.name}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-hiraya-ink-muted">{String(item.category || '').replace(/_/g, ' ')}</p>
+                    <p className="mt-0.5 text-[11px] text-hiraya-ink">
+                      ₱{Number(item.price || 0).toLocaleString('en-PH')}
+                      <span className={`ml-2 font-semibold ${totalStock === 0 ? 'text-red-700' : totalStock < 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                        {totalStock === 0 ? 'Out of stock' : `${totalStock} in stock`}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1.5">
+                    <button type="button" onClick={() => openEditModal(item)} aria-label={`Edit ${item.name}`} className="rounded-lg border border-hiraya-structure-line p-2 text-hiraya-ink cursor-pointer"><Edit3 size={14} /></button>
+                    <button type="button" onClick={() => handleDelete(item)} aria-label={`Delete ${item.name}`} className="rounded-lg border border-red-600/30 p-2 text-red-700 cursor-pointer"><Trash2 size={14} /></button>
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left border-collapse">
             <thead className="bg-navy-900 uppercase tracking-[0.14em] text-[10px] text-cream-100">
               <tr>
@@ -1287,6 +1360,14 @@ export default function InventoryTab({
 
                       <td className="p-4 uppercase text-hiraya-ink whitespace-nowrap">
                         {item.category || 'N/A'}
+                        {pairedIdsOf(item).length > 0 && (
+                          <span
+                            className="mt-1 block text-[9px] normal-case tracking-wide text-hiraya-ink-muted"
+                            title={(item.paired_products || []).map((p) => p.name).join(', ')}
+                          >
+                            Paired with {pairedIdsOf(item).length}
+                          </span>
+                        )}
                       </td>
 
                       {/*
@@ -1461,563 +1542,394 @@ export default function InventoryTab({
         </div>
       )}
 
-      {/* UNIFIED ADD / EDIT PRODUCT + AI ATTRIBUTES MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream-deep/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 shadow-2xl w-full max-w-4xl overflow-hidden font-mono text-xs max-h-[92vh] flex flex-col">
+      {/*
+        * ADD / EDIT PRODUCT — one guided form, in the order the work happens.
+        *
+        *   1 Photo        drop the garment photo, check it, press Auto-fill
+        *   2 Details      the AI fills these; the admin only corrects them
+        *   3 Sizes        tap the sizes it comes in, type how many of each
+        *   4 Colours      drop one photo per extra colour — the rest is automatic
+        *   5 Pair with    optional outfit suggestions
+        *
+        * The header and the footer never scroll away: the footer always shows
+        * what is still missing (a checklist) next to Save, so the admin never
+        * has to hunt for why the product cannot be saved yet.
+        */}
+      {isModalOpen && (() => {
+        const field = 'w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl px-3 py-2.5 text-[12px] text-hiraya-ink focus:outline-none focus:border-hiraya-accent focus:ring-2 focus:ring-hiraya-accent/20';
+        const labelCls = 'block text-[10px] uppercase text-hiraya-ink-muted font-semibold tracking-wider mb-1';
+        const offeredSizes = AVAILABLE_SIZES.filter((size) => Object.prototype.hasOwnProperty.call(formData.sizes || {}, size));
+        const hasPhoto = Boolean(previewUrl || compositeUrl);
+        const detailsDone = Boolean(formData.name.trim() && String(formData.price).trim() !== '');
+        const sizesDone = offeredCount > 0 && computedTotalStock > 0;
+        const checklist = [
+          { key: 'photo', label: 'Photo', done: hasPhoto },
+          { key: 'details', label: 'Name & price', done: detailsDone },
+          { key: 'sizes', label: sizesDone ? `${computedTotalStock} pcs` : 'Sizes & stock', done: sizesDone },
+        ];
+        const pickPhoto = (file) => file && handleFileChange({ target: { files: [file], value: '' } });
 
-            {/* Modal Header */}
-            <div className="p-4 border-b border-hiraya-structure-line/80 flex justify-between items-center bg-cream-200/60 shrink-0">
-              <h3 className="font-bold text-hiraya-ink uppercase tracking-wider flex items-center gap-2">
-                <Package size={16} /> {editingId ? 'Edit Product' : 'Add New Product'}
-              </h3>
-              <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-hiraya-ink hover:text-hiraya-ink p-1 rounded-lg transition">
+
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream-deep/80 backdrop-blur-sm p-3 sm:p-4 animate-fadeIn">
+          <div className="bg-hiraya-surface rounded-[22px] ring-1 ring-cream-50/80 shadow-2xl w-full max-w-5xl overflow-hidden text-xs max-h-[94vh] flex flex-col">
+
+            {/* HEADER */}
+            <div className="px-5 py-3.5 border-b border-hiraya-structure-line/80 flex justify-between items-center gap-3 bg-cream-200/60 shrink-0">
+              <div>
+                <h3 className="font-serif text-lg uppercase tracking-[0.05em] text-navy-900 flex items-center gap-2">
+                  <Package size={16} /> {editingId ? 'Edit Product' : 'Add New Product'}
+                </h3>
+                <p className="text-[10px] text-hiraya-ink-muted">
+                  {editingId
+                    ? 'Change only what you need — everything else stays as saved.'
+                    : 'Upload a photo, let the AI fill in the details, then set the sizes.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isSubmitting && setIsModalOpen(false)}
+                aria-label="Close"
+                className="text-hiraya-ink hover:bg-cream-200 p-1.5 rounded-lg transition cursor-pointer"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            {/*
-             * THE LAYOUT IS THE POINT.
-             *
-             * This used to be a 4-section, `max-w-2xl`, `max-h-[90vh]` scrolling
-             * form: name/category/price, then a purple AI panel, then a size
-             * matrix, then the image upload. On a laptop the size grid and the
-             * upload were both below the fold, so an admin could not see the
-             * whole product they were describing — and the modal never said how
-             * much was hidden.
-             *
-             * It is now a 2-column desktop / 1-column mobile grid, sized to hold
-             * every field WITHOUT scrolling on a normal screen:
-             *
-             *   LEFT  — the garment photo (upload + previews) and the AI button
-             *   RIGHT — name, description, category, price, fit type, sizes
-             *
-             * The media comes FIRST because that is the natural order of work:
-             * drop in the photo, let the AI draft the text, then correct it.
-             * The form still scrolls on a phone, where nothing else is possible.
-             */}
-            <form onSubmit={handleSubmit} className="p-4 sm:p-5 flex-1 min-h-0 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
+                <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
 
-              {/* THE GRID — media on the left, every field on the right. */}
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_1fr] gap-4 sm:gap-5 items-start">
+                  {/* ---------------- 1 · PHOTO (stays in view on desktop) ---------------- */}
+                  <section className="lg:sticky lg:top-0 space-y-3 p-4 bg-cream-200/50 border border-hiraya-structure-line/80 rounded-2xl">
+                    <SectionTitle n={1} title="Garment photo" hint="A clear, front-facing photo of the garment." done={hasPhoto} />
 
-                {/*
-                 * LEFT — THE GARMENT PHOTO.
-                 *
-                 * Deliberately the first thing in the form. The AI auto-fill reads
-                 * this photo, so putting the upload above the fields it fills
-                 * makes the causal order obvious: drop the photo, watch the text
-                 * appear below, then correct it.
-                 */}
-                <div className="space-y-2.5 p-3 bg-cream-200/60 border border-hiraya-structure-line/80 rounded-xl">
-                  <span className="text-[10px] text-hiraya-ink font-bold uppercase tracking-widest flex items-center gap-1.5 border-b border-hiraya-structure-line/80 pb-1">
-                    <Shirt size={12} /> 1. Garment Photo
-                  </span>
-
-                  <div>
-                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Upload Picture</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      /*
-                       * LOCKED WHILE THE PIPELINE RUNS.
-                       *
-                       * Choosing a second photo mid-cut-out would start a second
-                       * background removal while the first still owns the main
-                       * thread. The two jobs then race to write `compositeBlob`, and
-                       * whichever finishes last wins — so the admin could save a
-                       * product whose stored image came from a photo they had
-                       * already replaced. The input is disabled for the duration so
-                       * there is only ever one pipeline in flight.
-                       */
-                      disabled={isAnalyzingImage}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2 text-hiraya-ink file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-hiraya-accent file:text-hiraya-on-accent hover:file:bg-hiraya-gold-deep disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/*
-                   * THE BUTTON IS BOTH THE FIRST RUN AND THE RE-RUN.
-                   *
-                   * There is no separate "run again" control. The same button
-                   * CHANGES ITS WORDING once a run has completed, so the affordance
-                   * to re-do the work is exactly where the work started — the admin
-                   * never looks for a second button that was not there before.
-                   *
-                   * `overwrite` is the whole difference between the two presses:
-                   *   false — first pass, FILL ONLY EMPTY FIELDS, so a
-                   *           half-typed form is never wiped.
-                   *   true  — re-run, REPLACE the details AND force a fresh
-                   *           background removal, because the admin is telling us
-                   *           the first answer was wrong. It still never touches
-                   *           the size and stock matrix — hand-entered counts the
-                   *           AI has no opinion about.
-                   *
-                   * The per-stage wording is why a slow run does not read as a
-                   * hang: a 3-second Gemini call and a 40-second model download
-                   * are visibly different waits, and the real percentage appears
-                   * on the cut-out as soon as the engine produces one.
-                   */}
-                  <button
-                    type="button"
-                    onClick={() => handleAutoFillDetails(undefined, { overwrite: hasCompletedRun })}
-                    disabled={!imageFile || isAnalyzingImage}
-                    aria-busy={isAnalyzingImage}
-                    title={
-                      hasCompletedRun
-                        ? 'Run the AI again — it will replace the current name, description, category and price, and redo the background removal'
-                        : 'Let the AI fill in the product details from this photo'
-                    }
-                    className="w-full px-3 py-2 bg-charcoal-100 hover:bg-charcoal-200/70 border border-charcoal-300 text-charcoal-800 font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 text-[10px] transition disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {isAnalyzingImage ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin shrink-0" />
-                        <span className="truncate">
-                          {STAGE_BUTTON_COPY[autoFillStage] || 'Reading the photo...'}
-                        </span>
-                        {/*
-                         * THE REAL PERCENTAGE, ONLY WHERE ONE EXISTS.
-                         *
-                         * The cut-out is the one step the engine reports progress
-                         * for, and even then only after the first asset byte lands —
-                         * during the ~95 MB model download there is nothing honest to
-                         * show, so the label alone carries it. A counter frozen at 0%
-                         * would look like the exact hang this is meant to prevent.
-                         */}
-                        {autoFillStage === AUTO_FILL_STAGES.CUTTING && cutoutProgress > 0 && (
-                          <span className="tabular-nums opacity-80">
-                            {Math.round(cutoutProgress * 100)}%
-                          </span>
-                        )}
-                      </>
-                    ) : hasCompletedRun ? (
-                      <><Sparkles size={13} /> Run AI again</>
-                    ) : (
-                      <><Sparkles size={13} /> {isEditingExistingImage ? 'Auto-fill details (AI)' : 'Auto-fill Details (AI)'}</>
-                    )}
-                  </button>
-
-                  {/*
-                   * THE DONE STATE, AS TEXT RATHER THAN A PANEL.
-                   *
-                   * A brief confirmation is what the admin is actually waiting for:
-                   * not "did it work" but "is it finished". It sits with the error
-                   * message below the button, so the form gains one line only at
-                   * the moment there is something new to say, and it self-clears.
-                   *
-                   * It names what was and was not achieved, because "Done" on its
-                   * own hides the one case that matters most — a garment whose
-                   * details are fine but whose photo kept its background.
-                   */}
-                  {autoFillStage === AUTO_FILL_STAGES.DONE && (
-                    <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
-                      {Boolean(compositeBlob || compositeUrl)
-                        ? 'Done — details added and background removed.'
-                        : 'Done — details added, but the background was not removed.'}
-                    </p>
-                  )}
-
-                  {/*
-                   * THE VIBE THAT WAS CHOSEN, said out loud.
-                   *
-                   * The background is no longer a fixed black card, so the AI's
-                   * occasion guess becomes visible: a linen dress landing on the
-                   * Summer background is intended, and the admin should be able
-                   * to confirm it at a glance. When the contrast guard had to
-                   * override the occasion's own dark surface — a black barong on
-                   * the Cultural card — that is called out rather than hidden,
-                   * because otherwise the image would not match its own label.
-                   */}
-                  {backgroundInfo?.key && (
-                    <p className="text-[10px] text-charcoal-600">
-                      <span className="font-bold uppercase tracking-wider text-charcoal-700">
-                        {backgroundInfo.label || backgroundInfo.key} background
-                      </span>
-                      {backgroundInfo.guarded && ' — with a light halo for a dark garment'}
-                    </p>
-                  )}
-
-                  {imageAnalysisError && (
-                    <p className="text-[10px] text-red-700">{imageAnalysisError}</p>
-                  )}
-
-                  {/*
-                   * BOTH IMAGES ARE SHOWN, ALWAYS.
-                   *
-                   * The "no background" cut-out is what shoppers see; the
-                   * "original" is what was actually uploaded. Showing them as a
-                   * pair is the only way an admin can tell a successful
-                   * background removal from a silent fallback to the raw photo —
-                   * when only the original chip appears, the removal failed.
-                   */}
-                  {previewUrl && (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <figure className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => setZoomPreview({ src: previewUrl, label: 'Original upload' })}
-                          className="block w-full aspect-[4/5] rounded-lg overflow-hidden border border-hiraya-structure-line/80 bg-cream-200/60 cursor-zoom-in"
-                          title="Click to enlarge"
-                        >
-                          <img src={previewUrl} alt="Original upload" className="w-full h-full object-contain" />
-                        </button>
-                        <figcaption className="text-[9px] text-hiraya-ink font-bold uppercase tracking-wider text-center">
-                          1 · Original upload
-                        </figcaption>
-                      </figure>
-                      <figure className="space-y-1">
+                    {!previewUrl ? (
+                      <label
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (!isAnalyzingImage) pickPhoto(e.dataTransfer.files?.[0]);
+                        }}
+                        className="mx-auto flex aspect-[4/5] w-full max-w-[220px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed lg:max-w-none border-hiraya-accent/40 bg-hiraya-surface/70 p-4 text-center transition hover:border-hiraya-accent hover:bg-hiraya-surface"
+                      >
                         {compositeUrl ? (
+                          <img src={compositeUrl} alt="Current product image" className="h-full w-full object-contain" />
+                        ) : (
+                          <>
+                            <ImageIcon size={26} className="text-hiraya-accent" />
+                            <span className="text-[11px] font-semibold text-hiraya-ink">Drop the photo here</span>
+                            <span className="text-[10px] text-hiraya-ink-muted">or click to browse · PNG, JPG, WEBP up to 10 MB</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleFileChange}
+                          disabled={isAnalyzingImage}
+                          className="sr-only"
+                        />
+                      </label>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <figure className="space-y-1">
                           <button
                             type="button"
-                            onClick={() => setZoomPreview({ src: compositeUrl, label: 'Background removed (AI)' })}
-                            className="block w-full aspect-[4/5] rounded-lg overflow-hidden border border-hiraya-accent/50 cursor-zoom-in"
-                            style={backgroundInfo?.key ? { backgroundColor: FRAME_PRESETS[backgroundInfo.key]?.base } : undefined}
+                            onClick={() => setZoomPreview({ src: previewUrl, label: 'Original upload' })}
+                            className="block w-full aspect-[4/5] rounded-lg overflow-hidden border border-hiraya-structure-line/80 bg-hiraya-surface cursor-zoom-in"
                             title="Click to enlarge"
                           >
-                            <img src={compositeUrl} alt="Background-removed preview" className="w-full h-full object-contain" />
+                            <img src={previewUrl} alt="Original upload" className="w-full h-full object-contain" />
                           </button>
-                        ) : (
-                          <div className="w-full aspect-[4/5] rounded-lg border border-dashed border-hiraya-structure-line flex flex-col items-center justify-center gap-1.5 p-2 text-center text-[9px] uppercase tracking-wider text-hiraya-ink-muted">
-                            {isAnalyzingImage ? (
-                              <><Loader2 size={16} className="animate-spin" /> Processing…</>
-                            ) : (
-                              <><Sparkles size={16} /> Press Auto-fill to remove the background</>
-                            )}
-                          </div>
-                        )}
-                        <figcaption className="text-[9px] text-hiraya-ink font-bold uppercase tracking-wider text-center">
-                          2 · AI background removed
-                        </figcaption>
-                      </figure>
-                      <p className="col-span-2 text-[9px] text-hiraya-ink-muted leading-snug">
-                        Check that the original is the right garment before running the AI. Image 2 is what shoppers will see.
+                          <figcaption className="text-[9px] font-semibold uppercase tracking-wider text-center text-hiraya-ink-muted">Original</figcaption>
+                        </figure>
+                        <figure className="space-y-1">
+                          {compositeUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => setZoomPreview({ src: compositeUrl, label: 'Shop image (background removed)' })}
+                              className="block w-full aspect-[4/5] rounded-lg overflow-hidden border border-hiraya-accent/50 cursor-zoom-in"
+                              style={backgroundInfo?.key ? { backgroundColor: FRAME_PRESETS[backgroundInfo.key]?.base } : undefined}
+                              title="Click to enlarge"
+                            >
+                              <img src={compositeUrl} alt="Shop image preview" className="w-full h-full object-contain" />
+                            </button>
+                          ) : (
+                            <div className="w-full aspect-[4/5] rounded-lg border border-dashed border-hiraya-structure-line flex flex-col items-center justify-center gap-1.5 p-2 text-center text-[9px] uppercase tracking-wider text-hiraya-ink-muted">
+                              {isAnalyzingImage ? <><Loader2 size={16} className="animate-spin" /> Working…</> : <><Sparkles size={16} /> Appears after Auto-fill</>}
+                            </div>
+                          )}
+                          <figcaption className="text-[9px] font-semibold uppercase tracking-wider text-center text-hiraya-ink-muted">Shop image</figcaption>
+                        </figure>
+                      </div>
+                    )}
+
+                    {previewUrl && (
+                      <label className={`block text-center text-[10px] font-semibold uppercase tracking-wider text-hiraya-ink-muted ${isAnalyzingImage ? 'opacity-40' : 'hover:text-hiraya-ink cursor-pointer'}`}>
+                        Change photo
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileChange} disabled={isAnalyzingImage} className="sr-only" />
+                      </label>
+                    )}
+
+                    {/* The AI button — primary while it is the next step. */}
+                    <button
+                      type="button"
+                      onClick={() => handleAutoFillDetails(undefined, { overwrite: hasCompletedRun })}
+                      disabled={!imageFile || isAnalyzingImage}
+                      aria-busy={isAnalyzingImage}
+                      title={hasCompletedRun
+                        ? 'Run the AI again — it will replace the name, description, category and price, and redo the background'
+                        : 'Let the AI fill in the product details and remove the background'}
+                      className={`w-full px-3 py-2.5 font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 text-[10px] transition cursor-pointer disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed ${
+                        imageFile && !hasCompletedRun
+                          ? 'bg-navy-900 text-cream-100 hover:bg-navy-800 shadow-neu-sm'
+                          : 'bg-charcoal-100 hover:bg-charcoal-200/70 border border-charcoal-300 text-charcoal-800'
+                      }`}
+                    >
+                      {isAnalyzingImage ? (
+                        <><Loader2 size={13} className="animate-spin shrink-0" /> <span className="truncate">{STAGE_BUTTON_COPY[autoFillStage] || 'Reading the photo…'}</span></>
+                      ) : hasCompletedRun ? (
+                        <><Sparkles size={13} /> Run AI again</>
+                      ) : (
+                        <><Sparkles size={13} /> Auto-fill with AI</>
+                      )}
+                    </button>
+                    {!imageFile && editingId && (
+                      <p className="text-[10px] text-hiraya-ink-muted text-center">Upload a new photo only if you want to replace the current one.</p>
+                    )}
+
+                    {isAnalyzingImage && autoFillStage && autoFillStage !== AUTO_FILL_STAGES.DONE && (
+                      <AutoFillProgress key={autoFillRunId} stage={autoFillStage} cutFraction={cutoutProgress} cutPhase={cutoutPhase} />
+                    )}
+
+                    {autoFillStage === AUTO_FILL_STAGES.DONE && (
+                      <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider text-center">
+                        {compositeBlob || compositeUrl
+                          ? 'Done — details filled and background removed.'
+                          : 'Details filled, but the background was not removed.'}
                       </p>
-                    </div>
-                  )}
-                </div>
+                    )}
 
-                {/* RIGHT — EVERY FIELD THE ADMIN OWNS. */}
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Product Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      placeholder="e.g. Silk Barong Tagalog"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                    />
-                  </div>
+                    {backgroundInfo?.key && (
+                      <p className="text-[10px] text-charcoal-600 text-center">
+                        <span className="font-bold uppercase tracking-wider text-charcoal-700">{backgroundInfo.label || backgroundInfo.key} background</span>
+                        {backgroundInfo.guarded && ' — light halo for a dark garment'}
+                      </p>
+                    )}
 
-                  <div>
-                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Description</label>
-                    <textarea
-                      name="description"
-                      rows={2}
-                      placeholder="Fabric, cut and feel"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent resize-none"
-                    />
-                  </div>
+                    {imageAnalysisError && <p className="text-[10px] text-red-700">{imageAnalysisError}</p>}
+                  </section>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Category *</label>
-                    <select
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                    >
-                      <option value="TOPS">TOPS</option>
-                      <option value="BOTTOMS">BOTTOMS</option>
-                      <option value="DRESSES">DRESSES</option>
-                      <option value="OUTERWEAR">OUTERWEAR</option>
-                      <option value="FORMAL_MEN">FORMAL MEN</option>
-                      <option value="FORMAL_WOMEN">FORMAL WOMEN</option>
-                      <option value="FULL_BODY">FULL BODY</option>
-                    </select>
-                  </div>
+                  {/* ---------------- RIGHT COLUMN ---------------- */}
+                  <div className="space-y-4 min-w-0">
 
-                  <div>
-                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Price (₱) *</label>
-                    <input
-                      type="number"
-                      name="price"
-                      required
-                      placeholder="1299"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                    />
-                  </div>
-                </div>
+                    {/* 2 · DETAILS */}
+                    <section className="p-4 bg-cream-200/50 border border-hiraya-structure-line/80 rounded-2xl">
+                      <SectionTitle n={2} title="Details" hint="Filled in by the AI — check and correct anything it got wrong." done={detailsDone} />
+                      <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                        <div className="sm:col-span-4">
+                          <label htmlFor="product_name" className={labelCls}>Product name *</label>
+                          <input id="product_name" type="text" name="name" required placeholder="e.g. Silk Barong Tagalog" value={formData.name} onChange={handleInputChange} className={field} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label htmlFor="product_price" className={labelCls}>Price (₱) *</label>
+                          <input id="product_price" type="number" min="0" name="price" required placeholder="1299" value={formData.price} onChange={handleInputChange} className={field} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label htmlFor="product_category" className={labelCls}>Category *</label>
+                          <select id="product_category" name="category" value={formData.category} onChange={handleInputChange} className={field}>
+                            <option value="TOPS">Tops</option>
+                            <option value="BOTTOMS">Bottoms</option>
+                            <option value="DRESSES">Dresses</option>
+                            <option value="OUTERWEAR">Outerwear</option>
+                            <option value="FORMAL_MEN">Formal — Men</option>
+                            <option value="FORMAL_WOMEN">Formal — Women</option>
+                            <option value="FULL_BODY">Full body</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label htmlFor="product_fit" className={labelCls}>Fit</label>
+                          <select id="product_fit" name="fit_type" value={formData.fit_type} onChange={handleInputChange} className={field}>
+                            <option value="">Not set</option>
+                            <option value="SLIM">Slim fit</option>
+                            <option value="REGULAR">Regular fit</option>
+                            <option value="LOOSE">Loose / oversized</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label htmlFor="product_gender" className={labelCls}>For</label>
+                          <select id="product_gender" name="gender" value={formData.gender} onChange={handleInputChange} className={field}>
+                            <option value="Men">Men</option>
+                            <option value="Women">Women</option>
+                            <option value="Unisex">Unisex</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-6">
+                          <label htmlFor="product_description" className={labelCls}>Description</label>
+                          <textarea id="product_description" name="description" rows={2} placeholder="Fabric, cut and feel" value={formData.description} onChange={handleInputChange} className={`${field} resize-none`} />
+                        </div>
+                      </div>
+                    </section>
 
-                  <div>
-                  <div>
-                    <label className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1">Garment Fit Type</label>
-                    <select
-                      name="fit_type"
-                      value={formData.fit_type}
-                      onChange={handleInputChange}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                    >
-                      {/*
-                       * "Not set" is a REAL option, not a placeholder.
-                       *
-                       * A garment with no fit type cannot be surfaced as
-                       * "Recommended for slims" — the engine reads a missing
-                       * fit_type as untagged and ranks it below an explicit
-                       * match. Offering it as a first-class choice makes it a
-                       * decision the admin makes on purpose, instead of a
-                       * default that silently mislabels the garment.
-                       *
-                       * THE WARNING UNDER IT IS GONE. It restated the option's own
-                       * label in a second sentence and added a line to a form that
-                       * is deliberately sized to fit on one screen. The label says
-                       * "Not set" and the consequence is the admin's to judge; the
-                       * table's "Untagged" marker carries the same information
-                       * later, where it is actually read.
-                       */}
-                      <option value="">Not set</option>
-                      <option value="SLIM">SLIM FIT</option>
-                      <option value="REGULAR">REGULAR FIT</option>
-                      <option value="LOOSE">LOOSE / OVERSIZED</option>
-                    </select>
+                    {/* 3 · SIZES & STOCK — tap a size, type its quantity. */}
+                    <section className="p-4 bg-cream-200/50 border border-hiraya-structure-line/80 rounded-2xl">
+                      <div className="flex items-start justify-between gap-3">
+                        <SectionTitle n={3} title="Sizes & stock" hint="Tap every size this garment comes in, then type how many you have." done={sizesDone} />
+                        <span className="shrink-0 rounded-full bg-hiraya-surface px-3 py-1 text-[10px] text-hiraya-ink shadow-neu-inset">
+                          Total <strong className="tabular-nums">{computedTotalStock}</strong> pcs
+                        </span>
+                      </div>
 
-                    <label htmlFor="product_gender" className="block text-[10px] uppercase text-hiraya-ink tracking-wider mb-1 mt-3">
-                      For (Gender)
-                    </label>
-                    <select
-                      id="product_gender"
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleInputChange}
-                      className="w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl p-2.5 text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                    >
-                      <option value="Men">MEN</option>
-                      <option value="Women">WOMEN</option>
-                      <option value="Unisex">UNISEX</option>
-                    </select>
-
-                    {/*
-                     * NO BACKGROUND PICKER. The backdrop is always AUTO: the AI
-                     * auto-fill reads the photo and picks the scene
-                     * (`background_vibe`, e.g. barong -> Cultural), falling back
-                     * to the name / description / category. An edit keeps the
-                     * background already saved until the AI is run again.
-                     */}
-                  </div>
-                  </div>
-              </div>
-                </div>
-
-                {/* ============================================================
-                    2. SIZE & STOCK
-                    ============================================================
-                    Two separate decisions share this panel and used to be crammed
-                    into one cell: does this garment COME IN this size, and how MANY
-                    are we holding. They are now their own columns — OFFERED on the
-                    right, STOCK beside it — so each states one fact, and the running
-                    total updates as the admin types.
-
-                    The bulk control says out loud what it will touch before it is
-                    pressed, because with nothing offered it writes the number into
-                    all six sizes, which is a destructive default nobody should
-                    discover by accident.
-                    ============================================================ */}
-                  <div className="p-3 bg-cream-200/60 border border-hiraya-structure-line/80 rounded-xl space-y-2.5">
-                    <div className="flex items-center justify-between gap-2 border-b border-hiraya-structure-line/80 pb-1.5">
-                      <span className="text-[10px] uppercase text-hiraya-ink font-bold flex items-center gap-1.5">
-                        <Shirt size={12} /> 2. Size &amp; Stock
-                      </span>
-                      <span className="text-[10px] text-hiraya-ink flex items-center gap-1.5">
-                        <span className="opacity-70">Total</span>
-                        <strong className="text-hiraya-ink text-[11px] tabular-nums">{computedTotalStock}</strong>
-                        <span className="opacity-70">pcs</span>
-                      </span>
-                    </div>
-
-                    {/* Column heads. A size has two independent facts, and the
-                        second one is only meaningful once the first is true — so
-                        STOCK is centred and OFFERED is the right-hand switch. */}
-                    <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_5rem_6.5rem] gap-x-2 items-center px-1">
-                      <span className="text-[9px] uppercase tracking-wider text-hiraya-ink-muted font-bold">Size</span>
-                      <span className="hidden sm:block text-center text-[9px] uppercase tracking-wider text-hiraya-ink-muted font-bold">Stock</span>
-                      <span className="text-right text-[9px] uppercase tracking-wider text-hiraya-ink-muted font-bold">Offered</span>
-                    </div>
-
-                    <div className="divide-y divide-hiraya-structure-line/60">
-                      {AVAILABLE_SIZES.map((sz) => {
-                        const isOffered = Object.prototype.hasOwnProperty.call(formData.sizes || {}, sz);
-                        const rawQty = isOffered ? formData.sizes[sz] : 0;
-                        const qty = typeof rawQty === 'object' && rawQty !== null ? (rawQty.stock || 0) : rawQty;
-                        const isEmpty = isOffered && Number(qty) === 0;
-
-                        return (
-                          <div
-                            key={sz}
-                            className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_5rem_6.5rem] gap-x-2 items-center px-1 py-1 rounded transition ${
-                              isOffered ? 'bg-hiraya-cream/40' : 'bg-transparent'
-                            }`}
-                          >
-                            <span className={`text-[11px] font-bold ${isOffered ? 'text-hiraya-ink' : 'text-hiraya-ink-muted/50'}`}>
+                      <div className="flex flex-wrap gap-2" role="group" aria-label="Sizes offered">
+                        {AVAILABLE_SIZES.map((sz) => {
+                          const on = offeredSizes.includes(sz);
+                          return (
+                            <button
+                              key={sz}
+                              type="button"
+                              onClick={() => handleToggleSize(sz)}
+                              aria-pressed={on}
+                              className={`min-w-[3rem] px-3 py-2 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                                on
+                                  ? 'bg-navy-900 border-navy-900 text-cream-100 shadow-neu-sm'
+                                  : 'bg-hiraya-surface border-hiraya-structure-line text-hiraya-ink-muted hover:border-hiraya-accent hover:text-hiraya-ink'
+                              }`}
+                            >
                               {sz}
-                            </span>
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                            {/* STOCK — only meaningful once the size is offered.
-                                It renders an em-dash rather than vanishing, so
-                                enabling a size fills in a cell that was already
-                                there instead of shoving every row below it down. */}
-                            <div className="hidden sm:flex justify-center">
-                              {isOffered ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  inputMode="numeric"
-                                  aria-label={`Stock for size ${sz}`}
-                                  value={qty}
-                                  onChange={(e) => handleSizeStockChange(sz, e.target.value)}
-                                  className={`w-14 text-center text-[11px] tabular-nums py-1 rounded-md border focus:outline-none focus:border-hiraya-accent ${
-                                    isEmpty
-                                      ? 'bg-amber-500/10 border-amber-600/40 text-amber-800'
-                                      : 'bg-cream-200/55 border-hiraya-structure-line text-hiraya-ink'
-                                  }`}
-                                />
-                              ) : (
-                                <span className="text-[11px] text-hiraya-ink-muted/40">&mdash;</span>
-                              )}
-                            </div>
-
-                            {/* OFFERED — the switch. Sits on the right on mobile
-                                too, because "does this size exist" is the
-                                decision an admin makes first; the quantity is
-                                the follow-up. */}
-                            <div className="flex items-center justify-end gap-2">
-                              {isEmpty && (
-                                <span className="hidden sm:block text-[8px] uppercase tracking-wider text-amber-700 font-bold">
-                                  Out
-                                </span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSize(sz)}
-                                aria-pressed={isOffered}
-                                aria-label={`Offer size ${sz}`}
-                                className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border transition cursor-pointer ${
-                                  isOffered
-                                    ? 'bg-hiraya-accent border-hiraya-accent text-hiraya-on-accent'
-                                    : 'bg-cream-50/70 border-hiraya-structure-line text-hiraya-ink-muted hover:border-hiraya-accent/40'
-                                }`}
-                              >
-                                {isOffered ? 'Yes' : 'No'}
-                              </button>
-                            </div>
-
-                            {/* Mobile stock input — the same control, below the
-                                row, because a 5rem column does not fit next to
-                                the label on a phone. */}
-                            {isOffered && (
-                              <div className="col-span-2 sm:hidden flex items-center gap-2 pt-1 pb-0.5">
-                                <span className="text-[9px] uppercase tracking-wider text-hiraya-ink-muted font-bold">Stock</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  inputMode="numeric"
-                                  aria-label={`Stock for size ${sz}`}
-                                  value={qty}
-                                  onChange={(e) => handleSizeStockChange(sz, e.target.value)}
-                                  className={`w-20 text-center text-[11px] tabular-nums py-1 rounded-md border focus:outline-none focus:border-hiraya-accent ${
-                                    isEmpty
-                                      ? 'bg-amber-500/10 border-amber-600/40 text-amber-800'
-                                      : 'bg-cream-200/55 border-hiraya-structure-line text-hiraya-ink'
-                                  }`}
-                                />
-                              </div>
-                            )}
+                      {offeredSizes.length > 0 ? (
+                        <>
+                          <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            {offeredSizes.map((sz) => {
+                              const raw = formData.sizes[sz];
+                              const qty = typeof raw === 'object' && raw !== null ? (raw.stock || 0) : raw;
+                              const empty = Number(qty) === 0;
+                              return (
+                                <label key={sz} className="text-center">
+                                  <span className="block text-[9px] font-bold uppercase tracking-wider text-hiraya-ink-muted mb-0.5">{sz}</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    inputMode="numeric"
+                                    aria-label={`Stock for size ${sz}`}
+                                    value={qty}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={(e) => handleSizeStockChange(sz, e.target.value)}
+                                    className={`w-full text-center text-[12px] tabular-nums py-2 rounded-lg border focus:outline-none focus:border-hiraya-accent ${
+                                      empty ? 'bg-amber-500/10 border-amber-600/40 text-amber-800' : 'bg-hiraya-surface border-hiraya-structure-line text-hiraya-ink'
+                                    }`}
+                                  />
+                                </label>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] text-hiraya-ink-muted">Same quantity for all:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              inputMode="numeric"
+                              placeholder="Qty"
+                              aria-label="Quantity for every offered size"
+                              value={bulkStock}
+                              onChange={(e) => setBulkStock(e.target.value)}
+                              className="w-20 bg-hiraya-surface border border-hiraya-structure-line rounded-lg px-2 py-1.5 text-xs text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleApplyBulkStock}
+                              disabled={bulkStock === ''}
+                              className="px-3 py-1.5 bg-hiraya-accent hover:bg-hiraya-gold-deep text-hiraya-on-accent font-bold uppercase rounded-lg text-[9px] tracking-wider transition cursor-pointer disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:cursor-not-allowed"
+                            >
+                              Apply to {offeredSizes.length} size{offeredSizes.length !== 1 ? 's' : ''}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="mt-3 text-[10px] text-hiraya-ink-muted">No sizes yet — tap the sizes above.</p>
+                      )}
+                    </section>
 
-                    {/* BULK — now it states its scope. */}
-                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-hiraya-structure-line/80">
-                      <input
-                        type="number"
-                        min="0"
-                        inputMode="numeric"
-                        placeholder="Qty"
-                        value={bulkStock}
-                        onChange={(e) => setBulkStock(e.target.value)}
-                        className="w-20 bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-lg px-2 py-1.5 text-xs text-hiraya-ink focus:outline-none focus:border-hiraya-accent"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleApplyBulkStock}
-                        disabled={bulkStock === ''}
-                        className="px-3 py-1.5 bg-hiraya-accent hover:bg-hiraya-gold-deep text-hiraya-on-accent font-bold uppercase rounded-lg text-[9px] tracking-wider transition cursor-pointer disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed"
-                      >
-                        Set all offered
-                      </button>
-                      {/*
-                       * The scope is stated in words, because it is a decision
-                       * with consequences: pressing this with nothing ticked
-                       * writes the number into all six sizes.
-                       */}
-                      <span className="text-[9px] text-hiraya-ink-muted leading-snug">
-                        {offeredCount === 0
-                          ? 'No sizes offered yet — this will turn on all six.'
-                          : `Applies to ${offeredCount} offered size${offeredCount !== 1 ? 's' : ''}.`}
-                      </span>
-                    </div>
+                    {/* 4 · COLOURS */}
+                    <ColorVariantsPanel
+                      variants={colorVariants}
+                      onChange={setColorVariants}
+                      offeredSizes={offeredSizes}
+                      mainSizeStocks={formData.sizes || {}}
+                      primaryColor={formData.primary_color}
+                      themeKey={resolvedThemeKey}
+                      disabled={isSubmitting || isAnalyzingImage}
+                    />
+
+                    {/* 5 · PAIR WITH */}
+                    <PairingPanel
+                      products={products}
+                      currentId={editingId}
+                      category={formData.category}
+                      selectedIds={pairedIds}
+                      onChange={setPairedIds}
+                      disabled={isSubmitting || isAnalyzingImage}
+                    />
                   </div>
-
-              <div className="mt-4">
-                <ColorVariantsPanel
-                  variants={colorVariants}
-                  onChange={setColorVariants}
-                  offeredSizes={AVAILABLE_SIZES.filter((size) => Object.prototype.hasOwnProperty.call(formData.sizes || {}, size))}
-                  themeKey={resolvedThemeKey}
-                  disabled={isSubmitting || isAnalyzingImage}
-                />
-              </div>
-
-              {saveError && (
-                <div className="mt-3 p-3 bg-red-500/12 border border-red-600/40 rounded-xl animate-fadeIn" role="alert">
-                  <p className="text-[11px] text-red-700">{saveError}</p>
                 </div>
-              )}
-
-              {/* FORM ACTIONS */}
-              <div className="pt-3 flex justify-end gap-2 border-t border-hiraya-structure-line/80 shrink-0">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 text-hiraya-ink hover:text-hiraya-ink rounded-xl disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || isAnalyzingImage}
-                  className="px-5 py-2.5 bg-hiraya-accent hover:bg-hiraya-gold-deep text-hiraya-on-accent font-bold uppercase rounded-xl flex items-center gap-2 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none transition cursor-pointer"
-                >
-                  {(isSubmitting || isAnalyzingImage) && <Loader2 size={14} className="animate-spin" />}
-                  {isApplyingTheme
-                    ? 'Applying background…'
-                    : editingId ? 'Update Product' : 'Save Product'}
-                </button>
               </div>
 
+              {/* FOOTER — always visible: what is missing, then Save. */}
+              <div className="shrink-0 border-t border-hiraya-structure-line/80 bg-cream-200/60 px-4 sm:px-5 py-3 space-y-2">
+                {saveError && (
+                  <p role="alert" className="rounded-lg border border-red-600/40 bg-red-500/12 px-3 py-2 text-[11px] text-red-700">{saveError}</p>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <ul className="flex flex-wrap items-center gap-1.5" aria-label="Checklist">
+                    {checklist.map((c) => (
+                      <li
+                        key={c.key}
+                        className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${c.done ? 'bg-emerald-500/12 text-emerald-800' : 'bg-hiraya-surface text-hiraya-ink-muted ring-1 ring-hiraya-structure-line'}`}
+                      >
+                        {c.done ? <Check size={11} /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />}
+                        {c.label}
+                      </li>
+                    ))}
+                    {colorVariants.length > 0 && (
+                      <li className="rounded-full bg-hiraya-surface px-2.5 py-1 text-[10px] font-semibold text-hiraya-ink ring-1 ring-hiraya-structure-line">
+                        +{colorVariants.length} colour{colorVariants.length !== 1 ? 's' : ''}
+                      </li>
+                    )}
+                    {pairedIds.length > 0 && (
+                      <li className="rounded-full bg-hiraya-surface px-2.5 py-1 text-[10px] font-semibold text-hiraya-ink ring-1 ring-hiraya-structure-line">
+                        {pairedIds.length} pair{pairedIds.length !== 1 ? 's' : ''}
+                      </li>
+                    )}
+                  </ul>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-4 py-2.5 text-hiraya-ink hover:bg-cream-200 rounded-xl disabled:opacity-50 transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || isAnalyzingImage}
+                      className="px-6 py-2.5 bg-navy-900 hover:bg-navy-800 text-cream-100 font-bold uppercase tracking-wider rounded-xl flex items-center gap-2 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none transition cursor-pointer shadow-neu-sm"
+                    >
+                      {(isSubmitting || isAnalyzingImage) && <Loader2 size={14} className="animate-spin" />}
+                      {isApplyingTheme ? 'Applying background…' : editingId ? 'Save changes' : 'Save product'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </form>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {confirmDialog}
     </div>

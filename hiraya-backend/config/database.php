@@ -59,7 +59,14 @@ return [
             'username' => env('DB_USERNAME', 'forge'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
-            'prefix' => '',
+            /*
+             * TABLE NAMING CONVENTION: every table is `tbl_<name>` (tbl_users,
+             * tbl_products, ...). Laravel adds this prefix to every table it
+             * names, so code keeps the short names (`users`, `products`). Raw
+             * SQL must add it itself via DB::getTablePrefix(). The live tables
+             * were renamed once by `php artisan hiraya:prefix-tables`.
+             */
+            'prefix' => env('DB_PREFIX', ''),
             'prefix_indexes' => true,
             'search_path' => env('DB_SEARCH_PATH', 'public'),
             // Supabase requires TLS. 'require' is correct for the pooler;

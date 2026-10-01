@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { History, RefreshCw, Loader2 } from 'lucide-react';
+import { History } from 'lucide-react';
 import api from '../../../api/axios';
 
 /*
@@ -58,10 +58,9 @@ export default function StockHistoryTab() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 font-serif text-2xl uppercase tracking-[0.05em] text-navy-900">
+          <h2 className="flex items-center gap-2 font-serif text-xl uppercase tracking-[0.05em] text-navy-900">
             <History size={20} /> Stock History
           </h2>
-          <p className="mt-1 text-[11px] text-hiraya-ink-muted">Every stock change: inventory edits, checkouts and restocks from rejected payments.</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -75,14 +74,6 @@ export default function StockHistoryTab() {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded-xl border border-hiraya-structure-line px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-hiraya-ink transition hover:bg-navy-900/5 disabled:opacity-50 cursor-pointer"
-          >
-            {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Refresh
-          </button>
         </div>
       </div>
 

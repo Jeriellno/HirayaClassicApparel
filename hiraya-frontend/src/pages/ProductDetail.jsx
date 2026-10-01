@@ -21,6 +21,7 @@ import SizeTable, { sortSizes } from '../components/product/SizeTable';
 import ProductGallery from '../components/product/ProductGallery';
 import StylistBox from '../components/product/StylistBox';
 import ProductReviews from '../components/product/ProductReviews';
+import CompleteTheLook from '../components/product/CompleteTheLook';
 import { ColorSelector, SizeSelector } from '../components/product/VariantSelector';
 import AccordionItem from '../components/common/AccordionItem';
 import Currency from '../components/common/Currency';
@@ -670,6 +671,9 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Pieces an admin paired with this one (Inventory > Pair With). */}
+        <CompleteTheLook pairs={product.paired_products} />
 
         {/* Verified-purchase reviews, written from delivered orders. */}
         <ProductReviews productId={product.id} />

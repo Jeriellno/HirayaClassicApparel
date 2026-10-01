@@ -17,7 +17,7 @@ class CartController extends Controller {
         try {
             // Drop orphaned rows (a product deleted by an admin) so a single
             // dangling cart item can't 500 the whole bag.
-            $items = $request->user()->cartItems()->with('product')->latest()->get()
+            $items = $request->user()->cartItems()->with('product.pairedProducts')->latest()->get()
                 ->filter(fn ($item) => $item->product !== null)
                 ->values();
 

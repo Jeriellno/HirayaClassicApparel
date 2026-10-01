@@ -5,7 +5,8 @@ import { Star, MessageSquare, TrendingUp, Mail, ChevronLeft, ChevronRight } from
 const PAGE_SIZE = 5;
 
 /**
- * SUPER ADMIN — USER FEEDBACK.
+ * CUSTOMERS FEEDBACK — named only: every entry comes from a signed-in
+ * customer (GET /admin/customer-feedback). Readable by admins and the super admin.
  *
  * The tab previously rendered a flat list of message + rating with no summary
  * at all — an "average rating" could not be read off it without counting by
@@ -61,11 +62,8 @@ const FeedbackTab = ({ feedbacks = [] }) => {
     <div className="space-y-6 animate-fadeIn max-w-4xl">
       <div>
         <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900">
-          Student &amp; User Feedback
+          Customers Feedback
         </h2>
-        <p className="text-xs text-hiraya-ink mt-1">
-          Review research responses and student satisfaction ratings.
-        </p>
       </div>
 
       {/* AGGREGATES */}
@@ -157,15 +155,11 @@ const FeedbackTab = ({ feedbacks = [] }) => {
                   <div className="min-w-0">
                     <span className="font-mono text-hiraya-ink flex items-center gap-2">
                       <MessageSquare size={14} className="text-hiraya-ink shrink-0" />
-                      <span className="truncate">{fb.user_name || fb.user_email || 'Unknown sender'}</span>
+                      <span className="truncate font-semibold">{fb.customer_name}</span>
                     </span>
                     <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-hiraya-sand">
                       <Mail size={11} className="shrink-0" />
-                      {fb.user_email ? (
-                        <span className="truncate">{fb.user_email}</span>
-                      ) : (
-                        <span className="italic">No email (sent before sign-in was required)</span>
-                      )}
+                      <span className="truncate">{fb.customer_email}</span>
                     </span>
                   </div>
                   <span className="text-hiraya-ink font-mono flex items-center gap-1 text-[11px] bg-hiraya-accent/10 px-2 py-0.5 rounded border border-hiraya-accent/20">
@@ -188,7 +182,7 @@ const FeedbackTab = ({ feedbacks = [] }) => {
           })
         ) : (
           <div className="p-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80">
-            {feedbacks.length === 0 ? 'No student feedback received yet' : 'Nothing matches this filter'}
+            {feedbacks.length === 0 ? 'No customers feedback received yet' : 'Nothing matches this filter'}
           </div>
         )}
       </div>

@@ -3,11 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class TryOnSession extends Model
 {
-    use HasFactory;
+    /*
+     * SOFT DELETES: a customer's "delete" hides the session from their history;
+     * staff can restore it from Customers Management when the customer asks.
+     */
+    use HasFactory, SoftDeletes;
 
     protected $table = 'try_on_sessions';
 

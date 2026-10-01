@@ -79,8 +79,6 @@ class MakeAdminCommand extends Command
 
             $existing->forceFill([
                 'role' => $role,
-                'inventory_permissions' => $existing->inventory_permissions ?? 'READ_WRITE',
-                'ai_rules_access' => $existing->ai_rules_access ?? true,
             ])->save();
 
             $this->newLine();
@@ -106,8 +104,6 @@ class MakeAdminCommand extends Command
             'email' => $email,
             'password' => bcrypt($password),
             'role' => $role,
-            'inventory_permissions' => 'READ_WRITE',
-            'ai_rules_access' => true,
         ]);
 
         $this->newLine();

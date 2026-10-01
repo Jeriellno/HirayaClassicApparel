@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  RefreshCw,
+  PlayCircle,
   Package,
   Search,
   Truck,
@@ -20,6 +20,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import api from '../../../api/axios';
+import useConfirm from '../../../hooks/useConfirm';
 
 /**
  * SUPER ADMIN — ORDERS.
@@ -256,6 +257,14 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
     }
   };
 
+  // DEMO ORDERS ONLY: stands in for the customer uploading the balance receipt.
+  const simulateBalance = () =>
+    runAction(
+      'demo-balance',
+      () => api.post(`/admin/orders/${order.id}/demo-balance`),
+      'Could not simulate the balance payment.'
+    );
+
   const confirmFullPayment = () =>
     runAction(
       'confirm-full',
@@ -491,6 +500,17 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                 submittedAt={order.balance_proof_submitted_at}
                 hasProof={Boolean(order.full_payment_proof_image_path)}
               >
+                {order.is_demo && order.payment_status === '50_paid' && !order.full_payment_proof_image_path && !locked && (
+                  <button
+                    type="button"
+                    onClick={simulateBalance}
+                    disabled={Boolean(saving)}
+                    className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-700/50 bg-sky-500/10 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-sky-900 transition hover:bg-sky-500/20 cursor-pointer disabled:opacity-50"
+                  >
+                    {saving === 'demo-balance' ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
+                    Simulate customer balance payment
+                  </button>
+                )}
                 {order.payment_status === '50_paid' && !locked && (
                   <button
                     type="button"
@@ -665,6 +685,50 @@ const OrdersTab = ({ initialSearch = '', initialOrderId = null } = {}) => {
 
   const closeSheet = useCallback(() => setSelectedId(null), []);
 
+  const [confirm, confirmDialog] = useConfirm();
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoNotice, setDemoNotice] = useState('');
+  const demoCount = orders.filter((o) => o.is_demo).length;
+
+  const createDemo = async () => {
+    setDemoBusy(true);
+    setDemoNotice('');
+    try {
+      const res = await api.post('/admin/orders/demo');
+      const order = res.data?.order;
+      if (order) {
+        setOrders((current) => [order, ...current.filter((o) => o.id !== order.id)]);
+        setSelectedId(order.id);
+      }
+      setDemoNotice(res.data?.message || 'Demo order created.');
+    } catch (err) {
+      setDemoNotice(err?.response?.data?.message || 'The demo order could not be created.');
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
+  const clearDemo = async () => {
+    const ok = await confirm({
+      title: 'Remove all demo orders?',
+      message: `This deletes ${demoCount} demo order(s) and their sample receipts. Real orders are not touched.`,
+      confirmText: 'Remove demo orders',
+      danger: true,
+    });
+    if (!ok) return;
+    setDemoBusy(true);
+    try {
+      const res = await api.delete('/admin/orders/demo');
+      setOrders((current) => current.filter((o) => !o.is_demo));
+      setSelectedId(null);
+      setDemoNotice(res.data?.message || 'Demo orders removed.');
+    } catch (err) {
+      setDemoNotice(err?.response?.data?.message || 'The demo orders could not be removed.');
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
   const handleUpdated = useCallback((updated) => {
     setOrders((current) => current.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
   }, []);
@@ -720,39 +784,57 @@ const OrdersTab = ({ initialSearch = '', initialOrderId = null } = {}) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-hiraya-structure-line">
         <div>
           <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900 flex items-center gap-2">
-            <Package size={22} /> ORDER OVERSIGHT
+            <Package size={22} /> Orders Management
           </h2>
-          <p className="text-xs text-hiraya-ink mt-1">
-            Tap an order to verify its payment receipts, add tracking and update its status. The customer is notified of every change.
-          </p>
         </div>
 
-        <button
-          onClick={fetchOrders}
-          disabled={fetching}
-          className="px-4 py-2.5 bg-hiraya-accent hover:bg-hiraya-gold-deep disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none text-hiraya-on-accent font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
-        >
-          <RefreshCw size={16} className={fetching ? 'animate-spin' : ''} />
-          {fetching ? 'Loading' : 'Refresh'}
-        </button>
+        {/*
+          * DEMO MODE — for presenting the payment flow. A demo order walks the
+          * real admin flow; only the customer's uploads are simulated. Demo
+          * orders never touch stock and are left out of the dashboard.
+          */}
+        <div className="flex flex-wrap items-center gap-2">
+          {demoCount > 0 && (
+            <button
+              type="button"
+              onClick={clearDemo}
+              disabled={demoBusy}
+              className="px-3 py-2.5 rounded-xl border border-hiraya-structure-line text-hiraya-ink font-bold uppercase tracking-wider text-[10px] hover:bg-cream-200 transition cursor-pointer disabled:opacity-50"
+            >
+              Clear demo orders ({demoCount})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={createDemo}
+            disabled={demoBusy}
+            className="px-4 py-2.5 bg-navy-900 hover:bg-navy-800 text-cream-100 font-bold uppercase tracking-wider rounded-xl flex items-center gap-2 text-[10px] transition cursor-pointer disabled:opacity-50"
+          >
+            {demoBusy ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />} Create demo order
+          </button>
+        </div>
       </div>
 
+      {demoNotice && (
+        <p role="status" className="rounded-xl border border-sky-700/30 bg-sky-500/10 px-4 py-2.5 text-[11px] text-sky-900">{demoNotice}</p>
+      )}
+
       {/* SUMMARY METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Total Orders</p>
-          <p className="text-3xl font-bold text-hiraya-ink pt-1">{totals.count}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="p-3 sm:p-5 bg-hiraya-surface rounded-[18px] sm:rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
+          <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-hiraya-ink leading-tight">Total Orders</p>
+          <p className="text-lg sm:text-3xl font-bold text-hiraya-ink pt-1">{totals.count}</p>
         </div>
-        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Total Revenue</p>
-          <p className="text-3xl font-bold text-emerald-700 pt-1">{peso(totals.revenue)}</p>
+        <div className="p-3 sm:p-5 bg-hiraya-surface rounded-[18px] sm:rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
+          <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-hiraya-ink leading-tight">Total Revenue</p>
+          <p className="text-lg sm:text-3xl font-bold text-emerald-700 pt-1">{peso(totals.revenue)}</p>
           <p className="text-[10px] text-hiraya-sand">
             {peso(totals.collected)} paid · {peso(totals.revenue - totals.collected)} outstanding
           </p>
         </div>
-        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Pending Orders</p>
-          <p className="text-3xl font-bold pt-1 text-hiraya-ink">{totals.pending}</p>
+        <div className="p-3 sm:p-5 bg-hiraya-surface rounded-[18px] sm:rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
+          <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-hiraya-ink leading-tight">Pending Orders</p>
+          <p className="text-lg sm:text-3xl font-bold pt-1 text-hiraya-ink">{totals.pending}</p>
         </div>
       </div>
 
@@ -828,6 +910,9 @@ const OrdersTab = ({ initialSearch = '', initialOrderId = null } = {}) => {
                 >
                   <span className="flex items-center gap-1.5 font-bold text-hiraya-ink uppercase tracking-widest">
                     #{order.id}
+                    {order.is_demo && (
+                      <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-sky-900">DEMO</span>
+                    )}
                     {needsVerification(order) && (
                       <Receipt size={12} className="text-hiraya-accent" aria-label="Receipt waiting for verification" />
                     )}
@@ -856,6 +941,8 @@ const OrdersTab = ({ initialSearch = '', initialOrderId = null } = {}) => {
           />
         )}
       </AnimatePresence>
+
+      {confirmDialog}
     </div>
   );
 };

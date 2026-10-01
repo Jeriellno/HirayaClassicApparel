@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\AccountAudit;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\PasswordStrength;
@@ -22,6 +23,13 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
+        // System Settings -> "Customer sign-ups". Enforced here, not only in the UI.
+        if (! \App\Models\SystemSetting::isOn('registrations_open')) {
+            return response()->json([
+                'message' => 'New sign-ups are paused right now. Please try again later.',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'full_name'      => 'required|string|max:255',
             'email'          => 'required|string|email|max:255|unique:users,email',
@@ -113,6 +121,8 @@ class AuthController extends Controller
         // on the shop without a second login round-trip.
         $token = $user->createToken('auth_token', ['*'], now()->addDays(30))->plainTextToken;
 
+        AccountAudit::record($user, 'USER_REGISTERED', 'Account created for ' . $user->full_name . '.', $request);
+
         return response()->json([
             'message' => 'User registered successfully.',
             'token'   => $token,
@@ -176,6 +186,13 @@ class AuthController extends Controller
         $user = User::where('email', strtolower(trim($request->email)))->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
+            // A wrong password on a REAL account is worth auditing (repeated
+            // failures are how a guessing attack shows up). An unknown email has
+            // no account to attach the row to, so it is not recorded.
+            if ($user) {
+                AccountAudit::record($user, 'USER_LOGIN_FAILED', 'Sign-in refused: wrong password.', $request);
+            }
+
             /*
              * A wrong password answers identically whether or not the account
              * has a second factor, so this endpoint cannot be used to discover
@@ -268,6 +285,13 @@ class AuthController extends Controller
                  */
                 $user->forceFill(['last_login_at' => now()])->save();
 
+                AccountAudit::record(
+                    $user,
+                    'USER_LOGIN',
+                    'Signed in' . ($request->boolean('remember') ? ' (remember me, 30 days).' : ' (24-hour session).'),
+                    $request,
+                );
+
                 // Explicit, stable auth payload. The frontend uses `user.role` to decide
                 // the post-login destination (admin -> /superadmin, customer -> /shop), so
                 // the role MUST be present here - returning a bare `$user->fresh()` coupled
@@ -280,6 +304,16 @@ class AuthController extends Controller
                         'full_name' => $user->full_name,
                         'email'     => $user->email,
                         'role'      => $user->role,
+                        /*
+                         * The sizing profile and gender travel with the sign-in.
+                         * Without them the client held a partial user until the
+                         * next full reload, so Account Settings showed "Not set"
+                         * — and saving that form wiped the sizes that WERE saved.
+                         */
+                        'upper_body_size' => $user->upper_body_size,
+                        'lower_body_size' => $user->lower_body_size,
+                        'preferred_fit'   => $user->preferred_fit,
+                        'gender'          => $user->gender,
                     ],
                 ], 200);
             }
@@ -467,6 +501,7 @@ class AuthController extends Controller
 
         if ($token && method_exists($token, 'delete')) {
             $token->delete();
+            AccountAudit::record($request->user(), 'USER_LOGOUT', 'Signed out.', $request);
         }
 
         return response()->json(['message' => 'Logged out successfully'], 200);

@@ -311,11 +311,13 @@ class AnalyticsController extends Controller
              * SQL aggregate, so this is one small query instead of a full hydration.
              */
             $row = Product::query()
-                ->selectRaw('COUNT(DISTINCT products.id) AS total_products')
-                ->selectRaw('COALESCE(SUM(DISTINCT products.stock), 0) AS total_inventory')
-                ->selectRaw('COUNT(DISTINCT products.id) FILTER (WHERE products.stock < 5) AS low_stock_count')
-                ->selectRaw('COALESCE(SUM(DISTINCT products.canvas_drag_count), 0) AS total_canvas_drags')
-                ->selectRaw('COALESCE(SUM(DISTINCT products.try_on_count), 0) AS total_try_ons')
+                // Unqualified on purpose: this is a single-table query, and a raw
+                // "products." would not follow the `tbl_` table prefix.
+                ->selectRaw('COUNT(DISTINCT id) AS total_products')
+                ->selectRaw('COALESCE(SUM(DISTINCT stock), 0) AS total_inventory')
+                ->selectRaw('COUNT(DISTINCT id) FILTER (WHERE stock < 5) AS low_stock_count')
+                ->selectRaw('COALESCE(SUM(DISTINCT canvas_drag_count), 0) AS total_canvas_drags')
+                ->selectRaw('COALESCE(SUM(DISTINCT try_on_count), 0) AS total_try_ons')
                 ->first();
 
             /*
@@ -600,7 +602,13 @@ class AnalyticsController extends Controller
             }, $buckets));
 
             // TOP PERFORMING PRODUCTS — units actually sold on valid orders.
-            $productName = 'COALESCE(products.name, order_items.product_name_snapshot)';
+            /*
+             * RAW SQL MUST NAME THE PREFIXED TABLES. Laravel adds the connection's
+             * table prefix (`tbl_`) to every identifier it builds, but not to text
+             * inside selectRaw/groupByRaw — so raw fragments take it from here.
+             */
+            $t = fn (string $table) => DB::getTablePrefix() . $table;
+            $productName = "COALESCE({$t('products')}.name, {$t('order_items')}.product_name_snapshot)";
             $topProducts = DB::table('order_items')
                 ->join('orders', 'orders.id', '=', 'order_items.order_id')
                 ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
@@ -608,7 +616,7 @@ class AnalyticsController extends Controller
                 ->where('orders.order_status', '<>', 'rejected')
                 ->whereIn('orders.payment_status', ['fully_paid', '50_paid'])
                 ->selectRaw("{$productName} AS name")
-                ->selectRaw('SUM(order_items.quantity) AS units')
+                ->selectRaw("SUM({$t('order_items')}.quantity) AS units")
                 ->groupByRaw($productName)
                 ->orderByDesc('units')
                 ->orderBy('name')
@@ -649,11 +657,11 @@ class AnalyticsController extends Controller
             // AI TRY-ON PERFORMANCE — sessions per product (image columns never read).
             $tryOnProducts = collect(DB::select(
                 "SELECT elem->>'name' AS name, COUNT(*) AS sessions
-                   FROM try_on_sessions,
-                        json_array_elements(CASE WHEN json_typeof(garment_metadata_json) = 'array'
-                                                 THEN garment_metadata_json ELSE '[]'::json END) AS elem
+                   FROM {$t('try_on_sessions')} AS s,
+                        json_array_elements(CASE WHEN json_typeof(s.garment_metadata_json) = 'array'
+                                                 THEN s.garment_metadata_json ELSE '[]'::json END) AS elem
                   WHERE COALESCE(elem->>'name', '') <> ''
-                    AND try_on_sessions.created_at BETWEEN ? AND ?
+                    AND s.created_at BETWEEN ? AND ?
                GROUP BY elem->>'name'
                ORDER BY sessions DESC, name ASC
                   LIMIT 5",
@@ -740,7 +748,8 @@ class AnalyticsController extends Controller
                     'product_reviews.comment',
                     'product_reviews.created_at',
                     'users.full_name as customer',
-                    DB::raw('COALESCE(products.name, order_items.product_name_snapshot) AS product_name'),
+                    DB::raw('COALESCE(' . DB::getTablePrefix() . 'products.name, '
+                        . DB::getTablePrefix() . 'order_items.product_name_snapshot) AS product_name'),
                 ])
                 ->map(fn ($r) => [
                     'id' => $r->id,
@@ -767,7 +776,7 @@ class AnalyticsController extends Controller
             // The product that appears in the most try-on sessions.
             $mostTried = DB::selectOne(
                 "SELECT elem->>'name' AS name, COUNT(*) AS sessions
-                   FROM try_on_sessions,
+                   FROM " . DB::getTablePrefix() . "try_on_sessions,
                         json_array_elements(CASE WHEN json_typeof(garment_metadata_json) = 'array'
                                                  THEN garment_metadata_json ELSE '[]'::json END) AS elem
                   WHERE COALESCE(elem->>'name', '') <> ''

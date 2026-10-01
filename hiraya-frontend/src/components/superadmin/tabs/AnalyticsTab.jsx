@@ -352,7 +352,7 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
       </Panel>
 
       {/* Interaction stream */}
-      <Panel title="Live try-on activity stream" icon={BarChart2}>
+      <Panel title="Try-on activity" icon={BarChart2}>
         {logs.length > 0 ? (
           <ul className="max-h-[28rem] space-y-2.5 overflow-y-auto pr-1">
             {logs.map((log, idx) => (

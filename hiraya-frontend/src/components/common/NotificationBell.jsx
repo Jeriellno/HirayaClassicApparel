@@ -74,6 +74,13 @@ const NotificationBell = () => {    const { user } = useAuth();
     navigate(`/orders?order=${notification.data?.order_id}`);
   };
 
+  // A "Try-on Restored" notification opens the restored look's history.
+  const handleViewTryOn = (notification) => {
+    if (!notification.read_at) markReadMutation.mutate(notification.id);
+    setOpen(false);
+    navigate('/try-on?history=1');
+  };
+
   const handleMarkAll = () => markAllMutation.mutate();
 
   /*
@@ -184,6 +191,15 @@ const NotificationBell = () => {    const { user } = useAuth();
                             className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent transition-colors hover:bg-hiraya-accent-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus"
                           >
                             <Star size={11} /> Review
+                          </button>
+                        )}
+                        {n.data?.action === 'view_tryon' && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewTryOn(n)}
+                            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent transition-colors hover:bg-hiraya-accent-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus"
+                          >
+                            View try-on
                           </button>
                         )}
                       </div>

@@ -88,8 +88,6 @@ class MakeSuperadminCommand extends Command
             $existing->forceFill([
                 'full_name' => $name ?: $existing->full_name,
                 'role' => 'superadmin',
-                'inventory_permissions' => $existing->inventory_permissions ?? 'READ_WRITE',
-                'ai_rules_access' => $existing->ai_rules_access ?? true,
             ])->save();
 
             $this->newLine();
@@ -155,8 +153,6 @@ class MakeSuperadminCommand extends Command
             'password' => Hash::make($password),
             'role' => 'superadmin',
             'auth_id' => $authId,
-            'inventory_permissions' => 'READ_WRITE',
-            'ai_rules_access' => true,
         ]);
 
         $this->newLine();

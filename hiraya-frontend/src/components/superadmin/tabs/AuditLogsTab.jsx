@@ -1,250 +1,248 @@
-import React, { useState } from 'react';
-import { History, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
+import { History, Search, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { displayAuditDetails } from '../../../utils/formatAuditDetails';
 
-/** Log entries per page; the sixth starts page two (matches the Inventory Catalog). */
-const PAGE_SIZE = 5;
+/*
+ * AUDIT LOGS — who did what, and when.
+ *
+ * Super admin: every staff action, including which console sections each
+ * admin OPENED (written by the console on every section change), plus
+ * customer-account activity. Admin: the limited customer-account view the API
+ * already filtered and masked.
+ *
+ * Compact rows: fixed column widths and a one-line summary, so a long detail
+ * no longer stretches a row; click a row to read everything.
+ */
 
-export default function AuditLogsTab({ auditLogs = [] }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterAction, setFilterAction] = useState('ALL');
-  /*
-   * The actor column on `audit_logs` is `admin_email` (see the migration and
-   * AuditLog::$fillable). This component searched and rendered
-   * `performed_by` / `user_email` — fields the table has NEVER had — so the
-   * "Performed By" cell fell through to its 'SuperAdmin' placeholder on every
-   * row and the audit trail could not name the real actor. That is the exact
-   * bug the SuperAdminController writes an actor to fix, so the read side has
-   * to use the same field name.
-   */
-  const actorOf = (log) => log.admin_email || log.performed_by || log.user_email || '';
+const PAGE_SIZE = 15;
 
-  /*
-   * FILTERS ARE DERIVED FROM THE DATA, NOT HARDCODED.
-   *
-   * `filterAction` was state with no control bound to it — there was never a
-   * <select>, so it sat on 'ALL' forever and the filter did nothing. Worse, the
-   * obvious fix (a hardcoded list of known actions) would have immediately gone
-   * stale the moment a new endpoint started writing to the trail, and the
-   * operator would have no way to filter by it. The backend accepts a free-form
-   * `action` string, so the only list that can never be wrong is the list of
-   * actions actually present in the rows being displayed.
-   *
-   * Grouping is by TARGET rather than by action, because the question an
-   * operator asks first is "what did they do to the orders?", not "show me every
-   * distinct verb". Target is the small fixed vocabulary; action is unbounded.
-   */
-  const availableTargets = [...new Set(auditLogs.map((log) => log.target).filter(Boolean))].sort();
-  const selectedTarget = filterAction;
+const RANGES = [
+  { id: 'all', label: 'All time', days: null },
+  { id: 'today', label: 'Today', days: 0 },
+  { id: '7', label: 'Last 7 days', days: 7 },
+  { id: '30', label: 'Last 30 days', days: 30 },
+];
 
-  const filteredLogs = auditLogs.filter((log) => {
-    // The search box looks up WHO did it — the "Performed By" column only. The
-    // area dropdown already narrows by target, so matching action/details text
-    // here only returned noise.
-    const matchesSearch = (actorOf(log) || '').toLowerCase().includes(searchTerm.trim().toLowerCase());
+/** "APPROVE_DOWN_PAYMENT" -> "Approve down payment", with a few friendlier names. */
+const ACTION_LABELS = {
+  OPEN_SECTION: 'Opened section',
+  USER_LOGIN: 'Signed in',
+  USER_LOGIN_FAILED: 'Failed sign-in',
+  USER_LOGOUT: 'Signed out',
+  USER_REGISTERED: 'Registered',
+  VIEW_CUSTOMER_PROFILE: 'Viewed customer',
+  EXPORT_DATABASE: 'Exported database',
+};
+const actionLabel = (a) =>
+  ACTION_LABELS[a] || String(a || 'ACTION').toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
-    const matchesFilter = selectedTarget === 'ALL' || log.target === selectedTarget;
-    return matchesSearch && matchesFilter;
-  });
+const ACTION_TONE = (a = '') => {
+  if (/FAILED|REJECT|REMOVE|DELETE|SUSPEND/.test(a)) return 'bg-red-500/10 text-red-700 border-red-600/30';
+  if (/APPROVE|CONFIRM|CREATE|RESTORE|REACTIVATE/.test(a)) return 'bg-emerald-500/10 text-emerald-800 border-emerald-600/30';
+  if (a === 'OPEN_SECTION' || a.startsWith('VIEW')) return 'bg-cream-200/70 text-charcoal-700 border-hiraya-structure-line';
+  return 'bg-navy-100 text-navy-800 border-navy-300/60';
+};
 
-  /*
-   * SELF-HEALING FILTER.
-   *
-   * `availableTargets` is computed from whatever rows were last fetched, but the
-   * <select> keeps its own value. If the console reloads (or the filter survives a
-   * tab switch) into a set of rows that no longer contains the selected target,
-   * the list silently renders EMPTY — indistinguishable from "the audit log is
-   * broken", which is the opposite of what the operator needs to see.
-   *
-   * Falling back to 'ALL' whenever the selection is no longer valid makes the
-   * component safe against any change in the data behind it, with no effect on the
-   * normal case where the selection is still present.
-   */
-  React.useEffect(() => {
-    if (selectedTarget !== 'ALL' && !availableTargets.includes(selectedTarget)) {
-      setFilterAction('ALL');
-    }
-  }, [availableTargets, selectedTarget]);
+const ROLE_LABEL = { superadmin: 'Super admin', admin: 'Admin', user: 'Customer' };
 
-  const noResults = filteredLogs.length === 0;
-
-  /*
-   * PAGINATION — five entries per page, same as the Inventory Catalog.
-   * It pages the FILTERED rows, so every area in the dropdown (All areas,
-   * CUSTOMERS, ORDERS, PRODUCTS, …) gets its own 5-per-page list. Changing the
-   * area or the search resets to page one; `safePage` clamps if the list shrinks.
-   */
+export default function AuditLogsTab({ auditLogs = [], role = 'superadmin' }) {
+  const isOwner = role === 'superadmin';
+  const [search, setSearch] = useState('');
+  const [person, setPerson] = useState('ALL');
+  const [area, setArea] = useState('ALL');
+  const [range, setRange] = useState('all');
   const [page, setPage] = useState(0);
-  const pageCount = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+  const [openId, setOpenId] = useState(null);
+
+  const actorOf = (log) => log.admin_email || '';
+
+  const people = useMemo(() => [...new Set(auditLogs.map(actorOf).filter(Boolean))].sort(), [auditLogs]);
+  const areas = useMemo(() => [...new Set(auditLogs.map((l) => l.target).filter(Boolean))].sort(), [auditLogs]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const days = RANGES.find((r) => r.id === range)?.days;
+    let since = null;
+    if (days !== null && days !== undefined) {
+      since = new Date();
+      since.setHours(0, 0, 0, 0);
+      since.setDate(since.getDate() - days);
+    }
+    return auditLogs.filter((log) => {
+      if (person !== 'ALL' && actorOf(log) !== person) return false;
+      if (area !== 'ALL' && log.target !== area) return false;
+      if (since && new Date(log.created_at) < since) return false;
+      if (term) {
+        const hay = `${actorOf(log)} ${log.action} ${actionLabel(log.action)} ${log.details || ''}`.toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [auditLogs, search, person, area, range]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
-  const pageStart = safePage * PAGE_SIZE;
-  const pagedLogs = filteredLogs.slice(pageStart, pageStart + PAGE_SIZE);
+  const rows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const filtersOn = search || person !== 'ALL' || area !== 'ALL' || range !== 'all';
+  const reset = (fn) => (e) => { fn(e.target.value); setPage(0); };
+
+  const select = 'rounded-xl border border-hiraya-structure-line bg-hiraya-surface px-3 py-2 text-[11px] text-hiraya-ink focus:border-hiraya-accent focus:outline-none';
 
   return (
-    <div className="space-y-7 animate-fadeIn text-xs">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-hiraya-structure-line">
-        <div>
-          <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900 flex items-center gap-2">
-            <History size={22} /> SYSTEM AUDIT LOGS
-          </h2>
-          <p className="text-xs text-hiraya-ink mt-1">
-            Real-time security audit trails and administrative action tracking.
-          </p>
-        </div>
-
-        {/* SEARCH CONTROLS */}
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={selectedTarget}
-            onChange={(e) => {
-              setFilterAction(e.target.value);
-              setPage(0); // each area starts on its first page
-            }}
-            aria-label="Filter audit logs by area"
-            className="px-3 py-1.5 bg-hiraya-cream-deep border border-hiraya-structure-line rounded-xl text-hiraya-ink focus:outline-none focus:border-hiraya-maroon focus:ring-2 focus:ring-hiraya-maroon/25 text-xs"
-          >
-            <option value="ALL">All areas</option>
-            {availableTargets.map((target) => (
-              <option key={target} value={target}>{target}</option>
-            ))}
-          </select>
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-hiraya-sand" />
-            <input
-              type="text"
-              placeholder="Search performed by..."
-              aria-label="Search audit logs by who performed the action"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(0); // a new search starts on page one
-              }}
-              className="pl-8 pr-3 py-1.5 bg-hiraya-cream-deep border border-hiraya-structure-line rounded-xl text-hiraya-ink placeholder:text-hiraya-sand/70 focus:outline-none focus:border-hiraya-maroon focus:ring-2 focus:ring-hiraya-maroon/25 text-xs"
-            />
-          </div>
-        </div>
+    <div className="space-y-4 animate-fadeIn">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="flex items-center gap-2 font-serif text-xl uppercase tracking-[0.05em] text-navy-900">
+          <History size={20} /> {isOwner ? 'Activity Log' : 'Customer Account Audit'}
+        </h2>
+        {!isOwner && (
+          <span className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-800">
+            Limited view — e-mails are masked
+          </span>
+        )}
       </div>
 
-      {/* AUDIT LOGS TABLE */}
-      <div className="bg-hiraya-surface rounded-[22px] overflow-hidden shadow-neu ring-1 ring-cream-50/80">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-navy-900 uppercase tracking-[0.16em] text-[10px] text-cream-100">
+      {/* FILTERS */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-hiraya-sand" />
+          <input value={search} onChange={reset(setSearch)} placeholder="Search actions or details…" aria-label="Search the log" className={`${select} w-full pl-8`} />
+        </div>
+        <select value={person} onChange={reset(setPerson)} aria-label="Filter by person" className={select}>
+          <option value="ALL">Everyone</option>
+          {people.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={area} onChange={reset(setArea)} aria-label="Filter by area" className={select}>
+          <option value="ALL">All areas</option>
+          {areas.map((a) => <option key={a} value={a}>{a.replace(/_/g, ' ').toLowerCase().replace(/^./, (c) => c.toUpperCase())}</option>)}
+        </select>
+        <select value={range} onChange={reset(setRange)} aria-label="Filter by date" className={select}>
+          {RANGES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </select>
+        {filtersOn && (
+          <button type="button" onClick={() => { setSearch(''); setPerson('ALL'); setArea('ALL'); setRange('all'); setPage(0); }} className="cursor-pointer text-[11px] font-semibold text-navy-800 underline-offset-2 hover:underline">
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* TABLE (cards on phones) */}
+      <div className="overflow-hidden rounded-[20px] bg-hiraya-surface shadow-neu ring-1 ring-cream-50/80">
+        <ul className="divide-y divide-hiraya-structure-line/60 md:hidden">
+          {rows.length === 0 ? (
+            <li className="px-4 py-10 text-center text-[11px] text-charcoal-500">
+              {auditLogs.length && filtersOn ? 'No entries match these filters.' : 'No activity recorded yet.'}
+            </li>
+          ) : (
+            rows.map((log, idx) => {
+              const id = log.id ?? idx;
+              const isOpen = openId === id;
+              const d = log.created_at ? new Date(log.created_at) : null;
+              return (
+                <li key={id}>
+                  <button type="button" onClick={() => setOpenId(isOpen ? null : id)} className="w-full cursor-pointer px-4 py-3 text-left">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`truncate rounded-md border px-2 py-0.5 text-[10px] font-semibold ${ACTION_TONE(log.action)}`}>{actionLabel(log.action)}</span>
+                      <span className="shrink-0 text-[10px] text-charcoal-500">{d ? d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</span>
+                    </div>
+                    <p className="mt-1 truncate text-[11px] font-semibold text-hiraya-ink">{actorOf(log) || 'System'}</p>
+                    <p className={`mt-0.5 text-[11px] text-charcoal-700 ${isOpen ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>{log.details || '—'}</p>
+                    {isOpen && isOwner && log.ip_address && <p className="mt-1 text-[10px] text-charcoal-500">IP {log.ip_address}</p>}
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[760px] table-fixed text-left text-[12px]">
+            <thead className="bg-navy-900 text-[10px] uppercase tracking-[0.14em] text-cream-100">
               <tr>
-                <th className="p-4">TIMESTAMP</th>
-                <th className="p-4">PERFORMED BY</th>
-                <th className="p-4">ACTION</th>
-                <th className="p-4">TARGET</th>
-                <th className="p-4">DETAILS</th>
+                <th className="w-[15%] px-4 py-2.5">When</th>
+                <th className="w-[23%] px-4 py-2.5">Who</th>
+                <th className="w-[19%] px-4 py-2.5">Action</th>
+                <th className="w-[43%] px-4 py-2.5">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-hiraya-structure-line/70 text-hiraya-ink">
-              {filteredLogs && filteredLogs.length > 0 ? (
-                pagedLogs.map((log, idx) => (
-                  <tr key={log.id || idx} className="hover:bg-cream-200/60 transition">
-                    <td className="p-4 text-hiraya-ink whitespace-nowrap">
-                      {log.created_at ? new Date(log.created_at).toLocaleString() : new Date().toLocaleString()}
-                    </td>
-                    <td className="p-4 font-semibold text-hiraya-ink">
-                      {actorOf(log) || 'System'}
-                    </td>
-                    <td className="p-4">
-                      <span className="px-2 py-0.5 bg-hiraya-accent/10 border border-hiraya-accent/30 text-hiraya-ink text-[10px] rounded font-bold uppercase">
-                        {log.action || 'SETTINGS_TOGGLE'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-hiraya-ink uppercase text-[10px] tracking-wider">
-                      {log.target ? (
-                        <span className="px-2 py-0.5 bg-cream-200/60 border border-hiraya-structure-line/80 rounded">
-                          {log.target}
-                        </span>
-                      ) : (
-                        <span className="text-hiraya-sand">—</span>
-                      )}
-                    </td>
-                    {/*
-                     * WRAPPED, NOT TRUNCATED. The diff strings written by
-                     * describeChanges() are the whole point of the entry, and a CSS
-                     * ellipsis hides exactly the "price: 1200 -> 1450" part that makes
-                     * the row worth reading. `title` still carries the raw value so the
-                     * full text is one hover away, and `break-words` stops one long
-                     * value from stretching the column.
-                     */}
-                    <td
-                      className="p-4 text-hiraya-ink max-w-md"
-                      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-                      title={typeof log.details === 'object' ? JSON.stringify(log.details) : log.details}
-                    >
-                      {/* PRODUCTS rows show a short, readable summary; the full stored text stays in the hover title. */}
-                      {displayAuditDetails(log)}
-                    </td>
-                  </tr>
-                ))
-              ) : (
+            <tbody className="divide-y divide-hiraya-structure-line/60 text-hiraya-ink">
+              {rows.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="py-20 text-center">
-                    {/*
-                     * "NO AUDIT LOGS RECORDED" was shown for BOTH cases: a genuinely
-                     * empty log, and rows that exist but were excluded by the search
-                     * or the area filter. Those are opposite situations — one means
-                     * the trail is not being written, the other means the operator
-                     * has simply narrowed it too far — and collapsing them into one
-                     * message is what makes a working log look broken.
-                     */}
-                    <span className="block text-hiraya-sand uppercase tracking-[0.25em] font-light">
-                      {noResults && auditLogs.length > 0
-                        ? 'NO LOGS MATCH THE CURRENT FILTER'
-                        : 'NO AUDIT LOGS RECORDED'}
-                    </span>
-                    {noResults && auditLogs.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => { setSearchTerm(''); setFilterAction('ALL'); setPage(0); }}
-                        className="mt-3 text-hiraya-ink underline underline-offset-4 cursor-pointer hover:opacity-70 normal-case tracking-normal"
-                      >
-                        Clear filters
-                      </button>
-                    )}
+                  <td colSpan={4} className="px-4 py-14 text-center text-[11px] text-charcoal-500">
+                    {auditLogs.length && filtersOn ? 'No entries match these filters.' : 'No activity recorded yet.'}
                   </td>
                 </tr>
+              ) : (
+                rows.map((log, idx) => {
+                  const id = log.id ?? idx;
+                  const isOpen = openId === id;
+                  const d = log.created_at ? new Date(log.created_at) : null;
+                  const summary = displayAuditDetails(log);
+                  return (
+                    <Fragment key={id}>
+                      <tr
+                        onClick={() => setOpenId(isOpen ? null : id)}
+                        className={`cursor-pointer align-middle transition hover:bg-cream-200/50 ${isOpen ? 'bg-cream-200/50' : ''}`}
+                      >
+                        <td className="px-4 py-2.5 leading-tight">
+                          <span className="block font-medium">{d ? d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
+                          <span className="block text-[10px] text-charcoal-500">{d ? d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) : ''}</span>
+                        </td>
+                        <td className="truncate px-4 py-2.5 leading-tight" title={actorOf(log)}>
+                          <span className="block truncate font-semibold">{actorOf(log) || 'System'}</span>
+                          <span className="block text-[10px] text-charcoal-500">{ROLE_LABEL[log.actor_role] || (log.target === 'USER_ACCOUNTS' ? 'Customer' : 'Staff')}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`inline-block max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-semibold ${ACTION_TONE(log.action)}`}>
+                            {actionLabel(log.action)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="flex items-center gap-2">
+                            <span className="min-w-0 flex-1 truncate text-charcoal-700">{typeof summary === 'string' ? summary : log.details}</span>
+                            <ChevronDown size={13} className={`shrink-0 text-charcoal-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                          </span>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="bg-cream-200/30">
+                          <td colSpan={4} className="px-4 pb-3 pt-0">
+                            <div className="rounded-xl bg-hiraya-surface px-4 py-3 text-[11px] leading-relaxed text-charcoal-700 ring-1 ring-hiraya-structure-line/70">
+                              <p className="whitespace-pre-wrap break-words">{log.details || '—'}</p>
+                              <p className="mt-2 text-[10px] text-charcoal-500">
+                                Area: {log.target || '—'}
+                                {isOwner && log.ip_address && <> · IP {log.ip_address}</>}
+                                {d && <> · {d.toLocaleString()}</>}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* PAGINATION — shown once the current area has more than one page. */}
-        {filteredLogs.length > PAGE_SIZE && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-hiraya-structure-line/70 font-mono">
-            <p className="text-[10px] uppercase tracking-wider text-hiraya-ink-muted tabular-nums">
-              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredLogs.length)} of {filteredLogs.length}
-            </p>
+        <div className="flex items-center justify-between gap-3 border-t border-hiraya-structure-line/70 px-4 py-2.5">
+          <p className="text-[10px] tabular-nums text-charcoal-500">
+            {filtered.length === 0 ? '0 entries' : `${safePage * PAGE_SIZE + 1}–${Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of ${filtered.length}`}
+          </p>
+          {pageCount > 1 && (
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage(Math.max(0, safePage - 1))}
-                disabled={safePage === 0}
-                aria-label="Previous page"
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-hiraya-structure-line bg-cream-200/60 text-hiraya-ink hover:bg-cream-200 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <span className="text-[10px] uppercase tracking-wider text-hiraya-ink tabular-nums min-w-[4.5rem] text-center">
-                Page {safePage + 1} / {pageCount}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
-                disabled={safePage >= pageCount - 1}
-                aria-label="Next page"
-                className="h-8 w-8 flex items-center justify-center rounded-lg border border-hiraya-structure-line bg-cream-200/60 text-hiraya-ink hover:bg-cream-200 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronRight size={15} />
-              </button>
+              <button type="button" onClick={() => setPage(Math.max(0, safePage - 1))} disabled={safePage === 0} aria-label="Previous page" className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-hiraya-structure-line hover:bg-cream-200 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft size={15} /></button>
+              <span className="text-[10px] tabular-nums text-hiraya-ink">Page {safePage + 1} / {pageCount}</span>
+              <button type="button" onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))} disabled={safePage >= pageCount - 1} aria-label="Next page" className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-hiraya-structure-line hover:bg-cream-200 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight size={15} /></button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
+AuditLogsTab.propTypes = {
+  auditLogs: PropTypes.array,
+  role: PropTypes.string,
+};

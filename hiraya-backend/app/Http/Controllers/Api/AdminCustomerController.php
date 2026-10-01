@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\TryOnSession;
 use App\Models\User;
+use App\Notifications\TryOnRestored;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -18,12 +20,23 @@ use Illuminate\Support\Facades\Log;
  * and the people named in the feedback and analytics tabs — were invisible.
  * A super admin could export the whole users table but not read one customer.
  *
- * ACCESS
- * ------
- * Mounted inside the superadmin-gated `admin` route group (routes/api.php).
- * The per-method superadmin guard below is defence-in-depth, matching the
- * AdminAccountController pattern: it should never fire behind the route gate,
- * but protects the controller if it is ever mounted behind a weaker one.
+ * ACCESS — TWO LEVELS
+ * -------------------
+ * READS (`index`, `show`) are open to admins AND the super admin, because
+ * admins audit customer accounts. What comes back differs by role:
+ *
+ *   superadmin — the full record: real email, saved sizes, gender, lifetime
+ *                value. The super admin owns the platform.
+ *   admin      — a LIMITED record: masked email, account status, dates and
+ *                order count. Enough to audit an account, not to profile a
+ *                person.
+ *
+ * The reduction happens HERE, server-side, so hand-editing the frontend
+ * cannot reveal more. Every profile a staff member opens is itself written to
+ * the audit trail, so the super admin can see who looked at whom.
+ *
+ * WRITES (`suspend`, `reactivate`) stay superadmin-only: the route sits in the
+ * superadmin group and the per-method guard below is defence-in-depth.
  *
  * SUSPENSION IS ENFORCED, NOT DECORATIVE
  * --------------------------------------
@@ -42,8 +55,8 @@ class AdminCustomerController extends Controller
      */
     public function index(Request $request)
     {
-        if (!$this->isSuperAdmin($request->user()) && !$this->devAuthBypass()) {
-            return response()->json(['message' => 'Only a Super Admin can view customers.'], 403);
+        if (!$this->isStaff($request->user()) && !$this->devAuthBypass()) {
+            return response()->json(['message' => 'Only staff can view customers.'], 403);
         }
 
         $request->validate([
@@ -80,6 +93,18 @@ class AdminCustomerController extends Controller
                 'created_at',
             ]);
 
+        if (!$this->isSuperAdmin($request->user())) {
+            $customers = $customers->map(fn (User $c) => [
+                'id' => $c->id,
+                'full_name' => $c->full_name,
+                'email' => AuditLog::maskEmail($c->email),
+                'role' => $c->role,
+                'suspended_at' => $c->suspended_at,
+                'last_login_at' => $c->last_login_at,
+                'created_at' => $c->created_at,
+            ]);
+        }
+
         return response()->json($customers);
     }
 
@@ -92,12 +117,35 @@ class AdminCustomerController extends Controller
      */
     public function show(Request $request, User $user)
     {
-        if (!$this->isSuperAdmin($request->user()) && !$this->devAuthBypass()) {
-            return response()->json(['message' => 'Only a Super Admin can view customers.'], 403);
+        if (!$this->isStaff($request->user()) && !$this->devAuthBypass()) {
+            return response()->json(['message' => 'Only staff can view customers.'], 403);
         }
 
         if (strtolower((string) $user->role) !== 'user') {
             return response()->json(['message' => 'That account is not a customer.'], 404);
+        }
+
+        // Opening a profile is itself an auditable act.
+        $this->writeAudit($request, 'VIEW_CUSTOMER_PROFILE', "Opened the profile of {$user->email} (#{$user->id})", $user->id);
+
+        if (!$this->isSuperAdmin($request->user())) {
+            /*
+             * LIMITED VIEW. Order STATUSES are included (an admin already works
+             * the orders queue), but no amounts, sizes, gender or real email.
+             */
+            $orders = $user->orders()->get(['id', 'payment_status', 'order_status', 'created_at']);
+
+            return response()->json([
+                'id' => $user->id,
+                'full_name' => $user->full_name,
+                'email' => AuditLog::maskEmail($user->email),
+                'suspended_at' => $user->suspended_at,
+                'last_login_at' => $user->last_login_at,
+                'created_at' => $user->created_at,
+                'order_count' => $orders->count(),
+                'orders' => $orders,
+                'limited' => true,
+            ]);
         }
 
         $orders = $user->orders()->get(['id', 'total_amount', 'payment_status', 'order_status', 'created_at']);
@@ -109,6 +157,7 @@ class AdminCustomerController extends Controller
             'suspended_at' => $user->suspended_at,
             'last_login_at' => $user->last_login_at,
             'created_at' => $user->created_at,
+            'gender' => $user->gender,
             'sizes' => [
                 'upper_body_size' => $user->upper_body_size,
                 'lower_body_size' => $user->lower_body_size,
@@ -121,7 +170,80 @@ class AdminCustomerController extends Controller
                 ->where('payment_status', 'fully_paid')
                 ->sum('total_amount'),
             'orders' => $orders,
+            'limited' => false,
         ]);
+    }
+
+    /**
+     * GET /api/admin/customers/{user}/try-ons
+     *
+     * The customer's virtual try-on history — INCLUDING looks they deleted
+     * (soft-deleted, `deleted_at` set). Staff use it when a customer writes in
+     * asking for a deleted try-on back. Light rows: one small thumbnail each.
+     */
+    public function tryOns(Request $request, User $user)
+    {
+        if (!$this->isStaff($request->user()) && !$this->devAuthBypass()) {
+            return response()->json(['message' => 'Only staff can view customers.'], 403);
+        }
+
+        $history = app(TryOnController::class);
+        $sessions = TryOnSession::withTrashed()
+            ->where('user_id', $user->id)
+            ->where('status', TryOnSession::STATUS_COMPLETED)
+            ->whereNotNull('result_image_base64')
+            ->select(['id', 'session_id', 'history_title', 'garment_metadata_json', 'result_image_base64', 'created_at', 'deleted_at'])
+            ->latest()
+            ->limit(60)
+            ->get()
+            ->map(function (TryOnSession $s) use ($history) {
+                $garments = $history->historyGarments($s);
+
+                return [
+                    'session_id' => $s->session_id,
+                    'title' => $history->historyTitle($s, $garments),
+                    'garments' => collect($garments)->pluck('name')->filter()->values(),
+                    'thumbnail' => $history->historyThumbnail($s->result_image_base64),
+                    'created_at' => optional($s->created_at)->toIso8601String(),
+                    'deleted_at' => optional($s->deleted_at)->toIso8601String(),
+                ];
+            });
+
+        return response()->json($sessions);
+    }
+
+    /**
+     * POST /api/admin/customers/{user}/try-ons/{sessionId}/restore
+     *
+     * Puts a try-on the customer deleted back into their history and tells
+     * them (bell notification + e-mail).
+     */
+    public function restoreTryOn(Request $request, User $user, string $sessionId)
+    {
+        if (!$this->isStaff($request->user()) && !$this->devAuthBypass()) {
+            return response()->json(['message' => 'Only staff can restore try-ons.'], 403);
+        }
+
+        $session = TryOnSession::onlyTrashed()
+            ->where('user_id', $user->id)
+            ->where('session_id', $sessionId)
+            ->first();
+        if (!$session) {
+            return response()->json(['message' => 'That try-on is not in the deleted list.'], 404);
+        }
+
+        $session->restore();
+
+        try {
+            $user->notify(new TryOnRestored($session));
+        } catch (\Throwable $e) {
+            // The restore stands even if the e-mail could not be sent.
+            Log::warning('Try-on restore notification failed: ' . $e->getMessage());
+        }
+
+        $this->writeAudit($request, 'RESTORE_TRYON', "Restored try-on {$sessionId} for {$user->email} (#{$user->id}) and notified the customer", $user->id);
+
+        return response()->json(['message' => 'Try-on restored and the customer was notified.']);
     }
 
     /**
@@ -155,7 +277,7 @@ class AdminCustomerController extends Controller
         // only on their next login attempt.
         $user->tokens()->delete();
 
-        $this->writeAudit($request, 'SUSPEND_CUSTOMER', "{$user->email} (#{$user->id})");
+        $this->writeAudit($request, 'SUSPEND_CUSTOMER', "{$user->email} (#{$user->id})", $user->id);
 
         return response()->json([
             'message' => 'Customer suspended.',
@@ -182,7 +304,7 @@ class AdminCustomerController extends Controller
 
         $user->forceFill(['suspended_at' => null])->save();
 
-        $this->writeAudit($request, 'REACTIVATE_CUSTOMER', "{$user->email} (#{$user->id})");
+        $this->writeAudit($request, 'REACTIVATE_CUSTOMER', "{$user->email} (#{$user->id})", $user->id);
 
         return response()->json([
             'message' => 'Customer reactivated.',
@@ -191,20 +313,30 @@ class AdminCustomerController extends Controller
     }
 
     /** Records a privileged action on the security trail. */
-    private function writeAudit(Request $request, string $action, string $details): void
+    private function writeAudit(Request $request, string $action, string $details, ?int $subjectUserId = null): void
     {
         try {
             AuditLog::create([
                 'admin_email' => $request->user()?->email,
+                'actor_role' => $request->user() ? strtolower(str_replace(['-', '_'], '', (string) $request->user()->role)) : null,
                 'action' => $action,
                 'target' => 'CUSTOMERS',
+                'subject_user_id' => $subjectUserId,
                 'details' => $details,
+                'ip_address' => $request->ip(),
             ]);
         } catch (\Throwable $e) {
             // The action already succeeded; a failed trail write must not turn
             // it into an error the operator reads as "nothing happened".
             Log::warning('Customer audit log write failed: ' . $e->getMessage());
         }
+    }
+
+    /** True for admin and superadmin — anyone allowed to audit customers. */
+    private function isStaff(?User $user): bool
+    {
+        return $user instanceof User
+            && in_array(strtolower(str_replace(['-', '_'], '', (string) $user->role)), ['admin', 'superadmin'], true);
     }
 
     /** True when the given user is a superadmin. */

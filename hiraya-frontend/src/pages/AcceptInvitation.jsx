@@ -18,6 +18,7 @@ import {
 } from '../utils/passwordPolicy';
 import {
     startMfaEnrollment,
+    toQrImageSrc,
 } from '../services/supabaseMfa';
 import { supabase } from '../services/supabase';
 
@@ -109,6 +110,9 @@ const AcceptInvitation = () => {
     const [role, setRole] = useState('');
 
     const [password, setPassword] = useState('');
+    // Who the new admin is — shown to the super admin in Admin Management.
+    const [fullName, setFullName] = useState('');
+    const [contactNumber, setContactNumber] = useState('');
     const [confirm, setConfirm] = useState('');
 
     // MFA enrolment state.
@@ -179,6 +183,8 @@ const AcceptInvitation = () => {
                 token,
                 password,
                 password_confirmation: confirm,
+                full_name: fullName.trim(),
+                contact_number: contactNumber.trim() || null,
             });
 
             /*
@@ -200,7 +206,7 @@ const AcceptInvitation = () => {
 
             // Start enrolment straight away — there is no reason to make the
             // invitee press a second button to reach the QR code.
-            const enrolment = await startMfaEnrollment('Hiraya Authenticator');
+            const enrolment = await startMfaEnrollment(`Hiraya Authenticator ${new Date().toISOString().slice(0, 16)}`);
             setFactorId(enrolment.id);
             setQrCodeSvg(enrolment.qrCodeSvg || '');
             setSecret(enrolment.secret || '');
@@ -209,7 +215,7 @@ const AcceptInvitation = () => {
         } finally {
             setBusy(false);
         }
-    }, [confirm, email, password, token]);
+    }, [confirm, email, password, token, fullName, contactNumber]);
 
     /**
      * STEPS 2 + 3 — VERIFY THE CODE, AND RECORD THAT IT HAPPENED.
@@ -236,14 +242,8 @@ const AcceptInvitation = () => {
 
         setBusy(true);
         try {
-            const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
-            if (challengeError) throw new Error(challengeError.message);
-
-            const { error: verifyError } = await supabase.auth.mfa.verify({
-                factorId,
-                challengeId: challenge?.id,
-                code,
-            });
+            // Challenge and verify in ONE call, so the IP always matches.
+            const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
             if (verifyError) throw new Error(verifyError.message);
 
             // Refresh so the browser STORES the aal2 token. Without this the next
@@ -349,6 +349,18 @@ const AcceptInvitation = () => {
                 <form onSubmit={handlePassword} className="space-y-4">
                     <div>
                         <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-hiraya-ink/70">
+                            Full name
+                        </label>
+                        <input value={fullName} onChange={(e) => setFullName(e.target.value)} required maxLength={255} autoComplete="name" className="field" />
+                    </div>
+                    <div>
+                        <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-hiraya-ink/70">
+                            Contact number
+                        </label>
+                        <input value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} maxLength={30} inputMode="tel" autoComplete="tel" className="field" />
+                    </div>
+                    <div>
+                        <label className="mb-1.5 block text-[10px] uppercase tracking-widest text-hiraya-ink/70">
                             Password
                         </label>
                         <input
@@ -419,9 +431,16 @@ const AcceptInvitation = () => {
             )}
 
             {qrCodeSvg && (
-                <div className="mx-auto mb-4 w-fit rounded-2xl bg-white p-3">
-                    {/* Supabase returns this SVG; it is the otpauth:// provisioning URI rendered. */}
-                    <div dangerouslySetInnerHTML={{ __html: qrCodeSvg }} />
+                <div className="mx-auto mb-4 w-fit rounded-2xl bg-white p-4">
+                    {/* An <img> on pure white: Supabase sends a data URI, not raw SVG. */}
+                    <img
+                        src={toQrImageSrc(qrCodeSvg)}
+                        alt="Authenticator QR code"
+                        width={200}
+                        height={200}
+                        className="block h-[200px] w-[200px] bg-white"
+                        style={{ imageRendering: 'pixelated' }}
+                    />
                 </div>
             )}
 

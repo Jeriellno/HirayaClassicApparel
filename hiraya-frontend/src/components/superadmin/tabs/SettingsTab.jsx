@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Database, RotateCcw, Loader2, ToggleLeft, ToggleRight, ShieldCheck } from 'lucide-react';
+import ChangePasswordForm from '../ChangePasswordForm';
+import { Database, Download, RotateCcw, Loader2, KeyRound, ToggleLeft, ToggleRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import MfaEnrollment from '../../settings/MfaEnrollment';
 import { supabase } from '../../../services/supabase';
@@ -31,18 +32,19 @@ import { roleOf } from '../../../services/supabaseMfa';
 const TOGGLES = [
   {
     key: 'ai_engine_active',
-    name: 'AI Engine Active',
-    description: 'Master switch for the AI try-on render and stylist pipeline.',
+    name: 'AI try-on & stylist',
+    description: 'Turn off to pause the virtual try-on and AI stylist for customers — e.g. while the AI service is down or out of credits.',
   },
   {
     key: 'registrations_open',
-    name: 'Registrations Open',
-    description: 'Accepts new customer sign-ups on the storefront.',
+    name: 'Customer sign-ups',
+    description: 'Turn off to stop new customers from creating accounts. Existing customers can still sign in.',
   },
 ];
 
 const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnalytics }) => {
-  const [isExporting, setIsExporting] = useState(false);
+  // Which backup format is downloading ('' when idle).
+  const [isExporting, setIsExporting] = useState('');
   const [isClearing, setIsClearing] = useState(false);
   const [togglingKey, setTogglingKey] = useState('');
   const { user } = useAuth();
@@ -100,13 +102,13 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
     }
   };
 
-  const handleExportBackup = async () => {
-    if (!onExportBackup) return;
-    setIsExporting(true);
+  const handleExportBackup = async (format) => {
+    if (!onExportBackup || isExporting) return;
+    setIsExporting(format);
     try {
-      await onExportBackup();
+      await onExportBackup(format);
     } finally {
-      setIsExporting(false);
+      setIsExporting('');
     }
   };
 
@@ -124,11 +126,8 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
     <div className="space-y-6 animate-fadeIn max-w-4xl">
       <div>
         <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900">
-          System Controls &amp; Utilities
+          System Settings
         </h2>
-        <p className="text-xs text-hiraya-ink mt-1">
-          Manage global platform parameters and database utility operations.
-        </p>
       </div>
 
       {/* Global platform toggles */}
@@ -173,36 +172,64 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
         <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
           <ShieldCheck size={16} className="text-hiraya-ink" /> Your Account Security
         </h3>
-        <p className="text-[11px] text-hiraya-sand normal-case tracking-normal">
-          Two-factor authentication on the account you are signed in with
-          {consoleEmail && <span className="text-hiraya-ink"> ({consoleEmail})</span>}.
-          This is the account that grants everything this console can do.
-        </p>
+        {consoleEmail && <p className="text-[11px] text-hiraya-sand normal-case tracking-normal">{consoleEmail}</p>}
 
         <MfaEnrollment userRole={signedInRole} />
       </div>
 
-      {/* Utilities Section */}
+      {/* CHANGE MY PASSWORD (super admin) */}
       <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4 pt-6 mt-6">
         <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
-          <Database size={16} className="text-hiraya-ink" /> Capstone Demo Utilities
+          <KeyRound size={16} className="text-hiraya-ink" /> Change My Password
+        </h3>
+        <div className="max-w-sm"><ChangePasswordForm /></div>
+      </div>
+
+      {/* DATABASE BACKUP — the safety copy against corrupted or deleted data. */}
+      <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4 pt-6 mt-6">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+          <Database size={16} className="text-hiraya-ink" /> Database Backup
+        </h3>
+        <p className="text-[11px] text-hiraya-sand normal-case tracking-normal leading-relaxed">
+          A full copy of the store&apos;s data, in case anything is corrupted or deleted.
+          Keep it somewhere safe — it contains customer data.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { format: 'json', title: 'JSON backup', note: 'Readable copy of every table, for safekeeping.' },
+            { format: 'sql', title: 'SQL restore script', note: 'Paste into the Supabase SQL editor to put missing rows back.' },
+          ].map((opt) => (
+            <button
+              key={opt.format}
+              type="button"
+              onClick={() => handleExportBackup(opt.format)}
+              disabled={Boolean(isExporting)}
+              className="flex items-start gap-3 rounded-xl border border-hiraya-structure-line/80 bg-cream-200/50 p-3.5 text-left transition hover:bg-cream-200 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            >
+              {isExporting === opt.format
+                ? <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin text-hiraya-ink" />
+                : <Download size={16} className="mt-0.5 shrink-0 text-hiraya-ink" />}
+              <span>
+                <span className="block text-xs font-semibold text-hiraya-ink">
+                  {isExporting === opt.format ? 'Preparing download…' : opt.title}
+                </span>
+                <span className="mt-0.5 block text-[10px] text-hiraya-sand">{opt.note}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Demo utilities */}
+      <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4 pt-6 mt-6">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+          <RotateCcw size={16} className="text-hiraya-ink" /> Demo Tools
         </h3>
         <p className="text-[11px] text-hiraya-sand normal-case tracking-normal">
-          The reset zeroes the per-product canvas-drag and try-on interaction
-          counters that feed the trending-garments rankings. It does NOT delete
-          orders, accounts or feedback — only those two counters.
+          Resets the product try-on counters used for “trending”. Orders, accounts and feedback are not affected.
         </p>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            onClick={handleExportBackup}
-            disabled={isExporting}
-            className="px-4 py-2 bg-cream-200/60 hover:bg-cream-200/60 border-hiraya-structure-line/80 text-hiraya-ink text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
-          >
-            {isExporting ? <Loader2 size={14} className="animate-spin text-hiraya-ink" /> : <Database size={14} className="text-hiraya-ink" />}
-            {isExporting ? 'Generating Backup...' : 'Export Full Backup'}
-          </button>
-
           <button
             onClick={handleClearDemo}
             disabled={isClearing}

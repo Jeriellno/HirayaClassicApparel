@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Support\AccountAudit;
 use App\Http\Controllers\Controller;
 use App\Rules\PasswordStrength;
 use Illuminate\Http\Request;
@@ -70,11 +71,21 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        $before = ($user->upper_body_size ?: '—') . ' / ' . ($user->lower_body_size ?: '—');
+
         // Force overwrite — only the two sizing fields are persisted.
         $user->update([
             'upper_body_size' => $validated['upper_body_size'] ?? null,
             'lower_body_size' => $validated['lower_body_size'] ?? null,
         ]);
+
+        AccountAudit::record(
+            $user,
+            'USER_SIZES_UPDATED',
+            'Saved sizes (top / bottom): ' . $before . ' -> '
+                . ($user->upper_body_size ?: '—') . ' / ' . ($user->lower_body_size ?: '—') . '.',
+            $request,
+        );
 
         return response()->json([
             'message' => 'Sizes updated successfully.',
@@ -131,6 +142,8 @@ class UserController extends Controller
         // immediately. The client is expected to sign the user back in.
         $user->tokens()->delete();
 
+        AccountAudit::record($user, 'USER_PASSWORD_CHANGED', 'Password changed; every session was signed out.', $request);
+
         return response()->json([
             'message' => 'Password updated successfully. Please sign in again with your new password.',
         ]);
@@ -171,6 +184,10 @@ class UserController extends Controller
         try {
             $user->tokens()->delete();
             $user->delete();
+
+            // Written AFTER the delete succeeds; the row keeps the account id in
+            // `subject_user_id`, so the history outlives the account.
+            AccountAudit::record($user, 'USER_ACCOUNT_DELETED', 'Customer deleted their own account.', $request);
         } catch (\Throwable $e) {
             report($e);
 

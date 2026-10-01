@@ -379,10 +379,10 @@ export const TryOnCanvas = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             data-tour="upload-photo"
-            className="btn-secondary cursor-pointer rounded-full px-4 py-2.5"
+            className="btn-secondary cursor-pointer whitespace-nowrap rounded-full px-4 py-2.5"
           >
             <Camera size={12} />
-            {userPhotoPreview ? 'Change Photo' : 'Upload Body Photo'}
+            {userPhotoPreview ? 'Change Photo' : (<><span className="sm:hidden">Upload Photo</span><span className="hidden sm:inline">Upload Body Photo</span></>)}
           </button>
           {/*
             * REMOVE PHOTO — clears ONLY the body photo.

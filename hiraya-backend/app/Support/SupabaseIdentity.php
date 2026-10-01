@@ -274,4 +274,64 @@ class SupabaseIdentity
             );
         }
     }
+
+    /**
+     * Deletes the Supabase sign-in identity for an address, so that person can
+     * no longer sign in to the console (used when an admin resigns). Returns
+     * false when there was no identity to delete.
+     */
+    public static function deleteIdentity(string $email): bool
+    {
+        $authId = self::findAuthId($email);
+        if (!$authId) {
+            return false;
+        }
+
+        $conn = self::connection();
+        if (!$conn) {
+            throw new \RuntimeException('Supabase is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).');
+        }
+        [$base, $key] = $conn;
+
+        $response = Http::withToken($key)
+            ->withHeaders(['apikey' => $key])
+            ->delete($base . '/auth/v1/admin/users/' . $authId);
+
+        if ($response->failed()) {
+            Log::error('SupabaseIdentity: delete refused', [
+                'email' => self::canonicalEmail($email),
+                'status' => $response->status(),
+            ]);
+            throw new \RuntimeException('The staff sign-in service refused to remove the sign-in for this account.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Does this e-mail + password sign in to Supabase right now? Used to
+     * confirm the CURRENT password before a staff member changes their own.
+     * The password is never logged.
+     */
+    public static function checkPassword(string $email, string $password): bool
+    {
+        $conn = self::connection();
+        if (!$conn) {
+            return false;
+        }
+        [$base, $key] = $conn;
+
+        try {
+            $response = Http::withHeaders(['apikey' => $key])
+                ->asJson()
+                ->post($base . '/auth/v1/token?grant_type=password', [
+                    'email' => self::canonicalEmail($email),
+                    'password' => $password,
+                ]);
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return $response->successful();
+    }
 }

@@ -82,6 +82,18 @@ const AccountSettings = () => {
     confirmPassword: ''
   });
 
+  /*
+   * READ THE FULL PROFILE ON OPEN. The cached user can be a partial copy (from
+   * an older sign-in), and filling the form from it showed "Not set" for sizes
+   * and gender — then "Save" would have overwritten the real values with blanks.
+   */
+  useEffect(() => {
+    if (typeof refreshUser === 'function') {
+      refreshUser().catch?.(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (user) {
       setFormData((prev) => ({

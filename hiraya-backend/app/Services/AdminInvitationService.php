@@ -406,8 +406,6 @@ class AdminInvitationService
             'password' => \Illuminate\Support\Facades\Hash::make($password),
             'role' => $role,
             'auth_id' => $authId,
-            'inventory_permissions' => 'READ_WRITE',
-            'ai_rules_access' => true,
             'last_login_at' => null,
             /*
              * THE GATE. `mfa_enrolled_at` is the ONLY thing that marks the

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
@@ -31,6 +32,12 @@ class Product extends Model
     }
 
     protected $table = 'products';
+
+    /*
+     * `pivot` is hidden because the only pivot a product ever carries is its
+     * pairing row, and the frontend needs the paired product, not the join.
+     */
+    protected $hidden = ['pivot'];
 
     protected $fillable = [
         'name',
@@ -76,6 +83,35 @@ class Product extends Model
         'ai_tags'                => 'array',
         'garment_specifications' => 'array',
     ];
+
+    /**
+     * The pieces an admin paired with this one ("pairs well with").
+     *
+     * Symmetric — see the product_pairings migration — so this one direction
+     * is enough to read. Only the summary columns a "Complete the Look" card
+     * needs are selected, which keeps the catalog payload small.
+     */
+    public function pairedProducts(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'product_pairings', 'product_id', 'paired_product_id')
+            ->select([
+                'products.id',
+                'products.name',
+                'products.price',
+                'products.category',
+                'products.stock',
+                'products.image_url',
+                'products.display_image_url',
+                'products.ghost_mannequin_url',
+            ])
+            ->withTimestamps();
+    }
+
+    /** Verified-purchase reviews (shown as the rating on shop cards). */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(ProductReview::class);
+    }
 
     public function stockMovements(): HasMany
     {

@@ -9,6 +9,7 @@ import {
     listMfaFactors,
     unenrollMfaFactor,
     isPrivilegedRole,
+    toQrImageSrc,
 } from '../../services/supabaseMfa';
 
 const MfaEnrollment = ({ userRole = '', bootstrap = false, onEnrolled }) => {
@@ -23,6 +24,8 @@ const MfaEnrollment = ({ userRole = '', bootstrap = false, onEnrolled }) => {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
+    // Verified factors to retire once a replacement is confirmed (see handleEnroll).
+    const [replaceIds, setReplaceIds] = useState([]);
 
     const refresh = useCallback(async () => {
         try {
@@ -52,17 +55,27 @@ const MfaEnrollment = ({ userRole = '', bootstrap = false, onEnrolled }) => {
     }
 
     /** Begin enrollment. Only ever reachable from an aal2 session. */
-    const handleEnroll = async () => {
+    /*
+     * `replaceIds` — the verified factors to remove ONCE the new one is
+     * confirmed ("Set up on a new phone"). The old authenticator keeps working
+     * until then, so the account is never left without a second factor.
+     * Each factor gets a unique name: GoTrue refuses a second factor with the
+     * same friendly name (HTTP 422), which blocked setting up a new phone.
+     */
+    const handleEnroll = async (replace = false) => {
         setError('');
         setMessage('');
         setBusy(true);
+        setReplaceIds(replace ? factors.map((f) => f.id) : []);
 
         try {
-            const data = await startMfaEnrollment('Hiraya Authenticator');
+            const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            const data = await startMfaEnrollment(`Hiraya Authenticator ${stamp}`);
 
             setPending({
                 id: data.id,
                 qrCodeSvg: data.qrCodeSvg,
+                qrCodeSrc: data.qrCodeSrc,
                 secret: data.secret,
             });
 
@@ -84,9 +97,21 @@ const MfaEnrollment = ({ userRole = '', bootstrap = false, onEnrolled }) => {
         setBusy(true);
         try {
             await confirmMfaEnrollment(pending.id, code);
+            // The new factor works: now retire the one(s) it replaces.
+            for (const oldId of replaceIds) {
+                try {
+                    await unenrollMfaFactor(oldId);
+                } catch {
+                    /* still listed; it can be removed by hand */
+                }
+            }
+            const replaced = replaceIds.length > 0;
+            setReplaceIds([]);
             setPending(null);
             setCode('');
-            setMessage('Authenticator enabled. Your next sign-in will require a code.');
+            setMessage(replaced
+                ? 'New authenticator active. Codes from the old phone no longer work.'
+                : 'Authenticator enabled. Your next sign-in will require a code.');
             await refresh();
             if (bootstrap) onEnrolled?.();
         } catch (err) {
@@ -219,10 +244,17 @@ const MfaEnrollment = ({ userRole = '', bootstrap = false, onEnrolled }) => {
                         </li>
                     </ol>
 
-                    <div
-                        className="mx-auto mb-4 w-fit rounded-2xl bg-white p-3"
-                        dangerouslySetInnerHTML={{ __html: pending.qrCodeSvg }}
-                    />
+                    {/* An <img> on pure white with a quiet zone: scanners need both. */}
+                    <div className="mx-auto mb-4 w-fit rounded-2xl bg-white p-4">
+                        <img
+                            src={pending.qrCodeSrc || toQrImageSrc(pending.qrCodeSvg)}
+                            alt="Authenticator QR code"
+                            width={200}
+                            height={200}
+                            className="block h-[200px] w-[200px] bg-white"
+                            style={{ imageRendering: 'pixelated' }}
+                        />
+                    </div>
 
                     <div className="mb-4 rounded-xl border border-hiraya-olive/20 bg-hiraya-peach/70 p-3">
                         <p className="mb-1.5 text-[9px] uppercase tracking-widest text-hiraya-ink/70">
@@ -276,11 +308,22 @@ const MfaEnrollment = ({ userRole = '', bootstrap = false, onEnrolled }) => {
                 </motion.div>
             )}
 
+            {!pending && factors.length > 0 && (
+                <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleEnroll(true)}
+                    className="w-full cursor-pointer rounded-xl border border-hiraya-olive/30 py-2.5 text-[10px] font-bold uppercase tracking-widest text-hiraya-ink transition hover:bg-hiraya-peach disabled:opacity-50"
+                >
+                    {busy ? <Loader2 size={13} className="mx-auto animate-spin" /> : 'Set up on a new phone'}
+                </button>
+            )}
+
             {!pending && factors.length === 0 && (
                 <button
                     type="button"
                     disabled={busy}
-                    onClick={handleEnroll}
+                    onClick={() => handleEnroll(false)}
                     className="btn-primary w-full cursor-pointer py-3"
                 >
                     {busy ? <Loader2 size={13} className="animate-spin" /> : 'Enroll authenticator'}

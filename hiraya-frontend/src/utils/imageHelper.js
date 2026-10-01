@@ -96,7 +96,7 @@ const isBareSupabaseObject = (path) => !path.includes('/');
  * @param {string} url - Target URL or path
  * @returns {string} Same-origin proxied path or original URL
  */
-export const useSupabaseStorageProxy = (url) => {
+export const toSupabaseStorageProxyUrl = (url) => {
   const proxied = import.meta.env.VITE_SUPABASE_STORAGE_PROXY !== 'false';
   if (!proxied || typeof url !== 'string') return url;
 
@@ -156,7 +156,7 @@ const supabaseBucketUrl = (key, bucket = 'products') => {
     return `/supabase-storage/storage/v1/object/public/${objectPath}`;
   }
 
-  return useSupabaseStorageProxy(`${SUPABASE_URL}/storage/v1/object/public/${objectPath}`);
+  return toSupabaseStorageProxyUrl(`${SUPABASE_URL}/storage/v1/object/public/${objectPath}`);
 };
 
 /**
@@ -193,12 +193,12 @@ export const getProductImageUrl = (imagePath, bucket = 'products') => {
    *    is left untouched for the browser to fetch directly.
    */
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return useSupabaseStorageProxy(imagePath);
+    return toSupabaseStorageProxyUrl(imagePath);
   }
 
   // 4. Already proxied paths (e.g., `/supabase-storage/...`) or root-relative paths
   if (imagePath.startsWith('/')) {
-    return useSupabaseStorageProxy(imagePath);
+    return toSupabaseStorageProxyUrl(imagePath);
   }
 
   const cleanPath = imagePath.replace(/^\//, '');

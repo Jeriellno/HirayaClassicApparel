@@ -6,6 +6,7 @@ import api from '../../api/axios';
 import { invalidateCatalog } from '../../utils/invalidateCatalog';
 import { subscribeBackendHealth, isBackendReachable } from '../../utils/backendHealth';
 import { useAuth } from '../../context/AuthContext';
+import useConfirm from '../../hooks/useConfirm';
 import { supabase } from '../../services/supabase';
 import { roleOf as supabaseRoleOf, signOutSupabase, fetchAuthoritativeRole } from '../../services/supabaseMfa';
 import {
@@ -20,6 +21,7 @@ import SuperadminLayout from './SuperadminLayout';
 import { superAdminNavLinks, SECTION_SUBTABS } from './SuperadminLayout';
 
 import DashboardTab from './tabs/DashboardTab';
+import StaffDashboard from './tabs/StaffDashboard';
 import InventoryTab from './tabs/InventoryTab';
 import OrdersTab from './tabs/OrdersTab';
 import CustomersTab from './tabs/CustomersTab';
@@ -28,10 +30,10 @@ import FeedbackTab from './tabs/FeedbackTab';
 import AdminsTab from './tabs/AdminsTab';
 import SettingsTab from './tabs/SettingsTab';
 import AuditLogsTab from './tabs/AuditLogsTab';
-import ApiStatusTab from './tabs/ApiStatusTab';
-import ApiCredentialsTab from './tabs/ApiCredentialsTab';
-import StaffOverviewTab from './tabs/StaffOverviewTab';
 import StockHistoryTab from './tabs/StockHistoryTab';
+import UserManualTab from './tabs/UserManualTab';
+import ContactSupportTab from './tabs/ContactSupportTab';
+import SystemHealthPill from './SystemHealthPill';
 
 /*
  * The hardcoded dev super-admin accounts (superadmin@hiraya.com /
@@ -290,10 +292,9 @@ const SuperAdmin = ({ onLogout }) => {
   const [loadErrors, setLoadErrors] = useState({});
 
   const [products, setProducts] = useState([]);
-  const [activeSessions, setActiveSessions] = useState(0);
+  const [, setActiveSessions] = useState(0);
   const [analyticsLogs, setAnalyticsLogs] = useState([]);
   const [feedbacks, setFeedbacks] = useState([]);
-  const [adminAccounts, setAdminAccounts] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
 
   const [systemSettings, setSystemSettings] = useState({
@@ -380,15 +381,14 @@ const SuperAdmin = ({ onLogout }) => {
    * them (Inventory, Feedback).
    */
   const TAB_DATASETS = useMemo(() => ({
-    overview: [],          // StaffOverviewTab self-fetches.
-    dashboard: [],
+    dashboard: [],         // DashboardTab self-fetches (one insights request).
     inventory: ['products'],
-    'stock-history': [],   // StockHistoryTab self-fetches.
     orders: [],            // OrdersTab self-fetches (read-only, its own endpoint).
     customers: [],         // CustomersTab self-fetches.
-    api: [],               // ApiStatusTab / ApiCredentialsTab self-fetch.
     feedback: ['feedbacks'],
-    admins: ['adminAccounts'],
+    admins: [],            // AdminsTab self-fetches.
+    manual: [],
+    support: [],           // ContactSupportTab self-fetches.
     'audit-logs': ['auditLogs'],
     settings: ['systemSettings'],
   }), []);
@@ -529,7 +529,6 @@ const SuperAdmin = ({ onLogout }) => {
     liveSessions: 'Active sessions',
     analyticsLogs: 'Try-on activity',
     feedbacks: 'Feedback',
-    adminAccounts: 'Admin accounts',
     systemSettings: 'System settings',
     auditLogs: 'Audit logs',
   };
@@ -592,65 +591,10 @@ const SuperAdmin = ({ onLogout }) => {
     setConfirmResetOpen(true);
   }, []);
 
-  /*
-   * Refreshes ONLY what the ACTIVE tab renders, bypassing the already-loaded
-   * guard (so a manual refresh always re-reads). This is what the "Sync Pipelines"
-   * button calls.
-   *
-   * WHY NOT ALL SEVEN. The full-set refresh below was the button's original
-   * behaviour: it fired SEVEN requests via Promise.all no matter which tab the
-   * operator was looking at. On the single-threaded dev server those are served
-   * one at a time, so a Dashboard refresh also paid for admin accounts, audit
-   * logs and settings the operator could not even see — the same mount-burst
-   * problem the lazy per-tab fetching was introduced to remove. A refresh on a
-   * tab should cost that tab's own reads, nothing more.
-   */
-  const refreshActiveTab = useCallback(async () => {
-    if (loadInFlightRef.current) return;
-
-    const wanted = TAB_DATASETS[activeTab] || [];
-    if (wanted.length === 0) return;
-
-    loadInFlightRef.current = true;
-    setLoading(true);
-
-    try {
-      // allSettled so one failing read cannot abort the refresh of the others.
-      const results = await Promise.allSettled(
-        wanted.map((key) => DATASET_LOADERS.current[key]?.())
-      );
-
-      const failures = {};
-
-      results.forEach((result, index) => {
-        const key = wanted[index];
-
-        if (result.status === 'fulfilled') {
-          loadedRef.current.add(key);
-        } else {
-          failures[key] = result.reason?.message || 'Failed to load';
-        }
-      });
-
-      setLoadErrors((prev) => {
-        const next = { ...prev };
-        wanted.forEach((key) => {
-          if (!(key in failures)) delete next[key];
-        });
-
-        return { ...next, ...failures };
-      });
-    } finally {
-      setLoading(false);
-      loadInFlightRef.current = false;
-    }
-  }, [activeTab]);
-
   /**
    * Reload EVERY dataset and mark them all loaded. Reserved for writes that can
    * affect several tabs at once (e.g. clearing demo interaction counters, which
-   * changes both the Dashboard and Analytics views). A user-initiated refresh of
-   * a single tab should use `refreshActiveTab` above.
+   * changes both the Dashboard and Analytics views).
    */
   const fetchAllDatabaseData = useCallback(async () => {
     loadInFlightRef.current = true;
@@ -913,97 +857,19 @@ const SuperAdmin = ({ onLogout }) => {
 
   const fetchFeedbacks = useCallback(async () => {
     try {
-      const res = await api.get('/admin/feedbacks');
+      // Named feedback only (tied to a customer account); admins can read it too.
+      const res = await api.get('/admin/customer-feedback');
       const rows = Array.isArray(res.data)
         ? res.data
         : (res.data?.data || []);
 
       setFeedbacks(rows);
     } catch (err) {
-      console.error('FEEDBACK 401 STATUS:', err.response?.status);
-      console.error('FEEDBACK 401 RESPONSE:', err.response?.data);
-      console.error('FEEDBACK 401 HEADERS:', err.response?.headers);
-      console.error('SuperAdmin: failed to load feedbacks', err);
+      console.error('SuperAdmin: failed to load customer feedback', err);
       throw err;
     }
   }, []);
 
-  /**
-   * Admin accounts are now read from the Laravel RBAC endpoint rather than
-   * Supabase, matching the create/delete flows below. The old Supabase query
-   * also filtered on 'super_admin' (underscore), which never matched the
-   * backend's 'superadmin' role and hid every super admin from this table.
-   */
-  const fetchAdminAccounts = useCallback(async () => {
-    try {
-      const res = await api.get('/admin/accounts');
-      const rows = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-      setAdminAccounts(rows);
-    } catch (err) {
-      console.error('SuperAdmin: failed to load admin accounts', err);
-      throw err;
-    }
-  }, []);
-
-  /**
-   * INVITE a new admin (POST /admin/accounts/invite). Superadmin-only
-   * server-side; the console only renders this control on the Super Admin tab.
-   *
-   * THIS SENDS AN INVITATION, IT DOES NOT CREATE AN ACCOUNT. The superadmin
-   * supplies an address and a role; the invitee receives a link, sets their own
-   * password and enrolls their own authenticator. No account exists until they do,
-   * and it stays inactive until their factor is verified.
-   *
-   * The list is NOT refreshed afterwards, because there is nothing to refresh: no
-   * `users` row was written. The table fills in only once the invitee has actually
-   * accepted, at which point the 30s console poll picks it up — with the Pending
-   * MFA badge until they finish enrolling.
-   *
-   * The response is returned because it carries `invitation_url`, which the tab
-   * shows so the link can be delivered by hand when no SMTP host is configured.
-   */
-  const handleInviteAdmin = async (payload) => {
-    const res = await api.post('/admin/accounts/invite', payload);
-    return res.data;
-  };
-
-  /**
-   * Revoke an admin account (DELETE /admin/accounts/{id}). The backend demotes
-   * the account back to a customer instead of hard-deleting it.
-   */
-  const handleDeleteAdmin = async (id) => {
-    const res = await api.delete(`/admin/accounts/${id}`);
-    await fetchAdminAccounts();
-    return res.data;
-  };
-
-  /**
-   * Update an admin's role / RBAC permissions (PATCH /admin/accounts/{id}).
-   * Wires the AdminsTab "Edit" action to the previously-dead update endpoint.
-   */
-  const handleUpdateAdmin = async (id, payload) => {
-    const res = await api.patch(`/admin/accounts/${id}`, payload);
-    await fetchAdminAccounts();
-    return res.data;
-  };
-
-  /**
-   * RE-ISSUE an invitation for an account that is still pending activation
-   * (POST /admin/accounts/{id}/resend-invitation).
-   *
-   * The invitation link is shown exactly once, in the modal that created it. If the
-   * superadmin closes that modal without copying the link, or the link simply
-   * expires, this is the only recovery — `invite()` refuses an address that is
-   * already invited, because a second link alongside the first would make both
-   * valid and the invitation would stop being single-use.
-   *
-   * Returns the response so the tab can show the fresh link, exactly as the invite
-   * modal does when mail delivery is unavailable.
-   */
-  const handleResendInvitation = async (id) => {
-    const res = await api.post(`/admin/accounts/${id}/resend-invitation`);
-    return res.data;
-  };
 
   const fetchAuditLogs = useCallback(async () => {
     try {
@@ -1038,7 +904,6 @@ const SuperAdmin = ({ onLogout }) => {
     liveSessions: fetchLiveSessions,
     analyticsLogs: fetchAnalyticsLogs,
     feedbacks: fetchFeedbacks,
-    adminAccounts: fetchAdminAccounts,
     systemSettings: fetchSystemSettings,
     auditLogs: fetchAuditLogs,
   };
@@ -1057,7 +922,41 @@ const SuperAdmin = ({ onLogout }) => {
    * aal2 session left open in a shared browser is exactly the thing sign-out
    * exists to prevent.
    */
+  const [confirmAction, confirmDialog] = useConfirm();
+
+  /*
+   * EVERY SECTION A STAFF MEMBER OPENS IS AUDITED, so Audit Logs can answer
+   * "what did each admin look at and do". Fire-and-forget: a failed write must
+   * never block navigation.
+   */
+  useEffect(() => {
+    if (!activeTab) return;
+    api.post('/admin/console/section-view', { section: activeTab }).catch(() => {});
+  }, [activeTab]);
+
   const handleLogout = async () => {
+    /*
+     * ASK FIRST. "Exit Console" sits in the header next to everyday controls,
+     * and one stray click used to end an aal2 session outright, so the staff
+     * member had to sign in again and redo their authenticator code. A
+     * confirmation step costs one click and prevents that.
+     */
+    const confirmed = await confirmAction({
+      title: 'Sign out of the console?',
+      message: 'You will need your password and authenticator code to sign back in.',
+      confirmText: 'Sign out',
+      cancelText: 'Stay',
+      danger: true,
+    });
+    if (!confirmed) return;
+
+    // Audit Logs: record the sign-out while the session is still valid —
+    // but never make the user wait more than 1.5 s for it.
+    await Promise.race([
+      api.post('/admin/console/signed-out').catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 1500)),
+    ]);
+
     try {
       await signOutSupabase();
     } catch (err) {
@@ -1104,15 +1003,26 @@ const SuperAdmin = ({ onLogout }) => {
    * Real full-database JSON backup - replaces the old alert()-only stub. The
    * backend streams the file, so we just point the browser at the endpoint.
    */
-  const exportFullBackup = async () => {
+  /**
+   * Downloads a full database backup: 'json' (keep / inspect) or 'sql' (a
+   * restore script for the Supabase SQL editor). The backup can be tens of MB
+   * (try-on images are stored in the database), hence the long timeout.
+   */
+  const exportFullBackup = async (format = 'json') => {
     setActionError(null);
 
     try {
-      const res = await api.get('/admin/export', { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
+      const res = await api.get('/admin/export', {
+        params: { format },
+        responseType: 'blob',
+        timeout: 5 * 60 * 1000,
+      });
+      const type = format === 'sql' ? 'application/sql' : 'application/json';
+      const url = URL.createObjectURL(new Blob([res.data], { type }));
       const link = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
       link.href = url;
-      link.download = `hiraya_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `hiraya_backup_${stamp}.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1218,6 +1128,7 @@ const SuperAdmin = ({ onLogout }) => {
       role={role}
       navLinks={navLinks}
       canSignOut
+      headerExtra={role === 'superadmin' ? <SystemHealthPill /> : null}
     >
       {/*
         * BACKEND UNREACHABLE BANNER.
@@ -1322,18 +1233,18 @@ const SuperAdmin = ({ onLogout }) => {
         </div>
       )}
 
-      {activeTab === 'dashboard' && activeSubTab === 'analytics' && (
+      {activeTab === 'dashboard' && activeSubTab === 'analytics' && role === 'superadmin' && (
         <AnalyticsTab analyticsLogs={analyticsLogs} exportSurveyCSV={exportSurveyCSV} />
       )}
-      {activeTab === 'dashboard' && activeSubTab !== 'analytics' && (
+      {/* Admins get their work dashboard; the analytics board is the owner's. */}
+      {activeTab === 'dashboard' && role !== 'superadmin' && (
+        <StaffDashboard onOpenSection={(id) => setActiveTab(resolveSection(role, id) ?? 'dashboard')} />
+      )}
+      {activeTab === 'dashboard' && role === 'superadmin' && activeSubTab !== 'analytics' && (
         <DashboardTab
-          products={products}
-          activeSessions={activeSessions}
-          feedbacks={feedbacks}
-          analyticsLogs={analyticsLogs}
-          onRefresh={refreshActiveTab}
-          onOpenAnalytics={() => setActiveSubTab('analytics')}
-          loading={loading}
+          role={role}
+          onOpenSection={(id) => setActiveTab(resolveSection(role, id) ?? 'dashboard')}
+          onOpenAnalytics={role === 'superadmin' ? () => setActiveSubTab('analytics') : undefined}
         />
       )}
       {activeTab === 'inventory' && (
@@ -1354,31 +1265,13 @@ const SuperAdmin = ({ onLogout }) => {
           initialOrderId={ordersFocus?.orderId}
         />
       )}
-      {activeTab === 'overview' && (
-        <StaffOverviewTab onOpenSection={(id) => setActiveTab(resolveSection(role, id) ?? 'overview')} />
-      )}
-      {activeTab === 'stock-history' && <StockHistoryTab />}
-      {activeTab === 'customers' && <CustomersTab onViewOrders={viewCustomerOrders} />}
+      {activeTab === 'customers' && <CustomersTab role={role} onViewOrders={viewCustomerOrders} />}
       {activeTab === 'feedback' && <FeedbackTab feedbacks={feedbacks} />}
-      {activeTab === 'admins' && (
-        <AdminsTab
-          adminAccounts={adminAccounts}
-          onInviteAdmin={handleInviteAdmin}
-          onDeleteAdmin={handleDeleteAdmin}
-          onUpdateAdmin={handleUpdateAdmin}
-          onResendInvitation={handleResendInvitation}
-        />
-      )}
-      {activeTab === 'audit-logs' && <AuditLogsTab auditLogs={auditLogs} />}
-      {/*
-        * API & AI — ONE SECTION, TWO SUB-TABS.
-        *
-        * 'status' reports on the external keys, 'keys' changes them. They were
-        * two sidebar rows about one subject; the merge keeps every control and
-        * removes the guess about which row to open.
-        */}
-      {activeTab === 'api' && activeSubTab === 'keys' && <ApiCredentialsTab />}
-      {activeTab === 'api' && activeSubTab !== 'keys' && <ApiStatusTab />}
+      {activeTab === 'manual' && <UserManualTab role={role} />}
+      {activeTab === 'support' && <ContactSupportTab role={role} />}
+      {activeTab === 'admins' && <AdminsTab />}
+      {activeTab === 'audit-logs' && activeSubTab === 'stock' && <StockHistoryTab />}
+      {activeTab === 'audit-logs' && activeSubTab !== 'stock' && <AuditLogsTab auditLogs={auditLogs} role={role} />}
       {activeTab === 'settings' && (
         <SettingsTab
           settings={systemSettings}
@@ -1432,6 +1325,7 @@ const SuperAdmin = ({ onLogout }) => {
           </div>
         </div>
       )}
+      {confirmDialog}
     </SuperadminLayout>
   );
 };

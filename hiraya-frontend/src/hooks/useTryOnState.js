@@ -632,6 +632,13 @@ export const useTryOnState = () => {
          * or product-name script, so nothing has to be segmented out of it.
          */
         ghost_mannequin_url: prod?.ghost_mannequin_url || '',
+        /*
+         * The pieces an admin PAIRED with this one (Inventory > Pair With).
+         * Read by the Style Stack to suggest wearing them together; never sent
+         * to the renderer. Falls back to the base product's pairs for a colour
+         * variant, whose `prod` is a variant view of the same garment.
+         */
+        pairedProducts: (prod?.paired_products || item?.product?.paired_products || []),
         selected_color: item.selected_color || '',
         selected_size: item.selected_size || '',
         /*

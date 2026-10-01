@@ -42,8 +42,6 @@ class User extends Authenticatable
         'auth_id',
 
         // RBAC fields surfaced by the Super Admin "Admin Accounts" table.
-        'inventory_permissions',
-        'ai_rules_access',
         'last_login_at',
         'suspended_at',
 
@@ -90,7 +88,6 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'ai_rules_access'   => 'boolean',
             'last_login_at'     => 'datetime',
             'suspended_at'      => 'datetime',
             'mfa_enrolled_at'   => 'datetime',

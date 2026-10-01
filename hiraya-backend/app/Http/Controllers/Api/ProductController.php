@@ -11,6 +11,7 @@ use App\Support\ProductVariants;
 use App\Support\SupabaseStorage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -31,7 +32,14 @@ class ProductController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $products = Product::latest()->get();
+            // Pairings ride along so the shop, the admin form and the try-on
+            // stack can all show "pairs well with" without a request per card.
+            // + review count and average, for the star rating on shop cards.
+            $products = Product::with('pairedProducts')
+                ->withCount('reviews')
+                ->withAvg('reviews', 'rating')
+                ->latest()
+                ->get();
             return response()->json($products, 200);
         } catch (\Throwable $e) {
             Log::error('Error fetching products: ' . $e->getMessage());
@@ -66,7 +74,7 @@ class ProductController extends Controller
                 }
             }
 
-            $latestProducts = Product::latest()->take(8)->get();
+            $latestProducts = Product::withCount('reviews')->withAvg('reviews', 'rating')->latest()->take(8)->get();
 
             return response()->json([
                 'type'    => 'default',
@@ -81,7 +89,7 @@ class ProductController extends Controller
 
     public function show($id): JsonResponse
     {
-        $product = Product::find($id);
+        $product = Product::with('pairedProducts')->find($id);
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
@@ -97,7 +105,12 @@ class ProductController extends Controller
             $validated = $this->prepareAiTags($validated);
             $validated = $this->processProductInventoryAndMeasurements($validated, $request);
 
+            // Refuse an impossible pairing BEFORE anything is written.
+            $this->assertPairable($request, $validated['category'] ?? null, null);
+
             $product = Product::create($validated);
+
+            $this->syncPairings($request, $product);
 
             $this->writeAudit(
                 $request,
@@ -109,7 +122,7 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $product
+                'data'    => $product->load('pairedProducts')
             ], 201);
         } catch (ValidationException $e) {
             throw $e;
@@ -141,7 +154,12 @@ class ProductController extends Controller
              */
             $before = $product->toArray();
 
+            // Checked against the category this edit is saving, which may be new.
+            $this->assertPairable($request, $validated['category'] ?? $product->category, (int) $product->id);
+
             $product->update($validated);
+
+            $this->syncPairings($request, $product);
 
             /*
              * Record the edit on the security trail.
@@ -167,7 +185,7 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $product
+                'data'    => $product->load('pairedProducts')
             ], 200);
         } catch (ValidationException $e) {
             throw $e;
@@ -234,6 +252,87 @@ class ProductController extends Controller
         } catch (\Throwable $e) {
             Log::error('Error updating AI tags: ' . $e->getMessage());
             return response()->json(['message' => 'The styling tags could not be saved. Please try again.'], 500);
+        }
+    }
+
+    /** The requested partner products, minus the product itself. */
+    private function requestedPartners(Request $request, ?int $selfId)
+    {
+        $ids = collect($request->input('paired_product_ids') ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id <= 0 || $id === $selfId)
+            ->unique()
+            ->values();
+
+        return Product::query()->whereIn('id', $ids)->get(['id', 'name', 'category']);
+    }
+
+    /**
+     * Throws a 422 when a requested pair breaks the outfit rule (GarmentPairing).
+     * Called before the product is written, so a refused pairing saves nothing.
+     */
+    private function assertPairable(Request $request, ?string $category, ?int $selfId): void
+    {
+        if (!$request->has('paired_product_ids')) {
+            return;
+        }
+
+        $refused = $this->requestedPartners($request, $selfId)->reject(
+            fn (Product $p) => \App\Support\GarmentPairing::compatible($category, $p->category)
+        );
+
+        if ($refused->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'paired_product_ids' => 'These pieces cannot be paired with a ' . strtolower((string) $category) . ': '
+                    . $refused->map(fn ($p) => $p->name . ' (' . strtolower((string) $p->category) . ')')->implode(', ')
+                    . '. Pair garments worn on different layers — e.g. a top with outerwear or bottoms.',
+            ]);
+        }
+    }
+
+    /**
+     * Replaces this product's pairings with `paired_product_ids`, both directions.
+     *
+     * Runs only when the field was SENT, so an edit from a client that does not
+     * know about pairings never wipes them; an empty array is the explicit
+     * "unpair everything". `assertPairable` has already vetted the list.
+     */
+    private function syncPairings(Request $request, Product $product): void
+    {
+        if (!$request->has('paired_product_ids')) {
+            return;
+        }
+
+        $partners = $this->requestedPartners($request, (int) $product->id);
+
+        $before = $product->pairedProducts()->pluck('name')->sort()->values()->all();
+
+        DB::transaction(function () use ($product, $partners) {
+            DB::table('product_pairings')
+                ->where('product_id', $product->id)
+                ->orWhere('paired_product_id', $product->id)
+                ->delete();
+
+            $now = now();
+            $rows = [];
+            foreach ($partners as $partner) {
+                $rows[] = ['product_id' => $product->id, 'paired_product_id' => $partner->id, 'created_at' => $now, 'updated_at' => $now];
+                $rows[] = ['product_id' => $partner->id, 'paired_product_id' => $product->id, 'created_at' => $now, 'updated_at' => $now];
+            }
+            if ($rows) {
+                DB::table('product_pairings')->insert($rows);
+            }
+        });
+
+        $after = $partners->pluck('name')->sort()->values()->all();
+        if ($before !== $after) {
+            $this->writeAudit(
+                $request,
+                'UPDATE_PAIRINGS',
+                'PRODUCTS',
+                'Product #' . $product->id . ' (' . $product->name . ') pairings: '
+                    . ($before ? implode(', ', $before) : '—') . ' -> ' . ($after ? implode(', ', $after) : '—') . '.',
+            );
         }
     }
 
@@ -702,7 +801,7 @@ class ProductController extends Controller
     {
         $tolerance = 3.0;
 
-        return Product::latest()->get()->filter(function ($product) use ($userM, $tolerance) {
+        return Product::withCount('reviews')->withAvg('reviews', 'rating')->latest()->get()->filter(function ($product) use ($userM, $tolerance) {
             $sizeMeasurements = $product->size_measurements;
 
             if (!is_array($sizeMeasurements)) {

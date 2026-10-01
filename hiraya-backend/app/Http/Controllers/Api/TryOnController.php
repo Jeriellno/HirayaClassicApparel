@@ -117,6 +117,11 @@ TXT;
      */
     public function initiateTryOn(Request $request): JsonResponse
     {
+        // System Settings -> "AI try-on & stylist". Enforced here, not only in the UI.
+        if (! \App\Models\SystemSetting::isOn('ai_engine_active')) {
+            return response()->json(['message' => 'The AI try-on and stylist are paused right now. Please try again later.'], 503);
+        }
+
         /*
          * REMOVE THE PHP TIME LIMIT FOR THIS REQUEST.
          *
@@ -1139,7 +1144,7 @@ TXT;
      *
      * @return array<int, array{name: string, category: ?string, product_id: mixed}>
      */
-    private function historyGarments(TryOnSession $session): array
+    public function historyGarments(TryOnSession $session): array
     {
         return collect(is_array($session->garment_metadata_json) ? $session->garment_metadata_json : [])
             ->filter(fn ($garment) => is_array($garment) && ! empty($garment['name']))
@@ -1153,7 +1158,7 @@ TXT;
             ->all();
     }
 
-    private function historyTitle(TryOnSession $session, array $garments): string
+    public function historyTitle(TryOnSession $session, array $garments): string
     {
         if ($session->history_title) {
             return $session->history_title;
@@ -1169,7 +1174,7 @@ TXT;
      * every render on. If GD is unavailable or the image cannot be decoded, the
      * original is returned so the card still has a picture.
      */
-    private function historyThumbnail(?string $source): ?string
+    public function historyThumbnail(?string $source): ?string
     {
         if (! is_string($source) || $source === '') {
             return null;
@@ -1283,6 +1288,11 @@ TXT;
      */
     public function chat(Request $request): JsonResponse
     {
+        // System Settings -> "AI try-on & stylist". Enforced here, not only in the UI.
+        if (! \App\Models\SystemSetting::isOn('ai_engine_active')) {
+            return response()->json(['message' => 'The AI try-on and stylist are paused right now. Please try again later.'], 503);
+        }
+
         $validated = $request->validate([
             'message' => 'required|string|max:1000',
             'context' => 'nullable|array',
@@ -1336,7 +1346,14 @@ TXT;
          */
         $size = $size ?? ($user?->upper_body_size ? Str::upper($user->upper_body_size) : null);
 
-        $products = $this->catalogForChat($message, $size, $user?->gender);
+        /*
+         * GARMENT PAIRINGS (Inventory -> Pair with). The pieces an admin paired
+         * with what the customer is wearing are the stylist's first suggestions:
+         * they are boosted into the product cards and named to the AI.
+         */
+        $pairedIds = $this->pairedIdsForStack($garments);
+
+        $products = $this->catalogForChat($message, $size, $user?->gender, 4, $pairedIds);
 
         $intent = $this->detectIntent($message);
 
@@ -1513,6 +1530,7 @@ TXT;
                     'price' => $p['price'],
                     'sizes' => $p['sizes'] ?? [],
                     'in_stock' => $p['in_stock'] ?? null,
+                    'pairs_with_your_stack' => $p['pairs_with_your_stack'] ?? false,
                 ],
                 $products,
             ),
@@ -1549,6 +1567,9 @@ TXT;
             . "  say the exact count is on the product page instead of guessing.\n"
             . "- When the answer needs numbers you cannot state confidently (a full stock list, a\n"
             . "  size guide), point the customer to the relevant page rather than reciting it.\n"
+            . "- When the customer asks what to wear with a piece, or for an outfit, recommend the\n"
+            . "  stylist pairings first: the `stylist_pairs` of each garment in `garments_in_stack`\n"
+            . "  and any piece marked `pairs_with_your_stack`. Say they were paired by Hiraya's stylists.\n"
             . "- Answer the customer's message directly, warmly, in 2-4 short sentences.\n"
             . "- Plain text only. No markdown headings, no bullet lists.\n\n"
             . $this->hirayaKnowledge() . "\n\n"
@@ -1694,6 +1715,13 @@ TXT;
             $lines[] = 'Your virtual fitting render is ready — check how the drape falls at the waist.';
         }
 
+        // Stylist pairings for the pieces being worn ("Complete the Look").
+        $paired = array_values(array_filter($products, fn ($p) => ! empty($p['pairs_with_your_stack'])));
+        if ($paired) {
+            $lines[] = 'Our stylists paired ' . implode(' and ', array_map(fn ($p) => $p['name'], array_slice($paired, 0, 2)))
+                . ' with what you are wearing — tap a card below to view it.';
+        }
+
         return implode("\n\n", array_filter($lines));
     }
 
@@ -1826,7 +1854,7 @@ TXT;
      *
      * @return array<int, array<string, mixed>>
      */
-    private function catalogForChat(string $message, ?string $size, ?string $gender, int $limit = 4): array
+    private function catalogForChat(string $message, ?string $size, ?string $gender, int $limit = 4, array $pairedIds = []): array
     {
         $synonyms = [
             'wedding' => ['formal', 'barong', 'gown', 'cultural', 'suit'],
@@ -1893,7 +1921,16 @@ TXT;
             $sizes = $this->normaliseSizeLabels($product->sizes);
             $fitsSize = $size && in_array(Str::upper($size), $sizes, true);
 
-            $scored[] = ['product' => $product, 'hits' => $hits, 'score' => $hits * 3 + ($fitsSize ? 2 : 0) + ((int) $product->stock > 0 ? 1 : 0), 'sizes' => $sizes];
+            // A stylist pairing of a piece in the customer's stack always qualifies
+            // and ranks first.
+            $paired = in_array((int) $product->id, $pairedIds, true);
+            $scored[] = [
+                'product' => $product,
+                'hits' => $hits + ($paired ? 1 : 0),
+                'paired' => $paired,
+                'score' => $hits * 3 + ($fitsSize ? 2 : 0) + ((int) $product->stock > 0 ? 1 : 0) + ($paired ? 10 : 0),
+                'sizes' => $sizes,
+            ];
         }
 
         // Nothing in the message matched anything: answer with the size match.
@@ -1919,6 +1956,8 @@ TXT;
                 'sizes' => $row['sizes'],
                 'stock_in_this_size' => $size ? $this->stockForSize($product, Str::upper($size)) : null,
                 'url' => '/product/' . $product->id,
+                // True when a stylist paired it with a piece in the customer's stack.
+                'pairs_with_your_stack' => $row['paired'],
             ];
             if (count($out) >= $limit) {
                 break;
@@ -2076,6 +2115,7 @@ TXT;
 
         try {
             $rows = Product::query()
+                ->with('pairedProducts')
                 ->whereIn('name', $names)
                 ->get(['id', 'name', 'category', 'price', 'sizes', 'size_stocks', 'stock']);
         } catch (\Throwable $e) {
@@ -2094,8 +2134,37 @@ TXT;
                 'stock_total' => (int) ($p->stock ?? 0),
                 'in_stock' => (int) ($p->stock ?? 0) > 0,
                 'url' => '/product/' . $p->id,
+                // Pieces an admin paired with this one ("Complete the Look").
+                'stylist_pairs' => $p->pairedProducts->map(fn ($pair) => [
+                    'name' => $pair->name,
+                    'category' => $pair->category,
+                    'price' => (float) $pair->price,
+                    'in_stock' => (int) $pair->stock > 0,
+                    'url' => '/product/' . $pair->id,
+                ])->values()->all(),
             ];
         })->all();
+    }
+
+    /** Ids of every product paired with a garment (by name) in the style stack. */
+    private function pairedIdsForStack(array $names): array
+    {
+        if (empty($names)) {
+            return [];
+        }
+        try {
+            return Product::query()
+                ->with('pairedProducts')
+                ->whereIn('name', $names)
+                ->get(['id'])
+                ->flatMap(fn (Product $p) => $p->pairedProducts->pluck('id'))
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**

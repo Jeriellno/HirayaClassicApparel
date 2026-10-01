@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Loader2,
-  RefreshCw,
   Users,
   Search,
   X,
-  ShieldOff,
   ShieldCheck,
   Mail,
   ShoppingBag,
@@ -14,6 +12,9 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  History,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import useConfirm from '../../../hooks/useConfirm';
@@ -148,20 +149,41 @@ const formatWhen = (iso) => {
   return then.toLocaleDateString();
 };
 
+/** Readable labels for the account-activity timeline in the profile. */
+const ACTIVITY_LABEL = {
+  USER_REGISTERED: 'Account created',
+  USER_LOGIN: 'Signed in',
+  USER_LOGIN_FAILED: 'Failed sign-in',
+  USER_LOGOUT: 'Signed out',
+  USER_PROFILE_UPDATED: 'Profile updated',
+  USER_SIZES_UPDATED: 'Sizes updated',
+  USER_PASSWORD_CHANGED: 'Password changed',
+  USER_ACCOUNT_DELETED: 'Account deleted',
+  VIEW_CUSTOMER_PROFILE: 'Profile viewed by staff',
+  SUSPEND_CUSTOMER: 'Suspended',
+  REACTIVATE_CUSTOMER: 'Reactivated',
+};
+
+/** How many activity rows the profile lists before pointing to Audit Logs. */
+const ACTIVITY_LIMIT = 8;
+
 /**
  * @param {Object}   props
+ * @param {string}   [props.role] 'superadmin' sees the full record and may
+ *   suspend/reactivate; 'admin' gets the LIMITED audit view (masked email, no
+ *   spend, no account actions). The API enforces the same split.
  * @param {Function} [props.onViewOrders] opens the Orders tab focused on
  *   `{ orderId }` (one order) or `{ search }` (all of a customer's orders).
  *   Optional — without it the order links are hidden.
  */
-const CustomersTab = ({ onViewOrders } = {}) => {
+const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
+  const isOwner = role === 'superadmin';
   // In-app Confirm / Cancel dialog (replaces the browser's `window.confirm`).
   const [confirm, confirmDialog] = useConfirm();
   const [customers, setCustomers] = useState([]);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
   const [busyId, setBusyId] = useState(null);
   const [page, setPage] = useState(0);
 
@@ -170,6 +192,11 @@ const CustomersTab = ({ onViewOrders } = {}) => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   // This customer's orders with items: null = loading, false = failed, [] = none.
   const [customerOrders, setCustomerOrders] = useState(null);
+  // This customer's account activity (audit rows): same null/false/[] contract.
+  const [activity, setActivity] = useState(null);
+  // Their try-on history, INCLUDING looks they deleted: same contract.
+  const [tryOns, setTryOns] = useState(null);
+  const [restoringId, setRestoringId] = useState(null);
 
   /*
    * The backend supports server-side search + status filtering, but the list
@@ -201,6 +228,23 @@ const CustomersTab = ({ onViewOrders } = {}) => {
     setLoadingDetail(true);
     setDetail({ id: customer.id, loading: true });
     setCustomerOrders(null);
+    setActivity(null);
+    setTryOns(null);
+
+    api
+      .get(`/admin/customers/${customer.id}/try-ons`)
+      .then((r) => setTryOns(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setTryOns(false));
+
+    // The activity trail loads on its own so a slow read never holds the profile.
+    api
+      .get('/admin/audit-logs', { params: { subject_user_id: customer.id } })
+      .then((r) => setActivity(Array.isArray(r.data) ? r.data : (r.data?.data || [])))
+      .catch((err) => {
+        console.warn('SuperAdmin: could not load account activity', err);
+        setActivity(false);
+      });
+
     try {
       /*
        * Two reads in parallel: the profile, and the order list WITH line items
@@ -236,29 +280,6 @@ const CustomersTab = ({ onViewOrders } = {}) => {
     }
   };
 
-  const handleSuspend = async (customer) => {
-    const ok = await confirm({
-      title: 'Suspend customer?',
-      message: `${customer.email} will be signed out immediately and unable to log in until reactivated.`,
-      confirmText: 'Suspend',
-      danger: true,
-    });
-    if (!ok) return;
-
-    setBusyId(customer.id);
-    setError('');
-    try {
-      const res = await api.patch(`/admin/customers/${customer.id}/suspend`);
-      const updated = res.data?.customer;
-      setCustomers((current) =>
-        current.map((c) => (c.id === customer.id ? { ...c, ...updated } : c))
-      );
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to suspend the customer.');
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const handleReactivate = async (customer) => {
     setBusyId(customer.id);
@@ -276,9 +297,26 @@ const CustomersTab = ({ onViewOrders } = {}) => {
     }
   };
 
+  /** Puts a look the customer deleted back into their history and notifies them. */
+  const restoreTryOn = async (look) => {
+    const ok = await confirm({
+      title: 'Restore this try-on?',
+      message: `"${look.title}" will return to ${detail?.full_name || 'the customer'}'s try-on history, and they will be notified by e-mail and in the app.`,
+      confirmText: 'Restore & notify',
+    });
+    if (!ok) return;
+    setRestoringId(look.session_id);
+    try {
+      await api.post(`/admin/customers/${detail.id}/try-ons/${look.session_id}/restore`);
+      setTryOns((list) => (Array.isArray(list) ? list.map((t) => (t.session_id === look.session_id ? { ...t, deleted_at: null, restored: true } : t)) : list));
+    } catch (err) {
+      setError(err?.response?.data?.message || 'The try-on could not be restored.');
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
   const visible = customers.filter((c) => {
-    if (status === 'active' && c.suspended_at) return false;
-    if (status === 'suspended' && !c.suspended_at) return false;
     if (search.trim()) {
       const term = search.trim().toLowerCase();
       const haystack = [c.full_name, c.email].filter(Boolean).join(' ').toLowerCase();
@@ -287,7 +325,10 @@ const CustomersTab = ({ onViewOrders } = {}) => {
     return true;
   });
 
-  const suspendedCount = customers.filter((c) => c.suspended_at).length;
+  const DAY = 86400000;
+  const activeRecently = customers.filter((c) => c.last_login_at && Date.now() - new Date(c.last_login_at).getTime() < 30 * DAY).length;
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const joinedThisMonth = customers.filter((c) => c.created_at && new Date(c.created_at) >= monthStart).length;
 
   /*
    * PAGINATION — five customers per page, same as the Inventory Catalog.
@@ -306,65 +347,29 @@ const CustomersTab = ({ onViewOrders } = {}) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-hiraya-structure-line">
         <div>
           <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900 flex items-center gap-2">
-            <Users size={22} /> CUSTOMER DIRECTORY
+            <Users size={22} /> Customers Management
           </h2>
-          <p className="text-xs text-hiraya-ink mt-1">
-            Search customers, review their saved sizes and order history,
-            and suspend or reactivate accounts.
-          </p>
         </div>
-
-        <button
-          onClick={fetchCustomers}
-          disabled={fetching}
-          className="px-4 py-2.5 bg-hiraya-accent hover:bg-hiraya-gold-deep disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none text-hiraya-on-accent font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
-        >
-          <RefreshCw size={16} className={fetching ? 'animate-spin' : ''} />
-          {fetching ? 'Loading' : 'Refresh'}
-        </button>
       </div>
 
       {/* METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Total Customers</p>
-          <p className="text-3xl font-bold text-hiraya-ink pt-1">{customers.length}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="p-3 sm:p-5 bg-hiraya-surface rounded-[18px] sm:rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
+          <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-hiraya-ink leading-tight">Total Customers</p>
+          <p className="text-lg sm:text-3xl font-bold text-hiraya-ink pt-1">{customers.length}</p>
         </div>
-        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Active</p>
-          <p className="text-3xl font-bold text-emerald-700 pt-1">
-            {customers.length - suspendedCount}
-          </p>
+        <div className="p-3 sm:p-5 bg-hiraya-surface rounded-[18px] sm:rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
+          <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-hiraya-ink leading-tight">Active last 30 days</p>
+          <p className="text-lg sm:text-3xl font-bold text-emerald-700 pt-1">{activeRecently}</p>
         </div>
-        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
-          <p className="text-[10px] uppercase tracking-wider text-hiraya-ink">Suspended</p>
-          <p className={`text-3xl font-bold pt-1 ${suspendedCount > 0 ? 'text-red-700' : 'text-hiraya-ink'}`}>
-            {suspendedCount}
-          </p>
+        <div className="p-3 sm:p-5 bg-hiraya-surface rounded-[18px] sm:rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-1">
+          <p className="text-[9px] sm:text-[10px] uppercase tracking-wider text-hiraya-ink leading-tight">Joined this month</p>
+          <p className="text-lg sm:text-3xl font-bold pt-1 text-hiraya-ink">{joinedThisMonth}</p>
         </div>
       </div>
 
       {/* FILTERS + SEARCH */}
       <div className="flex flex-wrap items-center gap-2">
-        {[
-          { id: 'all', label: 'All' },
-          { id: 'active', label: 'Active' },
-          { id: 'suspended', label: 'Suspended' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setStatus(tab.id);
-              setPage(0); // a new filter starts on its first page
-            }}
-            className={`px-4 py-2 rounded-lg text-[10px] uppercase tracking-widest border transition cursor-pointer ${status === tab.id
-                ? 'bg-hiraya-accent/15 text-hiraya-ink border-hiraya-accent/40 font-medium'
-                : 'text-hiraya-ink border-hiraya-structure-line/80 hover:text-hiraya-ink hover:border-hiraya-structure-line'
-              }`}
-          >
-            {tab.label}
-          </button>
-        ))}
 
         <div className="relative ml-auto">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-hiraya-sand" />
@@ -394,8 +399,8 @@ const CustomersTab = ({ onViewOrders } = {}) => {
             <thead className="bg-navy-900 uppercase tracking-[0.16em] text-[10px] text-cream-100">
               <tr>
                 <th className="p-4">CUSTOMER</th>
-                <th className="p-4">LAST SEEN</th>
-                <th className="p-4">JOINED</th>
+                <th className="hidden p-4 sm:table-cell">LAST SEEN</th>
+                <th className="hidden p-4 sm:table-cell">JOINED</th>
                 <th className="p-4">STATUS</th>
                 <th className="p-4 text-right">ACTIONS</th>
               </tr>
@@ -434,11 +439,11 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                       </button>
                     </td>
 
-                    <td className="p-4 text-[11px] text-hiraya-ink">
+                    <td className="hidden p-4 text-[11px] text-hiraya-ink sm:table-cell">
                       {formatWhen(customer.last_login_at)}
                     </td>
 
-                    <td className="p-4 text-[11px] text-hiraya-ink">
+                    <td className="hidden p-4 text-[11px] text-hiraya-ink sm:table-cell">
                       {customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '—'}
                     </td>
 
@@ -463,7 +468,7 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                           <Search size={14} />
                         </button>
 
-                        {customer.suspended_at ? (
+                        {isOwner && customer.suspended_at && (
                           <button
                             onClick={() => handleReactivate(customer)}
                             disabled={busyId === customer.id}
@@ -474,19 +479,6 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                               <Loader2 size={14} className="animate-spin" />
                             ) : (
                               <ShieldCheck size={14} />
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleSuspend(customer)}
-                            disabled={busyId === customer.id}
-                            className="p-2 bg-red-500/12 hover:bg-red-500/20 border border-red-600/40 text-red-700 rounded-lg transition cursor-pointer disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none"
-                            title="Suspend customer"
-                          >
-                            {busyId === customer.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <ShieldOff size={14} />
                             )}
                           </button>
                         )}
@@ -599,9 +591,11 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                         <StatCard icon={ShoppingBag} label="Orders">
                           {orders.length || detail.order_count || 0}
                         </StatCard>
-                        <StatCard icon={Wallet} label="Total Spent" tone="text-emerald-700">
-                          {peso(totalSpent(orders))}
-                        </StatCard>
+                        {isOwner && (
+                          <StatCard icon={Wallet} label="Total Spent" tone="text-emerald-700">
+                            {peso(totalSpent(orders))}
+                          </StatCard>
+                        )}
                         <StatCard icon={Clock} label="Last Seen">
                           {formatWhen(detail.last_login_at)}
                         </StatCard>
@@ -616,7 +610,109 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                           <DetailCard label="Account Created">{formatDate(detail.created_at, true)}</DetailCard>
                           <DetailCard label="Last Order">{lastOrder ? formatDate(lastOrder) : 'No orders yet'}</DetailCard>
                           <DetailCard label="Customer Since">{tenure(detail.created_at)}</DetailCard>
+                          {isOwner && detail.sizes && (
+                            <DetailCard label="Saved Sizes (Top / Bottom)">
+                              {detail.sizes.upper_body_size || '—'} / {detail.sizes.lower_body_size || '—'}
+                            </DetailCard>
+                          )}
                         </div>
+                        {detail.limited && (
+                          <p className="mt-2 text-[10px] text-hiraya-sand">
+                            Limited view: contact details, sizes and spend are visible to the Super Admin only.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* ACCOUNT ACTIVITY — this customer's audit trail */}
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-hiraya-ink font-bold mb-2 flex items-center gap-1.5">
+                          <History size={12} /> Account Activity
+                        </p>
+                        {activity === null ? (
+                          <div className="py-4 text-center text-hiraya-sand">
+                            <Loader2 size={16} className="animate-spin mx-auto mb-1.5" />
+                            <span className="uppercase tracking-widest text-[9px]">Loading activity…</span>
+                          </div>
+                        ) : activity === false ? (
+                          <p className="text-[11px] text-hiraya-sand">Could not load this account&apos;s activity.</p>
+                        ) : activity.length === 0 ? (
+                          <p className="text-[11px] text-hiraya-sand">No recorded activity yet.</p>
+                        ) : (
+                          <ol className="space-y-1.5">
+                            {activity.slice(0, ACTIVITY_LIMIT).map((row) => (
+                              <li
+                                key={row.id}
+                                className="p-2.5 bg-hiraya-cream/30 border border-hiraya-structure-line/80 rounded-lg"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span
+                                    className={`text-[11px] font-semibold ${row.action === 'USER_LOGIN_FAILED' || row.action === 'SUSPEND_CUSTOMER' ? 'text-red-700' : 'text-hiraya-ink'}`}
+                                  >
+                                    {ACTIVITY_LABEL[row.action] || row.action}
+                                  </span>
+                                  <span className="text-[9px] text-hiraya-sand whitespace-nowrap">
+                                    {formatDate(row.created_at, true)}
+                                  </span>
+                                </div>
+                                {row.actor_role && row.actor_role !== 'user' && (
+                                  <p className="text-[10px] text-hiraya-sand mt-0.5">
+                                    by {row.admin_email || 'staff'} ({row.actor_role})
+                                  </p>
+                                )}
+                                {isOwner && row.ip_address && (
+                                  <p className="text-[9px] font-mono text-hiraya-sand mt-0.5">IP {row.ip_address}</p>
+                                )}
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+
+                      {/* TRY-ON HISTORY — including looks the customer deleted */}
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-hiraya-ink font-bold mb-2 flex items-center gap-1.5">
+                          <Sparkles size={12} /> Try-on History
+                        </p>
+                        {tryOns === null ? (
+                          <div className="py-4 text-center text-hiraya-sand">
+                            <Loader2 size={16} className="animate-spin mx-auto mb-1.5" />
+                            <span className="uppercase tracking-widest text-[9px]">Loading try-ons…</span>
+                          </div>
+                        ) : tryOns === false ? (
+                          <p className="text-[11px] text-hiraya-sand">Could not load this customer&apos;s try-ons.</p>
+                        ) : tryOns.length === 0 ? (
+                          <p className="text-[11px] text-hiraya-sand">No completed try-ons yet.</p>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2">
+                            {tryOns.map((look) => (
+                              <div key={look.session_id} className={`overflow-hidden rounded-xl border bg-hiraya-cream/30 ${look.deleted_at ? 'border-red-600/40' : 'border-hiraya-structure-line/80'}`}>
+                                <div className="relative aspect-[3/4] bg-cream-200/60">
+                                  {look.thumbnail && <img src={look.thumbnail} alt={look.title} className={`h-full w-full object-cover ${look.deleted_at ? 'opacity-50' : ''}`} />}
+                                  {look.deleted_at && (
+                                    <span className="absolute left-1 top-1 rounded bg-red-700 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">Deleted</span>
+                                  )}
+                                  {look.restored && (
+                                    <span className="absolute left-1 top-1 rounded bg-emerald-700 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">Restored</span>
+                                  )}
+                                </div>
+                                <div className="p-1.5">
+                                  <p className="truncate text-[10px] font-semibold text-hiraya-ink" title={look.title}>{look.title}</p>
+                                  <p className="text-[9px] text-hiraya-sand">{formatDate(look.created_at)}</p>
+                                  {look.deleted_at && (
+                                    <button
+                                      type="button"
+                                      onClick={() => restoreTryOn(look)}
+                                      disabled={restoringId === look.session_id}
+                                      className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg bg-navy-900 py-1 text-[9px] font-bold uppercase tracking-wider text-cream-100 hover:bg-navy-800 disabled:opacity-60 cursor-pointer"
+                                    >
+                                      {restoringId === look.session_id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />} Restore
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* RECENT ORDERS — the latest few, with the first item's photo */}
@@ -699,7 +795,9 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                                   </div>
 
                                   <div className="flex items-center justify-between gap-3 pt-2 border-t border-hiraya-structure-line/60">
-                                    <p className="font-bold text-hiraya-ink tabular-nums">{peso(order.total_amount)}</p>
+                                    <p className="font-bold text-hiraya-ink tabular-nums">
+                                      {isOwner ? peso(order.total_amount) : (ORDER_STATUS_LABEL[order.order_status] || '')}
+                                    </p>
                                     {onViewOrders && (
                                       <button
                                         type="button"
@@ -736,8 +834,8 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                   );
                 })()}
 
+                {isOwner && detail.suspended_at && (
                 <div className="pt-4 border-t border-hiraya-structure-line/80">
-                  {detail.suspended_at ? (
                     <button
                       onClick={() => {
                         handleReactivate(detail);
@@ -745,20 +843,10 @@ const CustomersTab = ({ onViewOrders } = {}) => {
                       }}
                       className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 font-bold uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 w-full py-2.5"
                     >
-                      <ShieldCheck size={14} /> Reactivate
+                      <ShieldCheck size={14} /> Reactivate account
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        handleSuspend(detail);
-                        setDetail(null);
-                      }}
-                      className="px-4 py-2 bg-red-500/12 hover:bg-red-500/20 border border-red-600/40 text-red-700 font-bold uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 w-full py-2.5"
-                    >
-                      <ShieldOff size={14} /> Suspend
-                    </button>
-                  )}
                 </div>
+                )}
               </div>
             )}
           </div>

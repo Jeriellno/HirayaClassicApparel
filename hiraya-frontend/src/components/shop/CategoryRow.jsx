@@ -54,14 +54,16 @@ const CategoryRow = ({
 
   return (
     <div className="mb-20">
-      <div className="mb-8 flex items-end justify-between gap-6">
-        <div className="flex items-center gap-4">
+      {/* min-w-0 + a smaller phone title: a long category name used to push
+          "Explore More" past the screen edge and make the page scroll sideways. */}
+      <div className="mb-8 flex items-end justify-between gap-3 sm:gap-6">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           {/* A navy stamp carrying the row's piece count. */}
-          <span className="flex h-12 min-w-12 items-center justify-center rounded-2xl bg-navy-900 px-3 font-serif text-lg text-cream-100 shadow-neu-sm">
+          <span className="flex h-12 min-w-12 shrink-0 items-center justify-center rounded-2xl bg-navy-900 px-3 font-serif text-lg text-cream-100 shadow-neu-sm">
             {String(filtered.length).padStart(2, '0')}
           </span>
-          <div>
-            <h2 className="font-serif text-[1.6rem] uppercase leading-none tracking-[0.06em] text-navy-900">
+          <div className="min-w-0">
+            <h2 className="break-words font-serif text-[1.25rem] uppercase leading-none tracking-[0.06em] text-navy-900 sm:text-[1.6rem]">
               {title}
             </h2>
             <span className="mt-2 block text-[10px] uppercase tracking-[0.2em] text-hiraya-ink-muted">
@@ -74,7 +76,7 @@ const CategoryRow = ({
           onClick={handleExplore}
           className="btn-quiet group shrink-0"
         >
-          Explore More <PlusCircle size={15} className="group-hover:rotate-90 transition-transform" />
+          <span className="sm:hidden">More</span><span className="hidden sm:inline">Explore More</span> <PlusCircle size={15} className="group-hover:rotate-90 transition-transform" />
         </button>
       </div>
 

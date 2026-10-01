@@ -309,10 +309,50 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
     // AI auto-fill AND the Save/Edit/Delete all work without an admin login.
 
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboardMetrics']);
+    // The ADMIN (staff) dashboard: work queue + inventory, no analytics.
+    Route::get('/work-summary', [\App\Http\Controllers\Api\DashboardInsightsController::class, 'work']);
     Route::get('/stock-adjustments', [AdminStockMovementController::class, 'index']);
 
 
     // Order management
+    /*
+     * CUSTOMER ACCOUNT AUDIT — readable by admins, in a LIMITED form.
+     *
+     * Admins audit customer accounts: the customer list, one customer's
+     * profile, and the trail of account activity. What they see is reduced
+     * server-side (masked emails, no IPs, no sizes or spend, customer-area
+     * audit rows only); the super admin, as owner, gets everything. Suspend /
+     * reactivate stay in the superadmin-only group below.
+     */
+    Route::get('/customers', [AdminCustomerController::class, 'index']);
+    Route::get('/customers/{user}', [AdminCustomerController::class, 'show']);
+    Route::get('/audit-logs', [SuperAdminController::class, 'auditLogs']);
+
+    // Customer try-on history (incl. deleted looks) and restoring one.
+    Route::get('/customers/{user}/try-ons', [AdminCustomerController::class, 'tryOns']);
+    Route::post('/customers/{user}/try-ons/{sessionId}/restore', [AdminCustomerController::class, 'restoreTryOn'])
+        ->middleware('throttle:30,1');
+
+    // Console-wide: section-view audit, named customer feedback, Contact Support.
+    Route::post('/console/section-view', [\App\Http\Controllers\Api\ConsoleController::class, 'sectionView'])
+        ->middleware('throttle:120,1');
+    Route::post('/me/password', [\App\Http\Controllers\Api\ConsoleController::class, 'changeOwnPassword'])
+        ->middleware('throttle:10,1');
+    Route::post('/console/{event}', [\App\Http\Controllers\Api\ConsoleController::class, 'signInEvent'])
+        ->where('event', 'signed-in|signed-out')->middleware('throttle:30,1');
+    Route::get('/customer-feedback', [\App\Http\Controllers\Api\ConsoleController::class, 'customerFeedback']);
+    Route::get('/support', [\App\Http\Controllers\Api\ConsoleController::class, 'supportIndex']);
+    Route::post('/support', [\App\Http\Controllers\Api\ConsoleController::class, 'supportStore'])
+        ->middleware('throttle:10,1');
+    Route::patch('/support/{id}/resolve', [\App\Http\Controllers\Api\ConsoleController::class, 'supportResolve'])
+        ->whereNumber('id');
+
+    // Demo orders for presenting the payment flow (see DemoOrderController).
+    Route::post('/orders/demo', [\App\Http\Controllers\Api\DemoOrderController::class, 'store'])
+        ->middleware('throttle:20,1');
+    Route::delete('/orders/demo', [\App\Http\Controllers\Api\DemoOrderController::class, 'destroyAll']);
+    Route::post('/orders/{order}/demo-balance', [\App\Http\Controllers\Api\DemoOrderController::class, 'simulateBalance']);
+
     Route::get('/orders', [AdminOrderController::class, 'index']);
     Route::get('/orders/{order}', [AdminOrderController::class, 'show']);
     Route::get('/orders/{order}/proof/{type}', [AdminOrderController::class, 'proof'])
@@ -409,6 +449,9 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
      * belongs to someone else.
      */
     Route::post('/invite', [AdminAccountController::class, 'invite']);
+    // Admin Management: create an admin directly, and reset an admin's password.
+    Route::post('/', [AdminAccountController::class, 'store'])->middleware('throttle:20,1');
+    Route::post('/{user}/reset-password', [AdminAccountController::class, 'resetPassword'])->middleware('throttle:20,1');
 
     /*
      * RE-ISSUE A PENDING INVITATION.
@@ -529,7 +572,6 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
     ->group(function () {
         Route::get('/settings', [SuperAdminController::class, 'settings']);
     Route::put('/settings/{key}', [SuperAdminController::class, 'updateSetting']);
-    Route::get('/audit-logs', [SuperAdminController::class, 'auditLogs']);
     Route::get('/export', [SuperAdminController::class, 'export']);
     Route::delete('/analytics/demo', [SuperAdminController::class, 'clearDemoAnalytics']);
 
@@ -564,6 +606,10 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
      * middleware, and no change to any existing route.
      */
     Route::get('/api-status', [ApiStatusController::class, 'index']);
+    // Plain-language AI / service health for the console header (cached 5 min).
+    Route::get('/system-health', [\App\Http\Controllers\Api\ConsoleController::class, 'systemHealth']);
+    // The analytics dashboard is the OWNER's (super admin only).
+    Route::get('/analytics/insights', [\App\Http\Controllers\Api\DashboardInsightsController::class, 'show']);
     Route::post('/api-status/{key}/probe', [ApiStatusController::class, 'probe']);
 
     /*
@@ -580,6 +626,11 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
     /*
      * SUPER ADMIN CUSTOMER MANAGEMENT.
      *
+     * Only the WRITES (suspend / reactivate) live here now. The two reads —
+     * the customer list and one customer's profile — moved to the admin-level
+     * group above, where an admin gets a LIMITED, masked view and the super
+     * admin the full record (AdminCustomerController decides per role).
+     *
      * The console had NO way to see or act on customers — only admin accounts
      * were listable (AdminAccountController filters role IN admin/superadmin).
      * Yet customers are the majority of the data the export dumps and the
@@ -589,8 +640,6 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
      * Inside the `superadmin` group, so they inherit the same gate as the rest
      * of this console-only surface.
      */
-    Route::get('/customers', [AdminCustomerController::class, 'index']);
-    Route::get('/customers/{user}', [AdminCustomerController::class, 'show']);
     Route::patch('/customers/{user}/suspend', [AdminCustomerController::class, 'suspend']);
     Route::patch('/customers/{user}/reactivate', [AdminCustomerController::class, 'reactivate']);
 });
@@ -627,7 +676,17 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
             'gender'        => 'sometimes|nullable|string|in:male,female',
         ]);
         if ($user) {
+            $before = $user->only(array_keys($validated));
             $user->update($validated);
+
+            $changed = collect($validated)
+                ->filter(fn ($value, $field) => (string) ($before[$field] ?? '') !== (string) $value)
+                ->map(fn ($value, $field) => $field . ': ' . (($before[$field] ?? null) ?: '—') . ' -> ' . ($value ?: '—'))
+                ->implode('; ');
+
+            if ($changed !== '') {
+                \App\Support\AccountAudit::record($user, 'USER_PROFILE_UPDATED', 'Profile edited — ' . $changed, $request);
+            }
         }
         return response()->json([
             'message' => 'Profile updated successfully!',
