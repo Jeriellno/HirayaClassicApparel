@@ -41,8 +41,11 @@ return [
      * Unset keeps the wildcard for local / LAN demos; auth is a bearer token,
      * not a cookie, so the wildcard never exposes a session on its own.
      */
-    'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_ALLOWED_ORIGINS', '*'))))),
-
+    'allowed_origins' => [
+        'https://hirayaclassicapparel-1.onrender.com',
+        'http://localhost:5173',
+    ],
+    
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
