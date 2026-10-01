@@ -44,12 +44,7 @@ export default defineConfig({
 
   optimizeDeps: {
     exclude: ['@imgly/background-removal'],
-    include: [
-      'onnxruntime-web', 
-      '@react-three/fiber', 
-      '@react-three/drei', 
-      'three'
-    ],
+    include: ['onnxruntime-web'],
   },
 
   server: {
