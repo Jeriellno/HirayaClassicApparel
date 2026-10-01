@@ -14,7 +14,7 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 |
 | Access this URL once via browser to clear cached configurations and routes:
-| https://hirayaclassicapparel.onrender.com/clear-everything
+| https://hiraya-classicapparel.onrender.com/clear-everything
 |
 */
 Route::get('/clear-everything', function () {
