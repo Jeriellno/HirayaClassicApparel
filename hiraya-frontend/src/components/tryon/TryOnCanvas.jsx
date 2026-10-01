@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Layers, Camera, Loader2, Download, ImageIcon, Wand2, ShieldCheck, AlertTriangle, Info, XCircle,
-  ChevronDown, RefreshCw, Share2, ShoppingBag, Check, Square, Trash2, MinusCircle,
+  ChevronDown, RefreshCw, Share2, ShoppingBag, Check, Square, Trash2, MinusCircle, History,
 } from 'lucide-react';
 import { PhotoGuide } from './PhotoGuide';
 
@@ -11,7 +11,7 @@ import { PhotoGuide } from './PhotoGuide';
  * Phase thresholds kept ONLY as a progress read-out.
  *
  * The literal sentences that used to sit under the bar ("Reading your full-body
- * frame…", "Your photo stays as the base · …") have been REMOVED from the
+ * frame”¦", "Your photo stays as the base · ”¦") have been REMOVED from the
  * generating overlay per the requested UX: while a render is running the
  * customer should see the LOADING indicator and the Stop control, nothing else.
  *
@@ -53,7 +53,14 @@ export const TryOnCanvas = ({
    * intact (it has its own Clear in the left panel).
    */
   onRemovePhoto = null,
-  measurements,
+  /*
+   * THE CUSTOMER'S SIZING PROFILE — two size labels (upper_body_size /
+   * lower_body_size). This replaced the five centimetre measurements, and the
+   * canvas reads them only to caption the render honestly. It never asks the
+   * customer to type a number.
+   */
+  bodySizes = {},
+  measurements = null,
   // Live pipeline telemetry from useTryOnState
   tryOnStatus = null,
   tryOnProgress = 0,
@@ -107,6 +114,13 @@ export const TryOnCanvas = ({
   onRetry = null,
   onProceedToCheckout = null,
   onAddWornToBag = null,
+  /*
+   * TRY-ON HISTORY. Opens the Studio's history drawer from the canvas header;
+   * `newLooks` counts renders saved since the drawer was last opened, shown
+   * as a small badge so the customer knows the fit they just made is kept.
+   */
+  onOpenHistory = null,
+  newLooks = 0,
 }) => {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -124,7 +138,7 @@ export const TryOnCanvas = ({
    * something was flagged ("Fit check: 3 notes"), so nothing is hidden silently.
    *
    * `block` is the one verdict that earns an automatic open: it means the size
-   * could not be checked against the customer AT ALL (no measurements on file),
+   * could not be checked against the customer AT ALL (no sizes on file),
    * which is not a note to be discovered by clicking — it is the answer to the
    * question they came for. See the syncing effect below.
    */
@@ -155,11 +169,17 @@ export const TryOnCanvas = ({
     !!userPhotoPreview && !generatedImage && !isGenerating && !!photoVerification;
   const photoCheckState = photoVerification?.status || null;
 
+  /*
+   * The chip now lives on the BLACK canvas well, so its states are painted for a
+   * dark ground. Previously they used `bg-hiraya-peach` / dark ink pairs that
+   * only made sense while the well was a pale gradient; on black they read as
+   * pale blobs with washed-out labels.
+   */
   const PHOTO_CHECK_STYLES = {
-    checking:   { ring: 'border-hiraya-olive/20 bg-hiraya-olive/60', text: 'text-hiraya-ink', label: 'Checking photo…' },
-    ready:      { ring: 'border-emerald-400/40 bg-emerald-500/15', text: 'text-emerald-200', label: 'Photo looks good' },
-    unmeasured: { ring: 'border-hiraya-olive/20 bg-hiraya-cream/50', text: 'text-hiraya-ink', label: 'Fit not measured' },
-    warn:       { ring: 'border-amber-400/40 bg-amber-500/15', text: 'text-amber-200', label: 'Photo may limit the fit' },
+    checking:   { ring: 'border-hiraya-nav-ink/20 bg-black/60', text: 'text-hiraya-nav-ink', label: 'Checking photo…' },
+    ready:      { ring: 'border-emerald-500/45 bg-emerald-500/15', text: 'text-emerald-300', label: 'Photo looks good' },
+    unmeasured: { ring: 'border-hiraya-nav-ink/20 bg-black/60', text: 'text-hiraya-nav-muted', label: 'Fit not measured' },
+    warn:       { ring: 'border-amber-500/45 bg-amber-500/15', text: 'text-amber-300', label: 'Photo may limit the fit' },
   };
   const photoCheckStyle = PHOTO_CHECK_STYLES[photoCheckState] || null;
 
@@ -187,9 +207,9 @@ export const TryOnCanvas = ({
   const fitItems = Array.isArray(fitCheck?.items) ? fitCheck.items : [];
   const fitIssues = fitItems.filter((i) => i.status !== 'pass');
   const FIT_STYLES = {
-    pass: { ring: 'border-emerald-400/40 bg-emerald-500/15', text: 'text-emerald-200', Icon: ShieldCheck, label: 'Fit check passed' },
-    warn: { ring: 'border-amber-400/40 bg-amber-500/15', text: 'text-amber-200', Icon: AlertTriangle, label: 'Fit check issued warnings' },
-    block: { ring: 'border-red-400/40 bg-red-500/15', text: 'text-red-200', Icon: XCircle, label: 'Fit check could not confirm the size' },
+    pass: { ring: 'border-emerald-500/45', text: 'text-emerald-300', Icon: ShieldCheck, label: 'Fit check passed' },
+    warn: { ring: 'border-amber-500/45', text: 'text-amber-300', Icon: AlertTriangle, label: 'Fit check issued warnings' },
+    block: { ring: 'border-red-600/50', text: 'text-red-400', Icon: XCircle, label: 'Fit check could not confirm the size' },
   };
   const fitStyle = FIT_STYLES[fitStatus] || null;
 
@@ -197,7 +217,7 @@ export const TryOnCanvas = ({
    * AUTO-OPEN ON `block` ONLY.
    *
    * A `block` verdict means the size could not be checked against the customer
-   * at all — they have no body measurements on file. That is the direct answer
+   * at all — they have no sizing profile on file. That is the direct answer
    * to "what size fits me", so leaving it behind a click would bury it. A
    * `warn` stays collapsed (see the note on `fitOpen` above).
    *
@@ -216,7 +236,7 @@ export const TryOnCanvas = ({
     status === 'pass'
       ? { text: 'text-emerald-300', Icon: ShieldCheck }
       : status === 'block'
-        ? { text: 'text-red-300', Icon: XCircle }
+        ? { text: 'text-red-400', Icon: XCircle }
         : { text: 'text-amber-300', Icon: AlertTriangle };
 
   /**
@@ -315,25 +335,53 @@ export const TryOnCanvas = ({
     }
   };
 
-  // Build a short, human-readable summary of the 5 Core Body Measurements
-  // for the"Mapping garment drape to ..." status line.
-  const frameLabel = measurements
-    ? `C${measurements.chest_bust || '–'}/W${measurements.waist || '–'}/H${measurements.hips || '–'}cm`
-    : '0cm';
+  /*
+   * A short, honest caption of the sizing the render was built from.
+   *
+   * It used to print the five typed centimetres ("C92/W70/H90cm"), which is
+   * impossible now that nothing is typed: the numbers come from the size chart.
+   * Naming the SIZE is both truthful and what the customer actually chose.
+   */
+  const frameLabel = bodySizes?.upper_body_size || bodySizes?.lower_body_size
+    ? `Size ${bodySizes.upper_body_size || bodySizes.lower_body_size}`
+    : 'No size set';
 
   return (
     <section className="flex min-h-[420px] flex-1 flex-col space-y-4">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-hiraya-ink">
-          <Layers size={14} /> Virtual Fitting Canvas
+        <span
+          data-tour="fitting-canvas"
+          className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy-900 text-cream-100 shadow-neu-sm"><Layers size={14} /></span>
+          Virtual Fitting Canvas
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {onOpenHistory && (
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              data-tour="history-toggle"
+              aria-label={`Open try-on history${newLooks > 0 ? ` — ${newLooks} new` : ''}`}
+              title="Try-On History"
+              className="btn-secondary relative cursor-pointer rounded-full px-3 py-2.5 sm:px-4"
+            >
+              <History size={12} />
+              <span className="hidden sm:inline">History</span>
+              {newLooks > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-navy-900 px-1 text-[9px] font-semibold leading-none text-cream-100 ring-2 ring-hiraya-surface">
+                  {newLooks}
+                </span>
+              )}
+            </button>
+          )}
           <input id="body-photo-input" type="file" className="hidden" ref={fileInputRef} onChange={onPhotoUpload} accept="image/*" />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-xl border-hiraya-olive/15 bg-hiraya-sand/60 px-3.5 py-2 text-[10px] font-semibold uppercase tracking-wider text-hiraya-ink transition-colors duration-200 hover:border-hiraya-gold/50 hover:text-hiraya-ink"
+            data-tour="upload-photo"
+            className="btn-secondary cursor-pointer rounded-full px-4 py-2.5"
           >
-            <Camera size={12} className="text-hiraya-ink" />
+            <Camera size={12} />
             {userPhotoPreview ? 'Change Photo' : 'Upload Body Photo'}
           </button>
           {/*
@@ -352,7 +400,7 @@ export const TryOnCanvas = ({
             <button
               onClick={onRemovePhoto}
               disabled={!onRemovePhoto}
-              className="flex items-center gap-1.5 rounded-xl border-hiraya-olive/15 px-3 py-2 text-[9px] font-semibold uppercase tracking-widest text-hiraya-sand transition-colors duration-200 hover:border-red-400/40 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-quiet cursor-pointer disabled:cursor-not-allowed"
             >
               <Trash2 size={11} /> Remove Photo
             </button>
@@ -360,7 +408,19 @@ export const TryOnCanvas = ({
         </div>
       </div>
 
-      <div className="relative flex min-h-[360px] max-h-[calc(100vh-16rem)] flex-1 flex-col items-center justify-center overflow-hidden rounded-[2rem] border-hiraya-olive/15 bg-gradient-to-b from-hiraya-bg via-black to-hiraya-bg shadow-2xl">
+      {/*
+       * THE CANVAS WELL IS THE OBSIDIAN FRAME.
+       *
+       * It was `rounded-[2rem] border-hiraya-olive/15 bg-gradient-to-b
+       * from-hiraya-bg via-black to-hiraya-bg` — a 32px radius plus a top and
+       * bottom fade into the page colour, which made the well read as a soft
+       * vignette rather than as a frame. Every render is letterboxed onto BLACK,
+       * so the well is a flat black plate with the system hairline.
+       */}
+      <div className="relative isolate flex min-h-[360px] max-h-[calc(100vh-16rem)] flex-1 flex-col items-center justify-center overflow-hidden rounded-[28px] border border-cream-50/10 bg-noir shadow-[0_40px_80px_-40px_rgba(13,21,36,0.8)]">
+        {/* The stage's light: a soft vignette and grain behind every state. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_50%_35%,rgba(40,58,87,0.45)_0%,transparent_65%)]" />
+        <div aria-hidden="true" className="vintage-grain pointer-events-none absolute inset-0 -z-10 opacity-25 mix-blend-soft-light" />
         <AnimatePresence mode="wait">
           {/* Idle / pre-upload state */}
           {!generatedImage && !isGenerating && !hasError && (
@@ -385,7 +445,7 @@ export const TryOnCanvas = ({
                   <img
                     src={userPhotoPreview}
                     alt="User Profile"
-                    className="max-h-full w-full rounded-[2rem] object-contain"
+                    className="max-h-full w-full rounded-lg object-contain"
                   />
 
                   {/*
@@ -408,7 +468,7 @@ export const TryOnCanvas = ({
                       ].join(' ')}
                     >
                       {photoCheckState === 'checking' ? (
-                        <Loader2 size={11} className="animate-spin text-hiraya-ink" />
+                        <Loader2 size={11} className="animate-spin text-hiraya-nav-ink" />
                       ) : photoCheckState === 'ready' ? (
                         <ShieldCheck size={11} className={photoCheckStyle.text} />
                       ) : photoCheckState === 'unmeasured' ? (
@@ -420,7 +480,7 @@ export const TryOnCanvas = ({
                       )}
                       <span
                         className={[
-                          'text-[9px] font-black uppercase tracking-[0.2em]',
+                          'text-[9px] font-semibold uppercase tracking-[0.18em]',
                           photoCheckStyle.text,
                         ].join(' ')}
                       >
@@ -441,13 +501,13 @@ export const TryOnCanvas = ({
                  */
                 <div className="flex flex-col items-center gap-4 px-6 py-8 text-center">
                   <div className="flex flex-col items-center space-y-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-amber-400/30 bg-amber-500/10 text-amber-300">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-amber-600/40 bg-amber-500/15 text-amber-800">
                       <AlertTriangle size={24} />
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-300">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-800">
                       Photo not accepted
                     </p>
-                    <p className="max-w-sm text-[11px] leading-relaxed text-hiraya-sand">
+                    <p className="max-w-sm text-[11px] leading-relaxed text-hiraya-nav-muted">
                       {photoRejection.detail}
                     </p>
                     <button
@@ -459,7 +519,7 @@ export const TryOnCanvas = ({
                        * collide if two canvases ever render.
                        */
                       onClick={() => fileInputRef.current?.click()}
-                      className="mt-1 inline-flex items-center gap-1.5 rounded-full border-hiraya-olive/15 bg-hiraya-sand/70 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-hiraya-ink transition-colors hover:bg-hiraya-sand/70"
+                      className="btn-secondary mt-1 cursor-pointer rounded-full"
                     >
                       <Camera size={12} />
                       Upload a different photo
@@ -468,16 +528,30 @@ export const TryOnCanvas = ({
                   <PhotoGuide />
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-4 px-6 py-8 text-center">
-                  <div className="flex flex-col items-center space-y-3">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-hiraya-olive/15 bg-hiraya-sand/60 text-hiraya-ink/60">
-                      <ImageIcon size={24} />
-                    </div>
-                    <p className="text-[10px] font-medium uppercase tracking-[0.25em] text-hiraya-sand">
+                <div className="flex w-full flex-col items-center gap-5 px-6 py-8 text-center">
+                  {/*
+                    * THE UPLOAD ZONE — a frosted, dashed target on the dark
+                    * stage. It opens the SAME file input as the header's
+                    * "Upload Body Photo" button (the canvas's own ref), so it is
+                    * a larger door to the existing step, not a new flow.
+                    */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="group relative flex w-full max-w-sm cursor-pointer flex-col items-center gap-4 rounded-[26px] border-2 border-dashed border-cream-50/20 bg-cream-50/[0.04] px-8 py-10 backdrop-blur-md transition-all duration-500 hover:border-cream-100/50 hover:bg-cream-50/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100"
+                  >
+                    <span className="relative flex h-20 w-20 items-center justify-center">
+                      <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full border border-cream-100/25 [animation-duration:2.4s] motion-reduce:animate-none" />
+                      <span aria-hidden="true" className="absolute inset-2 rounded-full border border-cream-100/15" />
+                      <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-cream-100 text-navy-950 shadow-[0_14px_28px_-12px_rgba(0,0,0,0.8)] transition-transform duration-500 group-hover:scale-110">
+                        <ImageIcon size={22} />
+                      </span>
+                    </span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cream-100">
                       Select garments &amp; upload a body photo
-                    </p>
-                    <p className="text-[10px] text-hiraya-sand">Your AI fit render appears here</p>
-                  </div>
+                    </span>
+                    <span className="text-[11px] text-cream-300">Your AI fit render appears here</span>
+                  </button>
                   {/*
                     * The guide sits at the moment of maximum relevance: the
                     * customer is looking at an empty canvas and about to take
@@ -512,15 +586,23 @@ export const TryOnCanvas = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="flex absolute inset-0 z-50 flex-col items-center justify-center gap-5 bg-hiraya-cream/45 backdrop-blur-[2px]"
+              className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-navy-950/40 backdrop-blur-[2px]"
             >
               {userPhotoPreview && (
                 <img
                   src={userPhotoPreview}
                   alt="Your body photo"
-                  className="absolute inset-0 h-full w-full rounded-[2rem] object-contain opacity-35"
+                  className="absolute inset-0 h-full w-full rounded-lg object-contain opacity-35"
                 />
               )}
+              {/* A slow scan line over the photo while the render runs. */}
+              <motion.div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-[12%] h-px bg-cream-100/70 shadow-[0_0_18px_4px_rgba(247,242,231,0.35)] motion-reduce:hidden"
+                initial={{ top: '12%' }}
+                animate={{ top: ['12%', '88%', '12%'] }}
+                transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+              />
 
               {/**
                 * LAYOUT — the loader stays centred; the StoP control drops to the
@@ -532,22 +614,43 @@ export const TryOnCanvas = ({
                 * while waiting.
                 */}
               <div className="relative flex h-full w-full flex-col items-center justify-center gap-5">
-                <Loader2 size={34} className="animate-spin text-hiraya-ink" />
+                {/* A frosted dark pane: the progress ring and rail, on glass. */}
+                <div className="glass-deep flex flex-col items-center gap-5 rounded-[26px] px-8 py-7">
+                <div className="relative flex h-24 w-24 items-center justify-center">
+                  <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden="true">
+                    <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(247,242,231,0.14)" strokeWidth="5" />
+                    <motion.circle
+                      cx="50"
+                      cy="50"
+                      r="44"
+                      fill="none"
+                      stroke="#F7F2E7"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray="276.46"
+                      initial={{ strokeDashoffset: 276.46 * 0.95 }}
+                      animate={{ strokeDashoffset: 276.46 * (1 - progress / 100) }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    />
+                  </svg>
+                  <span className="font-sans text-lg font-semibold tabular-nums text-cream-50">{progress}%</span>
+                </div>
 
                 {/* Cream progress rail driven by the live render status */}
                 <div className="w-[260px] space-y-2">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-hiraya-sand/70">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-hiraya-nav-ink/18">
                     <motion.div
-                      className="cream-progress h-full rounded-full"
+                      className="h-full rounded-full bg-hiraya-accent"
                       initial={{ width: '5%' }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.5, ease: 'easeOut' }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.2em]">
-                    <span className="text-hiraya-ink">Rendering your fitting</span>
-                    <span className="text-hiraya-sand">{progress}%</span>
+                  <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.18em]">
+                    <span className="flex items-center gap-2 text-hiraya-nav-ink"><Loader2 size={11} className="animate-spin" /> Rendering your fitting</span>
+                    <span className="text-hiraya-nav-muted">{progress}%</span>
                   </div>
+                </div>
                 </div>
               </div>
 
@@ -568,7 +671,7 @@ export const TryOnCanvas = ({
                   <button
                     type="button"
                     onClick={onCancel}
-                    className="flex items-center gap-2 rounded-xl border-hiraya-olive/20 bg-hiraya-cream/40 px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-hiraya-ink backdrop-blur-md transition-colors duration-200 hover:border-red-400/50 hover:text-red-300"
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-nav-ink/25 bg-black/55 px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-hiraya-nav-ink backdrop-blur-md transition-colors duration-200 hover:border-red-600/50 hover:text-red-300"
                   >
                     <Square size={11} className="fill-current" /> Stop
                   </button>
@@ -585,50 +688,50 @@ export const TryOnCanvas = ({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="flex absolute inset-0 z-50 flex-col items-center justify-center gap-4 bg-hiraya-cream-deep/85 px-8 text-center backdrop-blur-md"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-red-500/30 bg-red-500/10">
-                <AlertTriangle size={24} className="text-red-400" />
-              </div>
+                className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/80 px-8 text-center backdrop-blur-md"
+              >
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-red-400/30 bg-red-500/12">
+                  <AlertTriangle size={24} className="text-red-400" />
+                </div>
 
-              <div className="max-w-md space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-red-400">
-                  Fitting Interrupted
-                </p>
-                <p className="text-[11px] leading-relaxed text-hiraya-sand">
-                  {tryOnError?.message || 'The AI engine could not complete this render.'}
-                </p>
-                {tryOnError?.code && (
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-hiraya-sand">
-                    code: {tryOnError.code}
+                <div className="max-w-md space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red-400">
+                    Fitting Interrupted
                   </p>
-                )}
-              </div>
+                  <p className="text-[11px] leading-relaxed text-hiraya-nav-muted">
+                    {tryOnError?.message || 'The AI engine could not complete this render.'}
+                  </p>
+                  {tryOnError?.code && (
+                    <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-hiraya-nav-muted">
+                      code: {tryOnError.code}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={onRetry}
-                  disabled={!onRetry}
-                  className="flex items-center gap-2 rounded-xl bg-[#CB997E] px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.2em] text-hiraya-ink shadow-lg transition-all duration-200 hover:bg-hiraya-cream-deep disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <RefreshCw size={13} /> Retry Fitting
-                </button>
-                {/*
-                  * START OVER — retry from a clean photo state.
-                  *
-                  * This used to call `onClearCanvas` (`clearAllStack`), which
-                  * wiped the outfit AND the photo. It now removes only the photo,
-                  * matching the header control and the customer's likely intent
-                  * on a failed render: re-shoot, keeping the stack they built.
-                  */}
-                <button
-                  onClick={onRemovePhoto}
-                  disabled={!onRemovePhoto}
-                  className="rounded-xl border-hiraya-olive/15 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-hiraya-sand transition-colors duration-200 hover:border-hiraya-gold/50 hover:text-hiraya-ink disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Start Over
-                </button>
-              </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={onRetry}
+                    disabled={!onRetry}
+                    className="btn-primary cursor-pointer rounded-full"
+                  >
+                    <RefreshCw size={13} /> Retry Fitting
+                  </button>
+                  {/*
+                   * START OVER — retry from a clean photo state.
+                   *
+                   * This used to call `onClearCanvas` (`clearAllStack`), which
+                   * wiped the outfit AND the photo. It now removes only the photo,
+                   * matching the header control and the customer's likely intent
+                   * on a failed render: re-shoot, keeping the stack they built.
+                   */}
+                  <button
+                    onClick={onRemovePhoto}
+                    disabled={!onRemovePhoto}
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-nav-ink/25 bg-transparent px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-hiraya-nav-ink transition-colors duration-200 hover:border-hiraya-nav-ink/50 disabled:cursor-not-allowed disabled:border-transparent disabled:text-hiraya-nav-muted"
+                  >
+                    Start Over
+                  </button>
+                </div>
             </motion.div>
           )}
 
@@ -653,14 +756,14 @@ export const TryOnCanvas = ({
               <img
                 src={generatedImage}
                 alt="AI Fit Render"
-                className="h-full w-full rounded-[2rem] object-contain"
+                className="h-full w-full rounded-lg object-contain"
               />
 
               {/* Size chip extracted from the render feedback (SIZE: prefix). */}
               {recommendedSize && (
-                <div className="absolute left-4 top-4 rounded-full border-hiraya-gold/50 bg-hiraya-olive/60 px-4 py-1.5 backdrop-blur-md">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-hiraya-sand">Size </span>
-                  <span className="text-[11px] font-black uppercase tracking-widest text-hiraya-ink">{recommendedSize}</span>
+                <div className="absolute left-4 top-4 rounded-full border border-cream-50/60 bg-cream-50/85 px-4 py-1.5 shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)] backdrop-blur-md">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">Size </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-hiraya-accent">{recommendedSize}</span>
                 </div>
               )}
 
@@ -670,11 +773,11 @@ export const TryOnCanvas = ({
                * selected piece made it onto the render.
                */}
               {placedRegions.length > 0 && (
-                <div className="absolute bottom-4 left-4 rounded-full border-hiraya-olive/20 bg-hiraya-olive/60 px-3 py-1.5 backdrop-blur-md">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-hiraya-sand">
+                <div className="absolute bottom-4 left-4 rounded-full border border-cream-50/15 bg-noir/55 px-3.5 py-1.5 backdrop-blur-md">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-nav-muted">
                     Attached:{' '}
                   </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-hiraya-ink">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-hiraya-nav-ink">
                     {placedRegions.join(' · ')}
                   </span>
                 </div>
@@ -718,10 +821,10 @@ export const TryOnCanvas = ({
                * AI-generated fitting. This states plainly which one it is.
                */}
               <div
-                className="absolute right-4 top-4 rounded-full border-[#CB997E]/40 bg-[#CB997E]/15 px-3 py-1.5 text-hiraya-ink backdrop-blur-md"
+                className="absolute right-4 top-4 rounded-full border border-cream-50/15 bg-noir/55 px-3.5 py-1.5 text-hiraya-nav-ink backdrop-blur-md"
                 title="Rendered by the AI try-on model (PixelAPI)."
               >
-                <span className="text-[9px] font-black uppercase tracking-[0.2em]">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.18em]">
                   AI Render
                 </span>
               </div>
@@ -745,7 +848,7 @@ export const TryOnCanvas = ({
               {fitCheck && fitStyle && (
                 <div
                   className={[
-                    'absolute bottom-16 left-4 max-w-[75%] rounded-2xl border backdrop-blur-md',
+                    'absolute bottom-16 left-4 max-w-[75%] rounded-lg border bg-black/65 backdrop-blur-md',
                     fitStyle.ring,
                   ].join(' ')}
                 >
@@ -753,11 +856,11 @@ export const TryOnCanvas = ({
                     type="button"
                     onClick={() => setFitOpen((v) => !v)}
                     aria-expanded={fitOpen}
-                    className="flex w-full items-center gap-1.5 px-3 py-2 text-left"
+                    className="flex w-full cursor-pointer items-center gap-1.5 px-3 py-2 text-left"
                   >
                     <fitStyle.Icon size={12} className={fitStyle.text} />
                     <span className={[
-                      'text-[9px] font-black uppercase tracking-[0.2em]',
+                      'text-[9px] font-semibold uppercase tracking-[0.18em]',
                       fitStyle.text,
                     ].join(' ')}>
                       {fitIssues.length > 0
@@ -775,24 +878,24 @@ export const TryOnCanvas = ({
                   </button>
 
                   {fitOpen && (
-                    <ul className="space-y-2 border-t border-hiraya-olive/15 px-3 py-2.5">
+                    <ul className="space-y-2 border-t border-hiraya-nav-ink/18 px-3 py-2.5">
                       {fitItems.map((it) => {
                         const s = itemStyle(it.status);
                         return (
                           <li key={it.id} className="flex gap-2">
                             <s.Icon size={11} className={['mt-0.5 shrink-0', s.text].join(' ')} />
                             <div>
-                              <p className="text-[10px] font-semibold leading-tight text-hiraya-ink">
+                              <p className="text-[10px] font-semibold leading-tight text-hiraya-nav-ink">
                                 {it.label}
                               </p>
-                              <p className="mt-0.5 text-[9px] leading-snug text-hiraya-ink/85">
+                              <p className="mt-0.5 text-[9px] leading-snug text-hiraya-nav-muted">
                                 {it.detail}
                               </p>
                             </div>
                           </li>
                         );
                       })}
-                      <li className="flex gap-1.5 pt-1 text-[8px] leading-snug text-hiraya-sand">
+                      <li className="flex gap-1.5 pt-1 text-[8px] leading-snug text-hiraya-nav-muted">
                         <Info size={10} className="mt-0.5 shrink-0" />
                         These are guidance only — your fitting is shown above regardless.
                       </li>
@@ -801,9 +904,17 @@ export const TryOnCanvas = ({
                 </div>
               )}
 
-              <div className="flex absolute inset-0 flex-col items-center justify-center gap-3 rounded-[2rem] bg-hiraya-olive/65 px-6 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              {/*
+               * THE ACTION BAR APPEARS ON HOVER / TAP OVER A SCRIM.
+               *
+               * The scrim was `bg-hiraya-olive/65` — a 65% INDIGO veil, which on
+               * a render read as a blue cast over the whole fitting. It is now a
+               * black veil, which is what this canvas uses everywhere else for
+               * the letterboxing, so the overlay tints nothing.
+               */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-black/70 px-6 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
                 {aiFeedback && (
-                  <p className="mb-1 max-w-sm text-center text-[10px] leading-relaxed text-hiraya-ink">
+                  <p className="mb-1 max-w-sm text-center text-[10px] leading-relaxed text-hiraya-nav-ink">
                     {/* Strip the machine-readable SIZE: prefix + markdown bold. */}
                     {String(aiFeedback).replace(/SIZE:\s*[A-Z0-9]{1,4}\s*/i, '').replace(/\*\*/g, '').trim()}
                   </p>
@@ -816,7 +927,7 @@ export const TryOnCanvas = ({
                   <button
                     onClick={handleAddWornToBag}
                     disabled={addBagState === 'working' || wornGarments.length === 0}
-                    className="flex items-center gap-2 rounded-full border-hiraya-gold/50 bg-hiraya-cream/50 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-hiraya-ink transition-colors hover:bg-[#CB997E]/15 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-nav-ink/30 bg-hiraya-nav-ink/10 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-nav-ink transition-colors hover:border-hiraya-accent hover:bg-hiraya-accent disabled:cursor-not-allowed disabled:border-transparent disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink"
                   >
                     {addBagState === 'working'
                       ? <Loader2 size={13} className="animate-spin" />
@@ -828,14 +939,14 @@ export const TryOnCanvas = ({
 
                   <button
                     onClick={handleSaveRender}
-                    className="flex items-center gap-2 rounded-full bg-[#CB997E] px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-hiraya-ink transition-colors hover:bg-hiraya-cream-deep"
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent transition-colors hover:bg-hiraya-accent-deep"
                   >
                     <Download size={13} /> Save Render
                   </button>
 
                   <button
                     onClick={handleShare}
-                    className="flex items-center gap-2 rounded-full border-hiraya-gold/50 bg-hiraya-cream/50 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-hiraya-ink transition-colors hover:bg-[#CB997E]/15"
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-nav-ink/30 bg-hiraya-nav-ink/10 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-nav-ink transition-colors hover:border-hiraya-accent hover:bg-hiraya-accent"
                   >
                     {shareState === 'copied' ? <Check size={13} /> : <Share2 size={13} />}
                     {shareState === 'copied' ? 'Copied' : shareState === 'failed' ? 'Unavailable' : 'Share'}
@@ -844,7 +955,7 @@ export const TryOnCanvas = ({
                   <button
                     onClick={handleProceedToCheckout}
                     disabled={checkoutState === 'working' || wornGarments.length === 0}
-                    className="flex items-center gap-2 rounded-full bg-[#CB997E] px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-widest text-hiraya-ink shadow-lg transition-all hover:bg-hiraya-cream-deep disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent transition-colors hover:bg-hiraya-accent-deep disabled:cursor-not-allowed disabled:border-transparent disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink"
                   >
                     {checkoutState === 'working'
                       ? <Loader2 size={13} className="animate-spin" />
@@ -868,32 +979,37 @@ export const TryOnCanvas = ({
        * real fix is to populate the product's try-on cut-out in the admin panel.
        */}
       {vtonAssetWarning && !isGenerating && (
-        <div className="flex items-start gap-3 rounded-2xl border-amber-400/30 bg-amber-500/10 px-4 py-3 text-left">
-          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" />
+        <div className="flex items-start gap-3 rounded-lg border border-amber-600/40 bg-amber-500/15 px-4 py-3 text-left">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-800" />
           <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800">
               Garment image not try-on ready
             </p>
-            <p className="text-[11px] leading-relaxed text-amber-100/80">
+            <p className="text-[11px] leading-relaxed text-amber-900">
               {vtonAssetWarning.count === 1
                 ? '1 piece was sent without a clean cut-out:'
                 : `${vtonAssetWarning.count} pieces were sent without a clean cut-out:`}{' '}
-              <span className="font-semibold text-amber-100">{(vtonAssetWarning.names || []).join(', ')}</span>.
+              <span className="font-semibold text-amber-800">{(vtonAssetWarning.names || []).join(', ')}</span>.
               {' '}The model may copy the shop background, framing or artwork. The fix is a
-              ghost-mannequin cut-out on the product (admin → Try-On image).
+              ghost-mannequin cut-out on the product (admin → Try-on image).
             </p>
           </div>
         </div>
       )}
 
+      {/**
+        * THE GENERATE BUTTON IS THE SHARED PRIMARY PLATE.
+        *
+        * It was a 16px-radius button with a `shadow-xl` and a `text-hiraya-ink`
+        * disabled label sitting on the disabled parchment fill. The shadow is
+        * gone (this system carries depth with rules, not drop shadows) and the
+        * radius is `rounded-lg`, matching every other action in the app.
+        */}
       <button
         onClick={onGenerate}
         disabled={!canGenerate || isGenerating}
-        className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-xs font-extrabold uppercase tracking-[0.3em] transition-all duration-300
-          ${canGenerate && !isGenerating
-            ? 'cursor-pointer bg-[#CB997E] text-hiraya-ink shadow-xl hover:bg-hiraya-cream-deep'
-            : 'cursor-not-allowed border-hiraya-olive/15 bg-hiraya-sand/60 text-hiraya-sand'
-          }`}
+        data-tour="generate-fitting"
+        className="btn-primary w-full rounded-full py-4 text-xs"
       >
         {isGenerating ? (
           <>
@@ -916,7 +1032,7 @@ export const TryOnCanvas = ({
        * the BODY PHOTO first — it is the canvas the garments are drawn onto.
        */}
       {!canGenerate && !isGenerating && !hasError && (
-        <p className="text-center text-[9px] font-semibold uppercase tracking-[0.2em] text-hiraya-sand">
+        <p className="text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink-muted">
           Required: 1) your full-body photo · 2) at least one garment from the stack
         </p>
       )}

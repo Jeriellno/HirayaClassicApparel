@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1250" viewBox="0 0 1000 1250">
+  <!-- Formal / Evening: a candle-lit ballroom with drapes and a chandelier. -->
+  <defs>
+    <linearGradient id="room" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E2446"/>
+      <stop offset="1" stop-color="#16101F"/>
+    </linearGradient>
+    <linearGradient id="drape" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3A1330"/>
+      <stop offset="0.2" stop-color="#6E2450"/>
+      <stop offset="0.4" stop-color="#461737"/>
+      <stop offset="0.6" stop-color="#732955"/>
+      <stop offset="0.8" stop-color="#43152F"/>
+      <stop offset="1" stop-color="#5E1F45"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A3052"/>
+      <stop offset="1" stop-color="#1C1628"/>
+    </linearGradient>
+    <radialGradient id="warm" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE7B0" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFE7B0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bokeh" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F5D78E" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#F5D78E" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1000" height="1250" fill="url(#room)"/>
+
+  <!-- back wall arches -->
+  <g fill="none" stroke="#4B3D6A" stroke-width="6" opacity="0.8">
+    <path d="M260 900 V420 a120 120 0 0 1 240 0 V900"/>
+    <path d="M500 900 V420 a120 120 0 0 1 240 0 V900"/>
+  </g>
+  <g fill="#3A2F57" opacity="0.6">
+    <path d="M272 900 V420 a108 108 0 0 1 216 0 V900 z"/>
+    <path d="M512 900 V420 a108 108 0 0 1 216 0 V900 z"/>
+  </g>
+
+  <!-- chandelier -->
+  <ellipse cx="500" cy="190" rx="320" ry="220" fill="url(#warm)" opacity="0.7"/>
+  <line x1="500" y1="0" x2="500" y2="110" stroke="#C9A860" stroke-width="4"/>
+  <g stroke="#D9BC75" stroke-width="4" fill="none">
+    <path d="M380 180 Q500 250 620 180"/>
+    <path d="M420 140 Q500 190 580 140"/>
+  </g>
+  <g fill="#FFF3CF">
+    <circle cx="380" cy="172" r="9"/><circle cx="440" cy="200" r="9"/><circle cx="500" cy="212" r="10"/>
+    <circle cx="560" cy="200" r="9"/><circle cx="620" cy="172" r="9"/>
+    <circle cx="420" cy="132" r="7"/><circle cx="500" cy="152" r="8"/><circle cx="580" cy="132" r="7"/>
+  </g>
+  <g stroke="#EBD9A8" stroke-width="2" opacity="0.8">
+    <line x1="400" y1="190" x2="400" y2="250"/><line x1="460" y1="210" x2="460" y2="275"/>
+    <line x1="500" y1="222" x2="500" y2="300"/><line x1="540" y1="210" x2="540" y2="275"/>
+    <line x1="600" y1="190" x2="600" y2="250"/>
+  </g>
+
+  <!-- bokeh -->
+  <circle cx="160" cy="330" r="40" fill="url(#bokeh)"/>
+  <circle cx="840" cy="300" r="46" fill="url(#bokeh)"/>
+  <circle cx="220" cy="560" r="28" fill="url(#bokeh)"/>
+  <circle cx="790" cy="610" r="34" fill="url(#bokeh)"/>
+  <circle cx="690" cy="420" r="22" fill="url(#bokeh)"/>
+  <circle cx="310" cy="440" r="20" fill="url(#bokeh)"/>
+
+  <!-- drapes -->
+  <path d="M0 0 H230 C 200 300 170 700 190 1000 H0 z" fill="url(#drape)"/>
+  <path d="M1000 0 H770 C 800 300 830 700 810 1000 H1000 z" fill="url(#drape)"/>
+  <path d="M0 0 H1000 V70 C 820 130 660 90 500 120 C 340 90 180 130 0 70 z" fill="#5A1D43"/>
+  <path d="M0 70 C 180 130 340 90 500 120 C 660 90 820 130 1000 70" stroke="#C9A860" stroke-width="5" fill="none"/>
+  <g fill="#C9A860">
+    <circle cx="200" cy="560" r="12"/><circle cx="800" cy="560" r="12"/>
+  </g>
+
+  <!-- marble floor + reflection -->
+  <rect x="0" y="960" width="1000" height="290" fill="url(#floor)"/>
+  <rect x="0" y="956" width="1000" height="6" fill="#C9A860" opacity="0.7"/>
+  <g stroke="#51466E" stroke-width="2" opacity="0.8">
+    <line x1="500" y1="960" x2="-300" y2="1250"/>
+    <line x1="500" y1="960" x2="150" y2="1250"/>
+    <line x1="500" y1="960" x2="850" y2="1250"/>
+    <line x1="500" y1="960" x2="1300" y2="1250"/>
+    <line x1="0" y1="1040" x2="1000" y2="1040"/>
+    <line x1="0" y1="1150" x2="1000" y2="1150"/>
+  </g>
+  <ellipse cx="500" cy="1070" rx="260" ry="50" fill="url(#warm)" opacity="0.25"/>
+</svg>

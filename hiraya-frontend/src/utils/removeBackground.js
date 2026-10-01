@@ -432,13 +432,18 @@ export const releaseBackgroundUrl = (url) => {
  * background-free — instead of each console re-implementing the same
  * remove -> clean -> frame sequence.
  *
- * It removes the garment's background and composes it onto the one shared
- * HIRAYA catalog frame, returning the two artifacts the product save needs:
+ * It removes the garment's background and composes it onto the background
+ * preset for the occasion the AI tagged it with, returning the two artifacts the
+ * product save needs:
  *
  *   display.blob -> uploaded as `display_image_file` -> `display_image_url`
  *                   (what the storefront shows; NEVER the raw photo)
  *   matte.blob   -> uploaded as `tryon_image_file`   -> `ghost_mannequin_url`
  *                   (the bare transparent cut-out the virtual try-on prefers)
+ *
+ * The matte is deliberately frame-free: the try-on needs bare fabric, and a
+ * background would defeat the whole point of compositing. Only the display card
+ * is ever occasion-styled.
  *
  * `composeGarmentOnFrame` (the compositor, STAGE 1) is loaded LAZILY here so the
  * ~95 MB removal engine and the frame assets are only pulled in the moment a
@@ -447,21 +452,59 @@ export const releaseBackgroundUrl = (url) => {
  * @param {File|Blob|string} garmentSource  The admin's uploaded photo (File/Blob) or a URL.
  * @param {Object} [options]
  * @param {Function} [options.onProgress]   (0..1) progress for the cut-out step.
- * @returns {Promise<{ display: {blob: Blob|null, url: string}, matte: {blob: Blob|null}, ok: boolean }>}
+ * @param {boolean}  [options.skipCache]    Force a fresh removal instead of
+ *                                          reusing the IndexedDB cut-out. Needed by
+ *                                          a re-run: the cache is keyed on the
+ *                                          source image, so the second pass would
+ *                                          otherwise return the first pass's result
+ *                                          and appear to do nothing.
+ * @param {string|string[]} [options.occasion] The AI's occasion/vibe answer. Drives
+ *                                          which background preset is drawn.
+ * @param {string} [options.category]          The AI's garment category, used as a
+ *                                          fallback when the occasion is unusable.
+ * @returns {Promise<{ display: {blob: Blob|null, url: string},
+ *                     matte: {blob: Blob|null},
+ *                     background: { key: string, label: string, guarded: boolean },
+ *                     ok: boolean }>}
  *          `ok` is false when the background could not be removed (caller keeps
  *          the original photo and should tell the user to retry).
  */
 export const generateGarmentCatalogImage = async (garmentSource, options = {}) => {
   if (!garmentSource) {
-    return { display: { blob: null, url: '' }, matte: { blob: null }, ok: false };
+    return {
+      display: { blob: null, url: '' },
+      matte: { blob: null },
+      cutout: { blob: null },
+      background: { key: '', label: '', guarded: false },
+      ok: false,
+    };
   }
 
   const { composeGarmentOnFrame } = await import('./garmentCompositor');
-  const composite = await composeGarmentOnFrame({ garmentSource, onProgress: options.onProgress });
+  const composite = await composeGarmentOnFrame({
+    garmentSource,
+    onProgress: options.onProgress,
+    skipCache: options.skipCache,
+    occasion: options.occasion,
+    category: options.category,
+    strictOccasion: options.strictOccasion,
+  });
 
   return {
     display: { blob: composite.blob || null, url: composite.url || '' },
     matte: { blob: composite.matte || null },
+    // The cleaned, untrimmed transparent garment — lets the console RE-THEME the
+    // card on save (`reframeCutout`) without running the removal engine again.
+    cutout: { blob: composite.cutout || null },
+    // WHICH background was drawn. Stored on the product as `background_occasion`
+    // so the choice stays auditable and the card can be re-framed later without
+    // re-running the AI. `guarded` means the contrast guard had to override the
+    // occasion's own (dark) surface because the garment is dark too.
+    background: {
+      key: composite.backgroundKey || '',
+      label: composite.backgroundLabel || '',
+      guarded: Boolean(composite.backgroundGuarded),
+    },
     // A framed cut-out is the WHOLE point: without it there is no catalog image.
     ok: Boolean(composite.blob),
   };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import SizeTable from '../components/product/SizeTable';
 import ProductGallery from '../components/product/ProductGallery';
 import StylistBox from '../components/product/StylistBox';
+import ProductReviews from '../components/product/ProductReviews';
 import { ColorSelector, SizeSelector } from '../components/product/VariantSelector';
 import AccordionItem from '../components/common/AccordionItem';
 import Currency from '../components/common/Currency';
@@ -156,10 +157,10 @@ const ProductDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-6 h-6 text-hiraya-ink animate-spin mx-auto" />
-          <p className="uppercase tracking-[0.35em] text-[10px] text-hiraya-sand font-semibold">
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="glass w-full max-w-xs space-y-4 px-8 py-10 text-center">
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-hiraya-accent" />
+          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-hiraya-ink-muted">
             Loading Details
           </p>
         </div>
@@ -169,17 +170,21 @@ const ProductDetail = () => {
 
   if (isError || !product) {
     return (
-      <div className="flex min-h-screen bg-black flex-col items-center justify-center gap-4 px-6 text-center">
-        <AlertCircle className="w-7 h-7 text-hiraya-ink" />
-        <p className="uppercase tracking-[0.25em] text-hiraya-sand text-xs font-semibold">
-          Product not found
-        </p>
-        <button
-          onClick={() => navigate(-1)}
-          className="text-[10px] underline uppercase tracking-[0.2em] font-semibold text-hiraya-sand hover:text-hiraya-ink transition"
-        >
-          Go Back
-        </button>
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="card-raised flex w-full max-w-sm flex-col items-center gap-4 px-8 py-12 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-900 text-cream-100 shadow-neu-sm">
+            <AlertCircle className="h-5 w-5" />
+          </span>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-hiraya-ink">
+            Product not found
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="btn-quiet"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -286,18 +291,19 @@ const ProductDetail = () => {
   const price = parseFloat(product.price) || 0;
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-28 pb-16">
+    <div className="min-h-screen w-full text-hiraya-ink">
+      <div className="container-page pb-20 pt-28 md:pt-32">
         {/* Back link */}
         <button
           onClick={() => navigate(-1)}
-          className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-sand hover:text-hiraya-ink transition mb-6"
+          className="btn-quiet group mb-8"
         >
-          <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
+          <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
           Back
         </button>
 
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+        <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-14">
+          <div className="lg:col-span-6 xl:col-span-7">
           {/* ============ LEFT: GALLERY ============ */}
           <ProductGallery
             imageUrl={product.display_image_url || product.image_url}
@@ -305,26 +311,27 @@ const ProductDetail = () => {
             name={product.name}
             isGuest={!user}
           />
+          </div>
 
           {/* ============ RIGHT: DETAILS + CONVERSION ZONE ============ */}
-          <div className="space-y-6">
-            {/* Title & price */}
-            <div className="border-b border-hiraya-sand pb-5">
+          <div className="space-y-7 lg:col-span-6 xl:col-span-5">
+            {/* Title & price. */}
+            <div className="border-b border-hiraya-structure-line pb-6">
               {product.category && (
-                <span className="text-[10px] uppercase tracking-[0.25em] font-semibold text-hiraya-ink">
-                  {product.category}
+                <span className="kicker text-hiraya-ink-muted">
+                  {product.category.replace('_', ' ')}
                 </span>
               )}
-              <h1 className="text-2xl md:text-3xl font-normal tracking-tight text-hiraya-ink uppercase leading-snug mt-1.5">
+              <h1 className="mt-4 font-serif text-[clamp(1.8rem,3vw,2.6rem)] uppercase leading-[1.08] tracking-[0.04em] text-navy-900">
                 {product.name}
               </h1>
 
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-3">
+              <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <Currency
                   amount={price}
-                  className="text-xl md:text-2xl text-hiraya-ink font-semibold tracking-wide"
+                  className="text-2xl font-semibold tracking-wide text-navy-900 md:text-[1.7rem]"
                 />
-                <span className="text-[10px] uppercase tracking-[0.2em] text-hiraya-sand font-medium">
+                <span className="rounded-full bg-cream-200/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-charcoal-600 shadow-neu-inset">
                   50% DP to secure
                 </span>
               </div>
@@ -332,10 +339,10 @@ const ProductDetail = () => {
 
             {/* Description */}
             <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.25em] font-semibold text-hiraya-sand">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
                 Description
               </p>
-              <p className="text-hiraya-sand font-normal leading-relaxed text-[13px]">
+              <p className="text-[13px] font-normal leading-relaxed text-hiraya-ink-soft">
                 {product.description || 'No description provided for this piece.'}
               </p>
             </div>
@@ -344,7 +351,7 @@ const ProductDetail = () => {
             <StylistBox recommendation={getStylistRecommendation(user, product)} />
 
             {/* Variant selection */}
-            <div className="space-y-5">
+            <div className="space-y-5" data-tour="product-variants">
               {productColors.length > 0 && (
                 <ColorSelector
                   colors={productColors}
@@ -376,7 +383,7 @@ const ProductDetail = () => {
                       }`}
                   />
                   <p
-                    className={`text-[10px] uppercase tracking-[0.15em] font-medium ${isSelectedSizeOutOfStock ? 'text-red-400' : 'text-emerald-400'
+                    className={`text-[10px] font-medium uppercase tracking-[0.15em] ${isSelectedSizeOutOfStock ? 'text-red-700' : 'text-emerald-700'
                       }`}
                   >
                     {isSelectedSizeOutOfStock
@@ -392,20 +399,30 @@ const ProductDetail = () => {
             {/* Quantity */}
             {user && (
               <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-sand">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
                   Quantity
                 </p>
-                <div className="inline-flex items-center border-hiraya-sand/30 rounded-lg overflow-hidden bg-hiraya-olive">
+                {/*
+                 * THE STEPPER SITS ON A RULED PLATE.
+                 *
+                 * It was `bg-hiraya-olive` — a DARK INDIGO fill — with
+                 * `text-hiraya-sand` labels, and `sand` is also indigo. So the
+                 * control was indigo-on-indigo: measured 1.00:1, i.e. the minus
+                 * and plus glyphs were literally invisible. The plate is now the
+                 * light raised surface with the standard hairline, and the glyphs
+                 * carry full ink.
+                 */}
+                <div className="inline-flex items-center gap-1 rounded-full bg-cream-200/70 p-1 shadow-neu-inset">
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     disabled={quantity <= 1}
                     aria-label="Decrease quantity"
-                    className="px-3 py-2 text-hiraya-sand hover:text-hiraya-ink transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-cream-50 text-hiraya-ink shadow-neu-sm transition hover:bg-hiraya-accent hover:text-hiraya-on-accent disabled:cursor-not-allowed disabled:bg-transparent disabled:text-hiraya-disabled-ink disabled:shadow-none"
                   >
                     <Minus size={13} />
                   </button>
-                  <span className="px-4 text-[13px] font-semibold min-w-[2.5rem] text-center text-hiraya-ink">
+                  <span className="min-w-[2.75rem] text-center text-[14px] font-semibold text-hiraya-ink">
                     {quantity}
                   </span>
                   <button
@@ -413,7 +430,7 @@ const ProductDetail = () => {
                     onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
                     disabled={quantity >= maxQuantity}
                     aria-label="Increase quantity"
-                    className="px-3 py-2 text-hiraya-sand hover:text-hiraya-ink transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-cream-50 text-hiraya-ink shadow-neu-sm transition hover:bg-hiraya-accent hover:text-hiraya-on-accent disabled:cursor-not-allowed disabled:bg-transparent disabled:text-hiraya-disabled-ink disabled:shadow-none"
                   >
                     <Plus size={13} />
                   </button>
@@ -422,13 +439,13 @@ const ProductDetail = () => {
             )}
 
             {/* ========== CONVERSION ZONE ========== */}
-            <div className="pt-5 border-t border-hiraya-sand space-y-3">
+            <div className="space-y-3 border-t border-hiraya-structure-line pt-5">
               {/* Feedback (replaces alert()) */}
               {feedback && (
                 <div
-                  className={`flex items-start gap-2 text-[11.5px] rounded-lg px-3 py-2.5 border ${feedback.type === 'error'
-                      ? 'text-red-400 bg-red-950/40 border-red-900/60'
-                      : 'text-emerald-400 bg-emerald-950/40 border-emerald-900/60'
+                  className={`flex items-start gap-2 rounded-xl border px-3.5 py-3 text-[11.5px] ${feedback.type === 'error'
+                      ? 'border-red-600/40 bg-red-500/12 text-red-700'
+                      : 'border-emerald-600/40 bg-emerald-500/12 text-emerald-700'
                     }`}
                 >
                   {feedback.type === 'error' ? (
@@ -442,7 +459,7 @@ const ProductDetail = () => {
 
               {/* Helper text when a variant is still missing */}
               {user && !isVariantSelected && (
-                <p className="text-[10px] uppercase tracking-[0.18em] text-hiraya-sand font-medium text-center">
+                <p className="text-center text-[10px] font-medium uppercase tracking-[0.18em] text-hiraya-ink-muted">
                   Please select a size and colour
                 </p>
               )}
@@ -458,16 +475,15 @@ const ProductDetail = () => {
                   duplicated the bag->checkout path, and Add to Studio targeted
                   the same /try-on destination as the try-on button. */}
               {user ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* PRIMARY: Add to Bag */}
+                <div data-tour="product-actions" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* PRIMARY: Add to Bag — the shared .btn-primary plate, so its
+                      disabled / hover / focus states match every other primary
+                      action in the app instead of re-deriving them inline. */}
                   <button
                     type="button"
                     onClick={handleAddToCart}
                     disabled={!canPurchase || addToCartMutation.isPending}
-                    className={`w-full py-4 rounded-lg uppercase text-[11px] tracking-[0.2em] font-bold transition duration-300 flex items-center justify-center gap-2 ${!canPurchase || addToCartMutation.isPending
-                        ? 'bg-hiraya-sand text-hiraya-sand cursor-not-allowed'
-                        : 'bg-[#CB997E] text-hiraya-olive hover:bg-hiraya-cream-deep active:scale-[0.98] shadow-lg shadow-stone-200/10'
-                      }`}
+                    className="btn-primary w-full rounded-full py-4"
                   >
                     {addToCartMutation.isPending ? (
                       <>
@@ -487,10 +503,8 @@ const ProductDetail = () => {
                     type="button"
                     onClick={handleAiTryOn}
                     disabled={!canPurchase || isTryingOn}
-                    className={`w-full py-4 rounded-lg uppercase text-[11px] tracking-[0.2em] font-bold transition duration-300 flex items-center justify-center gap-2 border ${!canPurchase || isTryingOn
-                        ? 'border-hiraya-sand text-hiraya-sand cursor-not-allowed'
-                        : 'border-hiraya-gold/50 text-hiraya-ink hover:bg-[#CB997E] hover:text-hiraya-olive active:scale-[0.98]'
-                      }`}
+                    data-tour="product-tryon"
+                    className="btn-secondary w-full rounded-full py-4"
                   >
                     {isTryingOn ? (
                       <>
@@ -520,21 +534,21 @@ const ProductDetail = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="w-full py-4 rounded-lg bg-[#CB997E] text-hiraya-olive uppercase text-[11px] tracking-[0.25em] font-bold transition duration-300 hover:bg-hiraya-cream-deep active:scale-[0.98]"
+                  className="btn-primary w-full rounded-full py-4"
                 >
                   Sign in to Purchase
                 </button>
               )}
 
               {!user && (
-                <p className="text-center text-[10px] uppercase tracking-[0.18em] text-hiraya-sand font-medium pt-1">
+                <p className="pt-1 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-hiraya-ink-muted">
                   Log in to unlock the AI try-on studio and your virtual wardrobe.
                 </p>
               )}
             </div>
 
             {/* ========== ACCORDIONS ========== */}
-            <div className="pt-2 border-t border-hiraya-sand">
+            <div className="card px-5 py-1 sm:px-6">
               <AccordionItem
                 title="Order Guidelines"
                 subtitle="3:00 PM cutoff · 50% DP · non-refundable"
@@ -543,26 +557,26 @@ const ProductDetail = () => {
               >
                 <ul className="space-y-2">
                   <li className="flex gap-2.5">
-                    <span className="text-hiraya-ink">•</span>
+                    <span className="text-hiraya-accent">·</span>
                     Orders placed before <strong className="text-hiraya-ink">3:00 PM</strong> are processed
                     the same day.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-hiraya-ink">•</span>
+                    <span className="text-hiraya-accent">·</span>
                     A <strong className="text-hiraya-ink">50% down payment</strong> is required to secure your
                     order.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-hiraya-ink">•</span>
+                    <span className="text-hiraya-accent">·</span>
                     The remaining balance must be settled <strong className="text-hiraya-ink">before shipping</strong>.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-hiraya-ink">•</span>
+                    <span className="text-hiraya-accent">·</span>
                     Down payments are <strong className="text-hiraya-ink">non-refundable</strong>, and all sales
                     are final once confirmed.
                   </li>
                   <li className="flex gap-2.5">
-                    <span className="text-hiraya-ink">•</span>
+                    <span className="text-hiraya-accent">·</span>
                     Shipping via <strong className="text-hiraya-ink">LBC</strong> or{' '}
                     <strong className="text-hiraya-ink">Lalamove</strong>, chosen at checkout.
                   </li>
@@ -592,6 +606,9 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* Verified-purchase reviews, written from delivered orders. */}
+        <ProductReviews productId={product.id} />
       </div>
     </div>
   );

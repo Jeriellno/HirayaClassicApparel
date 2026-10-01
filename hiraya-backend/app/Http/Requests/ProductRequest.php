@@ -131,11 +131,17 @@ class ProductRequest extends FormRequest
             'subcategory'              => 'nullable|string|max:255',
             'description'              => 'nullable|string',
             'image_url'                => 'nullable|string',
-            // STAGE 1 outputs: the background-replaced catalog image and the
-            // occasion whose default background was used. Both optional so a
-            // product saved without auto-fill still validates.
+            // STAGE 1 outputs: the catalog image drawn on the occasion's
+            // background, and WHICH occasion background that was. Both optional so
+            // a product saved without auto-fill still validates.
             'display_image_url'        => 'nullable|string',
-            'background_occasion'      => 'nullable|string|max:50',
+            /*
+             * The canonical occasion key the console drew the background from.
+             * Validated against the configured set so a typo can never store a
+             * key that no preset exists for — the column is what makes the choice
+             * auditable and the card regenerable, so it has to be a real key.
+             */
+            'background_occasion'      => ['nullable', 'string', 'max:50', Rule::in(array_keys(config('hiraya_backgrounds.occasions', [])))],
             'image'                    => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             /*
              * The two upload slots the admin modal actually sends.
@@ -146,7 +152,7 @@ class ProductRequest extends FormRequest
              * surface fell back to the admin's ORIGINAL photo.
              *
              *   image_file         -> the raw upload
-             *   display_image_file -> the AI cut-out on the HIRAYA frame
+             *   display_image_file -> the AI cut-out on its OCCASION background
              *   tryon_image_file   -> the BARE cut-out for virtual try-on
              *
              * SIZE BUDGET

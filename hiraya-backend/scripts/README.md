@@ -54,7 +54,7 @@ php scripts/_db_latency.php
 | `_clean_dead_image_refs.php` | Clear DEAD image references on a product row |
 | `_set_dev_admin_password.php` | Set a known local password on the admin account |
 | `_set_test_password.php` | Set a known local password on a test user |
-| `_seed_qa_measurements.php` | Give user #1 the 5-core body measurements the try-on flow needs |
+| `_seed_qa_measurements.php` | Give user #1 the sizing profile (upper + lower size) the try-on flow reads |
 
 `_set_*` and `_seed_*` write to the local database — do not point them at production.
 

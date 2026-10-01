@@ -63,6 +63,32 @@ return [
     'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
 
     /*
+     * DEV AUTH BYPASS — OPT-IN, OFF BY DEFAULT.
+     *
+     * Used ONLY by the Super Admin console controllers, which are otherwise
+     * gated on a superadmin token. The console is sometimes developed on a
+     * machine with no Supabase session available, and this flag lets those write
+     * paths work there.
+     *
+     * WHY IT DEFAULTS TO FALSE, AND WHY IT IS NOT `!isProduction()`
+     * -------------------------------------------------------------------
+     * The controllers previously computed this inline as `!app()->isProduction()`.
+     * That is a NEGATIVE test, so it was TRUE — bypass ON — for `local`,
+     * `testing`, `staging`, `development`, a misspelling such as `prodution`, and
+     * any deployment that left `APP_ENV` unset or empty. Only the exact string
+     * `production` disabled it.
+     *
+     * `AdminAccountController` provisions, promotes and revokes staff accounts,
+     * so in every one of those environments the `isSuperAdmin` guard silently
+     * stopped applying. A flag that must be set DELIBERATELY means forgetting
+     * about it fails closed (the console asks for a token) rather than open.
+     *
+     * The flag is ALSO ignored when the app is in production (see the
+     * controllers), so setting it there cannot re-open the hole.
+     */
+    'allow_dev_auth_bypass' => (bool) env('ALLOW_DEV_AUTH_BYPASS', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

@@ -1,6 +1,7 @@
-import React from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Filter } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
+import SearchBar from '../common/SearchBar';
 
 const GARMENT_FILTERS = [
   { label: 'All Garments', value: 'all' },
@@ -13,35 +14,72 @@ const GARMENT_FILTERS = [
 
 const ShopHeader = ({ activeSubCat, onSelectSubCat }) => {
   return (
-    <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-hiraya-olive/15 pb-8">
-      <div>
-        <h1 className="text-4xl font-extralight uppercase tracking-[0.35em] text-hiraya-ink">
+    <div
+      data-tour="shop-header"
+      className="mb-12 flex flex-col justify-between gap-8 border-b border-hiraya-structure-line pb-10 lg:flex-row lg:items-end"
+    >
+      <div className="section-head">
+        <span className="kicker text-hiraya-ink-muted">Handpicked for AI Fitting</span>
+        <h1 className="display-section mt-2 text-navy-900">
           The Collection
         </h1>
-        <p className="text-[10px] text-hiraya-sand uppercase mt-2 tracking-[0.4em] italic font-medium">
-          Handpicked Artifacts for AI Fitting
-        </p>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        <Filter size={14} className="text-hiraya-ink mr-2 shrink-0" />
-        {GARMENT_FILTERS.map((opt) => (
-          <motion.button
-            key={opt.value}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onSelectSubCat(opt.value)}
-            className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition shrink-0 ${
-              activeSubCat === opt.value
-                ? 'bg-[#CB997E] text-hiraya-olive shadow-md'
-                : 'bg-hiraya-cream/60 text-hiraya-ink hover:bg-hiraya-cream/60 hover:text-hiraya-ink border border-hiraya-olive/15'
-            }`}
+      {/*
+       * RIGHT-HAND COLUMN — the filter tabs, with the search field directly beneath
+       * them. The search lives next to the thing it filters and writes the same
+       * `?search=` param the grid reads.
+       *
+       * The tabs sit on a pressed-in track, and ONE navy pill glides to the
+       * active filter (a shared `layoutId`) — the same active-state motion as
+       * the navigation bar. The track still scrolls sideways on narrow screens.
+       */}
+      {/* `min-w-0` + shrinkable, not `shrink-0`: at this root size 40rem is
+          740px, which pushed the page 22px wider than a 1024px viewport. */}
+      <div className="flex w-full min-w-0 flex-col gap-4 lg:w-auto lg:max-w-[40rem] lg:flex-1">
+        <div className="flex items-center gap-3">
+          <SlidersHorizontal size={15} className="shrink-0 text-hiraya-ink-muted" aria-hidden="true" />
+          <div
+            data-tour="shop-filters"
+            className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-full bg-cream-200/70 p-1 shadow-neu-inset scrollbar-none"
           >
-            {opt.label}
-          </motion.button>
-        ))}
+            {GARMENT_FILTERS.map((opt) => {
+              const active = activeSubCat === opt.value;
+              return (
+                <motion.button
+                  key={opt.value}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onSelectSubCat(opt.value)}
+                  aria-pressed={active}
+                  className={`relative shrink-0 cursor-pointer rounded-full px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${
+                    active ? 'text-hiraya-on-accent' : 'text-hiraya-ink-soft hover:text-hiraya-ink'
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="shop-filter-pill"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                      className="absolute inset-0 rounded-full bg-hiraya-accent shadow-[0_8px_16px_-8px_rgba(21,32,54,0.7)]"
+                    />
+                  )}
+                  <span className="relative">{opt.label}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div data-tour="shop-search">
+          <SearchBar />
+        </div>
       </div>
     </div>
   );
+};
+
+ShopHeader.propTypes = {
+  activeSubCat: PropTypes.string,
+  onSelectSubCat: PropTypes.func.isRequired,
 };
 
 export default ShopHeader;

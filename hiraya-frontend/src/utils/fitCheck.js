@@ -5,8 +5,8 @@
  * ---------------
  * Every check here is arithmetic on data the app ALREADY holds:
  *
- *   - the customer's 5-core body measurements (users table: chest_bust, waist,
- *     hips, shoulder_width, sleeve_length),
+ *   - the customer's sizing profile, as centimetres DERIVED from the two size
+ *     labels they record (users table: upper_body_size, lower_body_size),
  *   - each garment's per-size table (products.size_measurements),
  *   - and the silhouette the local compositor already derives from the photo
  *     (measureSilhouette / buildBodyFrame / measureBodyPose).
@@ -37,7 +37,7 @@
  *   posture       — is the torso upright, or leaning/hunched?
  *   bodyVsGarment — does the chosen size sit in the right band for the body?
  *   garmentData   — does this garment actually carry usable size measurements?
- *   measurements  — is the body profile complete enough to judge size at all?
+ *   measurements  — is the size profile complete enough to judge size at all?
  *
  * Each returns the SAME shape (see `item()` below) so the UI can render them
  * uniformly and a new check can be added without touching the panel.
@@ -388,51 +388,59 @@ const checkPosture = (pose) => {
 };
 
 /**
- * MEASUREMENTS — is the body profile complete enough to judge size at all?
+ * SIZING PROFILE — is it complete enough to judge size at all?
  *
- * @param {Object} metrics from resolveMeasurements()
- * @param {Object} raw     the raw measurement input, to tell "missing" from
- *                         "defaulted". resolveMeasurements() fills sane defaults,
- *                         so we check the RAW fields for real presence.
+ * This check used to ask whether the customer had typed a chest and a waist.
+ * There are no typed measurements any more — the profile is two SIZE labels,
+ * and the centimetres are derived from them by `bodyMetricsFromSizes()` before
+ * this module ever sees them. So the honest question is whether both sizing
+ * axes are on file, because a customer with only an upper size cannot be
+ * checked against a pair of trousers.
+ *
+ * `raw` is the derived metric map, and it is empty exactly when the customer
+ * has no usable size on file — which is what makes the BLOCK below truthful
+ * rather than a guess.
  */
 const checkMeasurements = (raw = {}) => {
-  const present = ['chest_bust', 'waist', 'hips', 'shoulder_width', 'sleeve_length'].filter(
-    (k) => Number(raw?.[k] ?? raw?.[k === 'chest_bust' ? 'chest' : k]) > 0
-  );
+  // `chest` is the alias some producers emit for `chest_bust`; the waist is
+  // spelled the same everywhere.
+  const present = ['chest_bust', 'waist'].filter((k) => {
+    const value = k === 'chest_bust' ? (raw?.chest_bust ?? raw?.chest) : raw?.[k];
+    return Number(value) > 0;
+  });
 
   if (present.length === 0) {
     /*
-     * Nothing supplied at all. This is the strongest BLOCK we allow: the size
+     * No sizing profile at all. This is the strongest BLOCK we allow: the size
      * cannot be judged from a body we do not know, and the useful action is for
-     * the customer to fill the profile — not to silently guess a size.
+     * the customer to set their sizes — not to silently guess one.
      */
     return item(
       'measurements',
-      'Body profile',
+      'Size profile',
       FIT_STATUS.BLOCK,
-      'No body measurements are on file, so the size cannot be checked against ' +
-      'you. Add your chest, waist and hips in the body profile to get a real ' +
-      'size check.',
-      { present: [], missing: ['chest_bust', 'waist', 'hips', 'shoulder_width', 'sleeve_length'] }
+      'No sizes are on file, so the size cannot be checked against you. Set your ' +
+      'upper and lower body size in Account Settings to get a real size check.',
+      { present: [], missing: ['upper_body_size', 'lower_body_size'] }
     );
   }
 
-  if (!Number(raw?.chest_bust ?? raw?.chest) || !Number(raw?.waist)) {
+  if (present.length < 2) {
+    const missingAxis = present.includes('chest_bust') ? 'waist' : 'chest_bust';
     return item(
       'measurements',
-      'Body profile',
+      'Size profile',
       FIT_STATUS.WARN,
-      'Your chest and waist are what the size is judged from. One of them is ' +
-      'missing, so the size suggestion is approximate.',
-      { present, missing: ['chest_bust', 'waist'].filter((k) => !Number(raw?.[k])) }
+      'One of your two sizes is missing, so the size suggestion is approximate.',
+      { present, missing: [missingAxis] }
     );
   }
 
   return item(
     'measurements',
-    'Body profile',
+    'Size profile',
     FIT_STATUS.PASS,
-    'Body profile is complete enough for a measured size check.',
+    'Your sizes are on file, so the size check uses the real measurements behind them.',
     { present, missing: [] }
   );
 };

@@ -35,8 +35,20 @@ use Illuminate\Support\Facades\Log;
  */
 class ProviderHealth
 {
-    /** The only provider wired into the render chain today. */
+    /** PixelAPI — the paid VTON slot (`services.vton`), and the default vendor. */
     public const PROVIDER_PIXELAPI = 'pixelapi';
+
+    /**
+     * FASHN — the PRIMARY paid VTON slot (`services.fashn`).
+     *
+     * A separate provider id rather than reusing PixelAPI's, so the console and
+     * the health history can tell WHICH vendor faulted. That distinction is the
+     * whole point of the record: with a priority chain, "FASHN is down" means
+     * renders are still landing via the fallback, while "PixelAPI is down" means
+     * the deployment has no working paid engine at all. Collapsing both into one
+     * id would hide exactly that difference.
+     */
+    public const PROVIDER_FASHN = 'fashn';
 
     /*
      * CODES THAT MEAN "THE PROVIDER IS AT FAULT".
@@ -98,9 +110,16 @@ class ProviderHealth
      * result of every render without having to classify it themselves — the one
      * place that knows the vocabulary is right here.
      *
-     * @param  array<string, mixed>  $result  the array returned by VtonApiRenderer::render()
+     * THE PROVIDER ARGUMENT IS ADDITIVE. It defaults to PixelAPI, so every
+     * pre-existing caller that passed only the result keeps recording exactly what
+     * it recorded before. The renderer now passes the SLOT it actually used, so a
+     * FASHN fault is filed under FASHN instead of being misattributed.
+     *
+     * @param  array<string, mixed>  $result   the array returned by VtonApiRenderer::render()
+     * @param  string|null  $provider  the slot that produced it (`'vton'`/`'fashn'`),
+     *                                 or a PROVIDER_* constant. Null = PixelAPI.
      */
-    public static function recordRenderFailure(array $result): void
+    public static function recordRenderFailure(array $result, ?string $provider = null): void
     {
         $code = $result['code'] ?? null;
 
@@ -116,7 +135,7 @@ class ProviderHealth
          */
         try {
             ProviderHealthEvent::create([
-                'provider' => self::PROVIDER_PIXELAPI,
+                'provider' => self::providerForSlot($provider),
                 'source' => 'render',
                 'state' => self::stateForCode($code),
                 'http_status' => null,
@@ -126,6 +145,25 @@ class ProviderHealth
         } catch (\Throwable $e) {
             Log::warning('Could not record provider health event: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Map a slot name onto its stored provider id.
+     *
+     * The renderer passes a CONFIG SLOT (`'vton'` / `'fashn'`), not a provider id,
+     * so the two vocabularies are reconciled in ONE place rather than at each call
+     * site. Anything unrecognised — including null — resolves to PixelAPI, which
+     * preserves the behaviour every existing caller relied on: an unlabelled
+     * failure was, and still is, recorded against the default paid provider.
+     */
+    public static function providerForSlot(?string $slot): string
+    {
+        $slot = strtolower(trim((string) $slot));
+
+        return match ($slot) {
+            'fashn', self::PROVIDER_FASHN => self::PROVIDER_FASHN,
+            default => self::PROVIDER_PIXELAPI,
+        };
     }
 
     /**

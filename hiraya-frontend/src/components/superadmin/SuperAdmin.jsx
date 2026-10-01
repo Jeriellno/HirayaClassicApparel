@@ -1,11 +1,23 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import api from '../../api/axios';
 import { invalidateCatalog } from '../../utils/invalidateCatalog';
 import { subscribeBackendHealth, isBackendReachable } from '../../utils/backendHealth';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../services/supabase';
+import { roleOf as supabaseRoleOf, signOutSupabase, fetchAuthoritativeRole } from '../../services/supabaseMfa';
+import {
+  canAccessSection,
+  resolveConsoleRole,
+  resolveSection,
+  ALIASED_SUBTAB,
+  sectionsForRole,
+} from '../../utils/consoleAccess';
 
 import SuperadminLayout from './SuperadminLayout';
+import { superAdminNavLinks, SECTION_SUBTABS } from './SuperadminLayout';
 
 import DashboardTab from './tabs/DashboardTab';
 import InventoryTab from './tabs/InventoryTab';
@@ -17,20 +29,225 @@ import AdminsTab from './tabs/AdminsTab';
 import SettingsTab from './tabs/SettingsTab';
 import AuditLogsTab from './tabs/AuditLogsTab';
 import ApiStatusTab from './tabs/ApiStatusTab';
+import ApiCredentialsTab from './tabs/ApiCredentialsTab';
 
 /*
  * The hardcoded dev super-admin accounts (superadmin@hiraya.com /
  * admin@hiraya.com) were REMOVED per request — they are not used yet.
  *
- * The inventory flow now needs NO admin session at all: AI analysis
- * (POST /products/analyze-image) AND the product save/edit/delete
- * (POST/PUT/DELETE /products) are PUBLIC routes, so nothing here answers
- * "Forbidden" (403) or "Unauthorized" (401).
+ * AUTH ON THIS CONSOLE. AI analysis (POST /products/analyze-image) is PUBLIC,
+ * but the catalogue WRITES are not: `POST /products`, `PUT|PATCH /products/{id}`
+ * and `DELETE /products/{id}` sit behind `supabase.aal2` + `supabase.user` +
+ * `admin`. The shared axios instance attaches the Supabase session JWT to them
+ * (see `needsSupabaseToken` in src/api/axios.js), which is what makes Save /
+ * Edit / Delete authenticate instead of answering
+ * "Unauthenticated. A Supabase access token is required."
  */
 
 const SuperAdmin = ({ onLogout }) => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('dashboard');
+
+  /*
+   * WHO IS USING THE CONSOLE, AND THEREFORE WHAT THEY ARE OFFERED.
+   *
+   * The panel is public, so `role` comes from the URL when there is no session —
+   * see the note below. Everything else about the UI is identical either way: one
+   * component, one layout, one set of tabs. An operator on `/admin` is not
+   * looking at a different, lesser application, they are looking at the same one
+   * with the parts they were not given removed from the sidebar.
+   */
+  const { user } = useAuth();
+
+  /*
+   * WHICH CONSOLE IS THIS? — DECIDED BY THE ROLE, AND THE ROLE COMES FROM
+   * SUPABASE.
+   *
+   * There is one panel and one component. What differs between the two roles is
+   * how much of it is offered:
+   *
+   *   admin       -> Inventory Catalog + Orders. Two sections.
+   *   superadmin  -> every section (see SECTIONS_BY_ROLE in consoleAccess.js).
+   *
+   * WHY `useAuth()` IS NOT ENOUGH, AND WHY THE URL IS NOT EITHER
+   * -----------------------------------------------------------
+   * Staff sign in through the ONE /login form (Login.jsx) and receive a SUPABASE
+   * session — they never get a Laravel/Sanctum one. So `useAuth()` here returns
+   * `user === null` on a perfectly valid staff sign-in, `resolveConsoleRole(null)`
+   * returns '', and the old fallback made EVERY staff member an `admin`:
+   *
+   *     const role = sessionRole || (isSuperadminEntry ? 'superadmin' : 'admin');
+   *
+   * That silently demoted a real superadmin to the two-section view, and because
+   * `/superadmin` is the console url the `isSuperadminEntry`
+   * branch could never fire anyway. The console was therefore unreachable at
+   * full privilege.
+   *
+   * The authoritative role lives in the Supabase session's `app_metadata.role`
+   * (see 0002_sync_role_into_jwt.sql) — the SAME source ProtectedRoute already
+   * reads through `useSupabaseIdentity`. This component now reads it too, so the
+   * door and the room agree on who is inside.
+   */
+  const [supabaseRole, setSupabaseRole] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+          if (cancelled) return;
+          /*
+           * From POSTGRES, not from the session claims. `app_metadata.role`
+           * is empty on every real Hiraya account (nothing writes it), so
+           * this used to fall through to the `|| 'admin'` default below and
+           * SILENTLY DEMOTED EVERY SUPERADMIN to the two-section view.
+           * See `fetchAuthoritativeRole` in supabaseMfa.js.
+           */
+          const resolved = data?.session?.user
+              ? await fetchAuthoritativeRole(data.session.user)
+              : '';
+          if (!cancelled) setSupabaseRole(resolved || '');
+      })
+      .catch(() => {
+        // Supabase unreachable: fall back to the Laravel role below, which is
+        // '' for staff. Defaulting to the NARROWEST role is the safe failure.
+        if (!cancelled) setSupabaseRole('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /*
+   * ROLE RESOLUTION ORDER:
+   *   1. the Supabase session (staff)      — authoritative for console users
+   *   2. the Laravel user (customers)      — kept for any Sanctum-based session
+   *   3. `admin`                           — the most restrictive real role
+   *
+   * A signed-in role always wins over the URL, so a superadmin who bookmarked
+   * `/admin` keeps the full view instead of being demoted by their own URL bar.
+   */
+  const sessionRole = supabaseRole || resolveConsoleRole(user);
+  const role = sessionRole || 'admin';
+
+  /*
+   * The URL is read for the SECTION (see the hash seeding below), never for the
+   * ROLE — a signed-in superadmin who bookmarked `/admin` keeps the full view
+   * instead of being demoted by their own address bar. The Supabase session is
+   * the authority on WHO; the url only says where inside the console to look.
+   */
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  void pathname;
+
+  const allowedSections = useMemo(() => sectionsForRole(role), [role]);
+  const navLinks = useMemo(
+    () => superAdminNavLinks.filter((link) => allowedSections.includes(link.id)),
+    [allowedSections],
+  );
+
+  /*
+   * START WHERE THEY ARE ALLOWED TO BE.
+   *
+   * The default tab was `dashboard`, which an ordinary admin may not open, so
+   * the console would have mounted onto a section it is not meant to show and
+   * rendered a blank body. Landing on the first permitted section instead means
+   * the console always opens on something real, whether the url asked for a
+   * section this role has or not.
+   */
+  /*
+   * NEVER MOUNT ON A SECTION THAT IS NOT RENDERED.
+   *
+   * `resolveSection` returns null when a role has no permitted sections at all
+   * (an unrecognised role). Mounting on that null made every tab's
+   * `activeTab === '...'` check false, so the body rendered nothing at all —
+   * an empty shell with a working sidebar.
+   */
+  const [activeTab, setActiveTab] = useState(() => {
+    /*
+     * THE URL IS READ HERE, AND ONLY HERE, FOR ONE NARROW PURPOSE.
+     *
+     * This is NOT the role decision the notes above forbid — the role still
+     * comes from the Supabase session and nothing in the url can change it. What
+     * the url supplies is which SECTION was asked for, so a bookmarked or
+     * shared console link (including one naming an id that has since become a
+     * sub-tab) opens where it points instead of silently landing on Dashboard.
+     *
+     * `resolveSection` maps a stale id through SECTION_ALIASES and then enforces
+     * the role allow-list, so an unknown id, a forbidden id and an old id are
+     * all handled by the one function that already owned that decision.
+     */
+    const requested = window.location.hash.replace(/^#\/?/, '');
+    return resolveSection(role, requested || 'dashboard') ?? 'dashboard';
+  });
+
+  useEffect(() => {
+    setActiveTab((current) => resolveSection(role, current) ?? 'dashboard');
+  }, [role]);
+
+  /*
+   * CUSTOMER PROFILE -> ORDERS HAND-OFF.
+   *
+   * "View Order" / "View All Orders" in a customer's profile open the Orders tab
+   * focused on `{ orderId }` or `{ search: email }`. The focus is dropped as soon
+   * as the operator leaves Orders, so opening the tab from the sidebar later
+   * shows the normal, unfiltered list. The role allow-list still decides
+   * whether Orders may open at all.
+   */
+  const [ordersFocus, setOrdersFocus] = useState(null);
+
+  const viewCustomerOrders = useCallback(
+    (focus) => {
+      const target = resolveSection(role, 'orders');
+      if (target !== 'orders') return;
+      setOrdersFocus(focus || null);
+      setActiveTab('orders');
+    },
+    [role]
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'orders') setOrdersFocus(null);
+  }, [activeTab]);
+
+  /*
+   * THE SECOND LEVEL — which sub-tab of the active section is open.
+   *
+   * WHY THIS STATE EXISTS AT ALL, GIVEN THE SIDEBAR USED TO HAVE FLAT ROWS.
+   * `api-status` and `api-keys` were two top-level tabs; they are now the two
+   * sub-tabs of `api`. `analytics` likewise became a sub-tab of `dashboard`. The
+   * section id is what the allow-list authorizes; the sub-tab is only which
+   * PANEL inside it is painted, so it never needs a permission check of its own
+   * — reaching `api` at all already proved the role may see everything in it.
+   *
+   * SEEDED FROM THE ALIAS TABLE, so a deep link to the OLD id opens the right
+   * panel: `#api-keys` must land on Keys, not on the Status sub-tab that happens
+   * to be first. This is the other half of SECTION_ALIASES — the alias maps the
+   * section, ALIASED_SUBTAB maps the panel inside it.
+   */
+  const [activeSubTab, setActiveSubTab] = useState(
+    () => ALIASED_SUBTAB[window.location.hash.replace(/^#\/?/, '')] ?? '',
+  );
+
+  useEffect(() => {
+    const subs = SECTION_SUBTABS[activeTab] || [];
+    setActiveSubTab((current) =>
+      subs.some((s) => s.id === current) ? current : (subs[0]?.id ?? ''),
+    );
+  }, [activeTab]);
+
+  /*
+   * KEEP THE HASH IN STEP WITH THE ACTIVE SECTION, so a link the operator copies
+   * out of the address bar is one they can come back to. `replaceState` rather
+   * than a router push: the console is a tabbed surface, and adding a history
+   * entry per tab click would make the back button walk the sidebar instead of
+   * leaving the console.
+   */
+  useEffect(() => {
+    const suffix = activeSubTab ? `${activeTab}/${activeSubTab}` : activeTab;
+    window.history.replaceState(null, '', `#${suffix}`);
+  }, [activeTab, activeSubTab]);
   const [loading, setLoading] = useState(false);
 
   /*
@@ -150,17 +367,47 @@ const SuperAdmin = ({ onLogout }) => {
    * The Dashboard renders no per-session rows; only the Analytics tab does.
    * The dataset therefore moved to the tab that actually displays it.
    */
+  /*
+   * THE DASHBOARD DECLARES NOTHING. Every panel on it (summary cards, charts,
+   * recent activity, inventory) fetches its own small analytics endpoint via
+   * react-query; DashboardTab renders none of `products`, `liveSessions` or
+   * `feedbacks`. Loading them here — and re-polling them every 30s, the full
+   * catalogue included — only queued dead reads on the single-threaded dev
+   * server, which is what timed out as "Failed: Feedback … 15000ms exceeded"
+   * whenever a save was in flight. Those datasets load on the tabs that show
+   * them (Inventory, Feedback).
+   */
   const TAB_DATASETS = useMemo(() => ({
-    dashboard: ['products', 'liveSessions', 'feedbacks'],
+    dashboard: [],
     inventory: ['products'],
     orders: [],            // OrdersTab self-fetches (read-only, its own endpoint).
     customers: [],         // CustomersTab self-fetches.
-    'api-status': [],      // ApiStatusTab self-fetches.
-    analytics: ['analyticsLogs'],
+    api: [],               // ApiStatusTab / ApiCredentialsTab self-fetch.
     feedback: ['feedbacks'],
     admins: ['adminAccounts'],
     'audit-logs': ['auditLogs'],
     settings: ['systemSettings'],
+  }), []);
+
+  /*
+   * `analyticsLogs` IS FETCHED BY A SUB-TAB, NOT BY THE DASHBOARD ITSELF.
+   *
+   * Canvas Analytics became the 'analytics' sub-tab of the Dashboard, but the
+   * dataset stays keyed to that SUB-TAB and not to `dashboard`, because the
+   * original decision still holds and is the reason this split exists at all:
+   *
+   *   /admin/analytics/tryon-activity MEASURED at 19.0s. Fetching it on console
+   *   mount made opening the console to read ONE counter pay for the whole
+   *   activity log — and on the single-threaded dev server that 19s also queued
+   *   ahead of every other request.
+   *
+   * Folding the two sections together must not quietly undo that. So the
+   * OVERVIEW sub-tab gets the dashboard set, and the ANALYTICS sub-tab adds the
+   * logs on top — the cost is still paid only by the operator who asked to see
+   * the logs.
+   */
+  const SUBTAB_DATASETS = useMemo(() => ({
+    analytics: ['analyticsLogs'],
   }), []);
 
   // Datasets already pulled in this session, so re-opening a tab does not
@@ -190,6 +437,22 @@ const SuperAdmin = ({ onLogout }) => {
   const DATASET_LOADERS = useRef({});
 
   /**
+   * Datasets that are ALWAYS refetched on tab entry, even when already loaded.
+   *
+   * `loadedRef` exists so a tab switch does not re-request slow, unchanging
+   * datasets (the catalog, the live-session list). That caching is wrong for the
+   * audit log: it is APPEND-ONLY, and its entire purpose is to show what other
+   * people have just done. An admin who opens the console, edits a garment in
+   * another tab, then returns to Audit Logs was previously shown the snapshot from
+   * their first visit — the new entry existed in the database but not on screen,
+   * which is the precise failure that makes an audit trail untrustworthy.
+   *
+   * Only this key is listed. Adding a dataset here opts it out of caching, so it
+   * should stay a short, deliberate list rather than a general exemption.
+   */
+  const ALWAYS_REFETCH = useMemo(() => new Set(['auditLogs']), []);
+
+  /**
    * Fetches ONLY the datasets a given tab declares, skipping any already loaded.
    * Safe to call on every tab change.
    *
@@ -206,8 +469,10 @@ const SuperAdmin = ({ onLogout }) => {
    * returning to the tab retries exactly the ones that did not answer.
    */
   const loadForTab = useCallback(async (tab) => {
-    const wanted = TAB_DATASETS[tab] || [];
-    const missing = wanted.filter((key) => !loadedRef.current.has(key));
+    const wanted = [...(TAB_DATASETS[tab] || []), ...(SUBTAB_DATASETS[tab] || [])];
+    const missing = wanted.filter(
+      (key) => !loadedRef.current.has(key) || ALWAYS_REFETCH.has(key)
+    );
 
     if (missing.length === 0) return;
 
@@ -531,8 +796,10 @@ const SuperAdmin = ({ onLogout }) => {
    * list stale and refetches the mounted ones, so Shop and Home show the edit
    * immediately. Both are kept, because each does something the other cannot.
    */
-  // Product write routes are PUBLIC now (see hiraya-backend/routes/api.php), so
-  // Save / Edit / Delete work with no admin login and never answer 401.
+  // Product write routes are AAL2-GATED, so they carry the Supabase session JWT
+  // (attached by the axios interceptor). Save / Edit / Delete therefore need a
+  // console session completed with two-factor verification, and answer 401
+  // "Your admin session has expired..." when it is missing.
   const handleAddProduct = async (payload) => {
     const res = await api.post('/products', payload);
     await fetchProducts();
@@ -643,9 +910,15 @@ const SuperAdmin = ({ onLogout }) => {
   const fetchFeedbacks = useCallback(async () => {
     try {
       const res = await api.get('/admin/feedbacks');
-      const rows = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      const rows = Array.isArray(res.data)
+        ? res.data
+        : (res.data?.data || []);
+
       setFeedbacks(rows);
     } catch (err) {
+      console.error('FEEDBACK 401 STATUS:', err.response?.status);
+      console.error('FEEDBACK 401 RESPONSE:', err.response?.data);
+      console.error('FEEDBACK 401 HEADERS:', err.response?.headers);
       console.error('SuperAdmin: failed to load feedbacks', err);
       throw err;
     }
@@ -669,12 +942,24 @@ const SuperAdmin = ({ onLogout }) => {
   }, []);
 
   /**
-   * Provision a new admin account (POST /admin/accounts). Superadmin-only
+   * INVITE a new admin (POST /admin/accounts/invite). Superadmin-only
    * server-side; the console only renders this control on the Super Admin tab.
+   *
+   * THIS SENDS AN INVITATION, IT DOES NOT CREATE AN ACCOUNT. The superadmin
+   * supplies an address and a role; the invitee receives a link, sets their own
+   * password and enrolls their own authenticator. No account exists until they do,
+   * and it stays inactive until their factor is verified.
+   *
+   * The list is NOT refreshed afterwards, because there is nothing to refresh: no
+   * `users` row was written. The table fills in only once the invitee has actually
+   * accepted, at which point the 30s console poll picks it up — with the Pending
+   * MFA badge until they finish enrolling.
+   *
+   * The response is returned because it carries `invitation_url`, which the tab
+   * shows so the link can be delivered by hand when no SMTP host is configured.
    */
-  const handleAddAdmin = async (payload) => {
-    const res = await api.post('/admin/accounts', payload);
-    await fetchAdminAccounts();
+  const handleInviteAdmin = async (payload) => {
+    const res = await api.post('/admin/accounts/invite', payload);
     return res.data;
   };
 
@@ -695,6 +980,24 @@ const SuperAdmin = ({ onLogout }) => {
   const handleUpdateAdmin = async (id, payload) => {
     const res = await api.patch(`/admin/accounts/${id}`, payload);
     await fetchAdminAccounts();
+    return res.data;
+  };
+
+  /**
+   * RE-ISSUE an invitation for an account that is still pending activation
+   * (POST /admin/accounts/{id}/resend-invitation).
+   *
+   * The invitation link is shown exactly once, in the modal that created it. If the
+   * superadmin closes that modal without copying the link, or the link simply
+   * expires, this is the only recovery — `invite()` refuses an address that is
+   * already invited, because a second link alongside the first would make both
+   * valid and the invitation would stop being single-use.
+   *
+   * Returns the response so the tab can show the fresh link, exactly as the invite
+   * modal does when mail delivery is unavailable.
+   */
+  const handleResendInvitation = async (id) => {
+    const res = await api.post(`/admin/accounts/${id}/resend-invitation`);
     return res.data;
   };
 
@@ -734,6 +1037,40 @@ const SuperAdmin = ({ onLogout }) => {
     adminAccounts: fetchAdminAccounts,
     systemSettings: fetchSystemSettings,
     auditLogs: fetchAuditLogs,
+  };
+
+  /**
+   * SIGNING OUT OF THE CONSOLE — AND IT MUST BE THE SUPABASE SESSION.
+   *
+   * The layout's "Exit Console" button used to be dead: `canSignOut` was
+   * `Boolean(onLogout)` and App.jsx rendered `<SuperAdmin />` with no prop, so
+   * the button never appeared and there was no way out of the console short of
+   * clearing storage by hand.
+   *
+   * Calling AuthContext's `logout()` would not have been the fix either: that
+   * hits Laravel's /logout and redirects to /login, but a staff member has NO
+   * Laravel session — the one that needs closing is the SUPABASE one, and an
+   * aal2 session left open in a shared browser is exactly the thing sign-out
+   * exists to prevent.
+   */
+  const handleLogout = async () => {
+    try {
+      await signOutSupabase();
+    } catch (err) {
+      // A failed sign-out must not trap the user in the console; the local
+      // session is cleared below regardless and the redirect still happens.
+      console.warn('SuperAdmin: Supabase sign-out failed', err);
+    } finally {
+      /*
+       * In-app navigation, not `window.location.href`. The full page load was a
+       * second, redundant navigation on top of the one `ProtectedRoute` already
+       * makes the moment the Supabase session reads as gone — the guard and this
+       * button were both writing the same redirect, and the user paid for it with
+       * a double refresh. `ProtectedRoute` owns the destination; the sign-out here
+       * only has to close the session.
+       */
+      navigate('/login', { replace: true });
+    }
   };
 
   /**
@@ -871,7 +1208,12 @@ const SuperAdmin = ({ onLogout }) => {
     <SuperadminLayout
       activeTab={activeTab}
       setActiveTab={setActiveTab}
-      onLogout={onLogout}
+      activeSubTab={activeSubTab}
+      setActiveSubTab={setActiveSubTab}
+      onLogout={handleLogout}
+      role={role}
+      navLinks={navLinks}
+      canSignOut
     >
       {/*
         * BACKEND UNREACHABLE BANNER.
@@ -887,10 +1229,10 @@ const SuperAdmin = ({ onLogout }) => {
         * no stale banner) is needed.
         */}
       {!backendReachable && (
-        <div className="mb-6 p-4 bg-red-500/10 border-red-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
-          <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-red-500/12 border-red-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
+          <AlertTriangle size={18} className="text-red-700 shrink-0 mt-0.5" />
           <div className="min-w-0">
-            <p className="text-red-400 font-bold uppercase tracking-widest">
+            <p className="text-red-700 font-bold uppercase tracking-widest">
               Backend unreachable
             </p>
             <p className="text-hiraya-ink normal-case tracking-normal mt-1">
@@ -920,10 +1262,10 @@ const SuperAdmin = ({ onLogout }) => {
         * 500). The Retry button re-issues only the failed reads.
         */}
       {datasetErrors.length > 0 && (
-        <div className="mb-6 p-4 bg-amber-500/10 border-amber-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
-          <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-amber-500/15 border-amber-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
+          <AlertTriangle size={18} className="text-amber-700 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
-            <p className="text-amber-400 font-bold uppercase tracking-widest">
+            <p className="text-amber-700 font-bold uppercase tracking-widest">
               Some data could not be loaded
             </p>
             <p className="text-hiraya-ink normal-case tracking-normal mt-1">
@@ -939,7 +1281,7 @@ const SuperAdmin = ({ onLogout }) => {
               type="button"
               onClick={retryFailedDatasets}
               disabled={loading}
-              className="mt-3 px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-300 uppercase tracking-widest text-[10px] font-bold hover:bg-amber-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="mt-3 px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-800 uppercase tracking-widest text-[10px] font-bold hover:bg-amber-500/15 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed"
             >
               {loading ? 'Retrying…' : 'Retry failed'}
             </button>
@@ -956,10 +1298,10 @@ const SuperAdmin = ({ onLogout }) => {
         * same message inline instead, and the operator can keep working.
         */}
       {actionError && (
-        <div className="mb-6 p-4 bg-sky-500/10 border-sky-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
-          <AlertTriangle size={18} className="text-sky-400 shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-navy-100 border border-navy-300/70 rounded-2xl flex items-start gap-3 font-mono text-xs">
+          <AlertTriangle size={18} className="text-navy-700 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
-            <p className="text-sky-300 font-bold uppercase tracking-widest">
+            <p className="text-navy-800 font-bold uppercase tracking-widest">
               Last action
             </p>
             <p className="text-hiraya-ink normal-case tracking-normal mt-1">
@@ -976,13 +1318,17 @@ const SuperAdmin = ({ onLogout }) => {
         </div>
       )}
 
-      {activeTab === 'dashboard' && (
+      {activeTab === 'dashboard' && activeSubTab === 'analytics' && (
+        <AnalyticsTab analyticsLogs={analyticsLogs} exportSurveyCSV={exportSurveyCSV} />
+      )}
+      {activeTab === 'dashboard' && activeSubTab !== 'analytics' && (
         <DashboardTab
           products={products}
           activeSessions={activeSessions}
           feedbacks={feedbacks}
           analyticsLogs={analyticsLogs}
           onRefresh={refreshActiveTab}
+          onOpenAnalytics={() => setActiveSubTab('analytics')}
           loading={loading}
         />
       )}
@@ -995,20 +1341,36 @@ const SuperAdmin = ({ onLogout }) => {
           onAnalyzeImage={analyzeProductImage}
         />
       )}
-      {activeTab === 'orders' && <OrdersTab />}
-      {activeTab === 'customers' && <CustomersTab />}
-      {activeTab === 'analytics' && <AnalyticsTab analyticsLogs={analyticsLogs} exportSurveyCSV={exportSurveyCSV} />}
+      {activeTab === 'orders' && (
+        <OrdersTab
+          // `key` remounts the tab for each hand-off, so its search and open
+          // sheet are seeded fresh rather than kept from the last visit.
+          key={ordersFocus ? JSON.stringify(ordersFocus) : 'orders'}
+          initialSearch={ordersFocus?.search}
+          initialOrderId={ordersFocus?.orderId}
+        />
+      )}
+      {activeTab === 'customers' && <CustomersTab onViewOrders={viewCustomerOrders} />}
       {activeTab === 'feedback' && <FeedbackTab feedbacks={feedbacks} />}
       {activeTab === 'admins' && (
         <AdminsTab
           adminAccounts={adminAccounts}
-          onAddAdmin={handleAddAdmin}
+          onInviteAdmin={handleInviteAdmin}
           onDeleteAdmin={handleDeleteAdmin}
           onUpdateAdmin={handleUpdateAdmin}
+          onResendInvitation={handleResendInvitation}
         />
       )}
       {activeTab === 'audit-logs' && <AuditLogsTab auditLogs={auditLogs} />}
-      {activeTab === 'api-status' && <ApiStatusTab />}
+      {/*
+        * API & AI — ONE SECTION, TWO SUB-TABS.
+        *
+        * 'status' reports on the external keys, 'keys' changes them. They were
+        * two sidebar rows about one subject; the merge keeps every control and
+        * removes the guess about which row to open.
+        */}
+      {activeTab === 'api' && activeSubTab === 'keys' && <ApiCredentialsTab />}
+      {activeTab === 'api' && activeSubTab !== 'keys' && <ApiStatusTab />}
       {activeTab === 'settings' && (
         <SettingsTab
           settings={systemSettings}
@@ -1029,9 +1391,9 @@ const SuperAdmin = ({ onLogout }) => {
         * single sentence.
         */}
       {confirmResetOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-cream/50 p-6">
-          <div className="max-w-md w-full rounded-2xl border border-hiraya-sand/35 bg-hiraya-olive/60 p-6 font-mono text-xs">
-            <p className="text-amber-400 font-bold uppercase tracking-widest">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/45 p-6 backdrop-blur-sm">
+          <div className="max-w-md w-full rounded-[24px] bg-hiraya-surface p-7 text-xs shadow-neu ring-1 ring-cream-50/80">
+            <p className="text-amber-700 font-bold uppercase tracking-widest">
               Reset interaction counters?
             </p>
             <p className="text-hiraya-ink normal-case tracking-normal mt-3">
@@ -1046,7 +1408,7 @@ const SuperAdmin = ({ onLogout }) => {
                 type="button"
                 onClick={() => setConfirmResetOpen(false)}
                 disabled={resetBusy}
-                className="px-4 py-2 rounded-lg border border-hiraya-sand/45 text-hiraya-ink uppercase tracking-widest text-[10px] font-bold hover:bg-hiraya-sand/70 disabled:opacity-40"
+                className="px-5 py-2.5 rounded-full border border-hiraya-ink/20 text-hiraya-ink uppercase tracking-widest text-[10px] font-bold hover:bg-cream-200/60 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none"
               >
                 Cancel
               </button>
@@ -1054,7 +1416,7 @@ const SuperAdmin = ({ onLogout }) => {
                 type="button"
                 onClick={clearDemoAnalytics}
                 disabled={resetBusy}
-                className="px-4 py-2 rounded-lg bg-amber-500 text-hiraya-olive uppercase tracking-widest text-[10px] font-bold hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 rounded-full bg-amber-500 text-hiraya-olive uppercase tracking-widest text-[10px] font-bold hover:bg-amber-400 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed"
               >
                 {resetBusy ? 'Resetting…' : 'Yes, reset'}
               </button>

@@ -1,30 +1,63 @@
-import { User, Sparkles, LogOut, Settings, Menu, X, Package, ShoppingBag, ChevronDown, MessageSquare, History } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { User, Sparkles, LogOut, Settings, Menu, X, Package, ShoppingBag, ChevronDown, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { useCart } from '../../hooks/useCart';
 
 import logoImg from '../../assets/logo.png';
 import Modal from './Modal';
-import SearchBar from './SearchBar';
 import NotificationBell from './NotificationBell';
+
+/*
+ * STYLE HELPERS — presentation only. Each takes the SAME active/inactive
+ * boolean the markup always computed, and returns the class list for it, so
+ * the ten near-identical className ternaries below share one definition.
+ */
+const ACTIVE_PILL_SPRING = { type: 'spring', stiffness: 420, damping: 34, mass: 0.7 };
+const PANEL_EASE = [0.22, 1, 0.36, 1];
+
+const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-nav-ink/60';
+
+// Round glass control (feedback, bag, orders): cream plate when active.
+const navControl = (active) =>
+    `relative flex items-center justify-center rounded-full border transition-all duration-300 ${focusRing} ${
+        active
+            ? 'border-cream-100 bg-cream-100 text-navy-950 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]'
+            : 'border-cream-50/15 bg-cream-50/[0.04] text-hiraya-nav-muted hover:border-cream-50/35 hover:bg-cream-50/10 hover:text-hiraya-nav-ink'
+    }`;
+
+// A row in the mobile drawer.
+const drawerItem = (active) =>
+    `flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors duration-200 ${
+        active
+            ? 'border-cream-100 bg-cream-100 text-navy-950 font-bold'
+            : 'border-transparent text-hiraya-nav-muted hover:bg-cream-50/[0.06] hover:text-hiraya-nav-ink'
+    }`;
+
+// The cream call-to-action plate used for Login on the dark bar.
+const creamPlate =
+    'inline-flex items-center justify-center gap-2 rounded-full bg-cream-100 text-navy-950 font-semibold uppercase tracking-[0.16em] shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)] transition-all duration-300 hover:bg-cream-50 hover:-translate-y-px focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream-100';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
     const location = useLocation();
-    const navigate = useNavigate();
 
     const { cartCount } = useCart();
 
     const [isScrolled, setIsScrolled] = useState(false);
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef(null);
 
-    if (location.pathname.startsWith('/admin')) {
+    /*
+     * The console is a full-bleed surface with its own sidebar, so the storefront
+     * navbar is suppressed on it. `/admin` is listed too: it is now only a
+     * redirect to `/superadmin`, but the redirect renders one frame first.
+     */
+    if (location.pathname.startsWith('/superadmin') || location.pathname.startsWith('/admin')) {
         return null;
     }
 
@@ -41,7 +74,6 @@ const Navbar = () => {
     useEffect(() => {
         setIsMobileMenuOpen(false);
         setIsProfileOpen(false);
-        setIsSearchOpen(false);
     }, [location.pathname, location.search]);
 
     useEffect(() => {
@@ -49,22 +81,11 @@ const Navbar = () => {
             if (e.key === 'Escape') {
                 setIsProfileOpen(false);
                 setIsMobileMenuOpen(false);
-                setIsSearchOpen(false);
             }
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
     }, []);
-
-    const handleSearchSubmit = (e) => {
-        e.preventDefault();
-        if (searchQuery.trim()) {
-            navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
-            setIsSearchOpen(false);
-            setSearchQuery('');
-            setIsMobileMenuOpen(false);
-        }
-    };
 
     const scrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -82,28 +103,50 @@ const Navbar = () => {
         logout();
     };
 
+    // `/home` is the signed-in landing page, so it lights the Home pill too.
+    const isHome = location.pathname === '/' || location.pathname === '/home';
+    const isShop = location.pathname === '/shop';
+    const isTryOn = location.pathname.startsWith('/try-on');
+
     return (
-        <>
+        // `reducedMotion="user"` turns the sliding pill and panel entrances
+        // into instant swaps for visitors who ask for reduced motion.
+        <MotionConfig reducedMotion="user">
+            {/*
+             * THE BAR — "VINTAGE ATELIER".
+             *
+             * At the top of a page it is a full-width band of deep navy glass
+             * finished with a brass hairline (the shopfront fascia). Once the
+             * visitor scrolls it detaches into a FLOATING capsule — inset from
+             * the viewport edges, rounded, frosted, and lifted on the dark
+             * neumorphic shadow — so it reads as a pane hovering over the
+             * page instead of a slab sitting on it. Only presentation changes
+             * with `isScrolled`; the scroll listener itself is untouched.
+             *
+             * The capsule stays at 85% navy so that even over the lightest cream
+             * page the resolved glass keeps cream ink at 10.9:1 and the muted
+             * (inactive) links at 6.8:1. At 75% the muted links fell to 4.4:1.
+             */}
             <nav
-                className={`fixed top-0 left-0 right-0 z-40 px-4 sm:px-8 lg:px-12 transition-all duration-300 ease-in-out text-hiraya-ink ${
+                className={`fixed z-40 border text-hiraya-nav-ink backdrop-blur-2xl backdrop-saturate-150 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isScrolled
-                        ? 'py-2.5 bg-hiraya-cream-deep/95 backdrop-blur-2xl border-b border-hiraya-olive/15 shadow-lg shadow-hiraya-sand/30'
-                        : /*
-                           * The resting state fades the CREAM canvas into the bar.
-                           * Every ink in this header is olive, so the bar must be the
-                           * light surface those inks are readable on — a dark scrim
-                           * would put olive text on a dark strip.
-                           */
-                          'py-3 md:py-4 bg-gradient-to-b from-hiraya-bg via-hiraya-bg/70 to-transparent border-b border-transparent'
+                        ? 'top-2 left-2 right-2 sm:top-3 sm:left-5 sm:right-5 lg:left-8 lg:right-8 rounded-2xl px-3 sm:px-5 lg:px-6 py-2 bg-navy-950/85 border-cream-50/10 shadow-neu-dark'
+                        : 'top-0 left-0 right-0 rounded-none px-4 sm:px-8 lg:px-12 py-3 md:py-4 bg-navy-950/92 border-transparent'
                 }`}
+                style={{ backgroundImage: 'var(--hiraya-nav-sheen)' }}
             >
+                {/* The fascia rule — only on the full-width band. Decorative. */}
+                <span
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 h-px bg-hiraya-nav-rule/60 transition-opacity duration-500 ${isScrolled ? 'opacity-0' : 'opacity-100'}`}
+                />
                 <div className="max-w-7xl mx-auto flex justify-between items-center min-h-11">
 
                     {/* LOGO & BRAND NAME */}
                     <Link
                         to="/"
                         onClick={scrollToTop}
-                        className="flex items-center gap-2.5 rounded-xl px-1 py-1 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 transition group shrink-0"
+                        className={`flex items-center gap-2.5 rounded-xl px-1.5 py-1 hover:bg-cream-50/[0.06] transition group shrink-0 ${focusRing}`}
                     >
                         <img
                             src={logoImg}
@@ -112,65 +155,55 @@ const Navbar = () => {
                             onError={(e) => { e.target.style.display = 'none'; }}
                         />
                         <div className="flex flex-col justify-center">
-                            <span className="text-lg sm:text-xl md:text-2xl font-serif tracking-[0.10em] text-hiraya-ink font-medium leading-none">
+                            <span className="text-lg sm:text-xl md:text-2xl font-serif tracking-[0.06em] text-hiraya-nav-ink font-semibold leading-none">
                                 HIRAYA
                             </span>
-                            <span className="hidden sm:block text-[6px] sm:text-[7px] uppercase tracking-[0.35em] font-semibold mt-0.5 text-hiraya-olive/70">
+                            <span className="hidden sm:block text-[7px] md:text-[8px] uppercase tracking-[0.4em] font-medium mt-1 text-hiraya-nav-muted">
                                 Virtual Wardrobe
                             </span>
                         </div>
                     </Link>
 
-                    {/* Desktop Navigation Links (Nakalagay sa lg breakpoint para hindi mag-overlap sa medium screens) */}
-                    <div className="hidden lg:flex items-center gap-1 xl:gap-2 font-semibold uppercase text-[12px] tracking-[0.13em] shrink-0 text-hiraya-ink p-1 rounded-full border border-hiraya-olive/15 bg-white/[0.04] backdrop-blur-md">
+                    {/*
+                     * DESKTOP NAV LINKS — a frosted track with ONE cream pill
+                     * that glides to the current page (a shared `layoutId`), the
+                     * active-state treatment from the motion reference. The
+                     * active/inactive tests are the same ones as before.
+                     */}
+                    <div className="hidden lg:flex items-center gap-1 rounded-full border border-cream-50/10 bg-cream-50/[0.04] p-1 font-semibold uppercase text-[11px] tracking-[0.16em] shrink-0">
                         <Link
                             to="/"
                             onClick={scrollToTop}
-                            className={`relative px-4 py-2 rounded-full transition whitespace-nowrap hover:text-hiraya-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname === '/' ? 'text-hiraya-ink bg-[#CB997E]/25 font-bold' : 'text-hiraya-ink/70'}`}
+                            className={`relative rounded-full px-4 py-2 whitespace-nowrap transition-colors duration-300 ${focusRing} ${isHome ? 'text-navy-950' : 'text-hiraya-nav-muted hover:text-hiraya-nav-ink hover:bg-cream-50/[0.06]'}`}
                         >
-                            Home
+                            {isHome && <motion.span layoutId="nav-active-pill" transition={ACTIVE_PILL_SPRING} className="absolute inset-0 rounded-full bg-cream-100 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]" />}
+                            <span className="relative">Home</span>
                         </Link>
                         <Link
                             to="/shop"
-                            className={`relative px-4 py-2 rounded-full transition whitespace-nowrap hover:text-hiraya-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname === '/shop' ? 'text-hiraya-ink bg-[#CB997E]/25 font-bold' : 'text-hiraya-ink/70'}`}
+                            className={`relative rounded-full px-4 py-2 whitespace-nowrap transition-colors duration-300 ${focusRing} ${isShop ? 'text-navy-950' : 'text-hiraya-nav-muted hover:text-hiraya-nav-ink hover:bg-cream-50/[0.06]'}`}
                         >
-                            Shop
+                            {isShop && <motion.span layoutId="nav-active-pill" transition={ACTIVE_PILL_SPRING} className="absolute inset-0 rounded-full bg-cream-100 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]" />}
+                            <span className="relative">Shop</span>
                         </Link>
                         <Link
                             to="/try-on"
-                            className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition whitespace-nowrap group hover:text-hiraya-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname.startsWith('/try-on') ? 'text-hiraya-ink bg-[#CB997E]/25 font-bold' : 'text-hiraya-ink/70'}`}
+                            className={`relative rounded-full px-4 py-2 whitespace-nowrap group transition-colors duration-300 ${focusRing} ${isTryOn ? 'text-navy-950' : 'text-hiraya-nav-muted hover:text-hiraya-nav-ink hover:bg-cream-50/[0.06]'}`}
                         >
-                            <Sparkles size={16} className="group-hover:animate-pulse text-[#CB997E] shrink-0"/>
-                            AI Try-On
+                            {isTryOn && <motion.span layoutId="nav-active-pill" transition={ACTIVE_PILL_SPRING} className="absolute inset-0 rounded-full bg-cream-100 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]" />}
+                            <span className="relative flex items-center gap-1.5">
+                                <Sparkles size={15} className="group-hover:animate-pulse shrink-0" strokeWidth={1.6} />
+                                AI Try-On
+                            </span>
                         </Link>
-                        {user && <Link
-                            to="/try-on/history"
-                            title="Try-On History"
-                            aria-label="Try-On History"
-                            className={`flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-hiraya-cream-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname === '/try-on/history' ? 'bg-[#CB997E]/25 text-hiraya-ink' : 'text-hiraya-ink/70 hover:text-hiraya-ink'}`}
-                        ><History size={17} strokeWidth={1.8} className="shrink-0" /></Link>}
-
+                        {/* Try-On History now lives inside the AI Try-On studio
+                            (the History button in the canvas header). */}
                     </div>
 
                     {/* Controls Section - Desktop */}
-                    <div className="hidden lg:flex items-center gap-1.5 shrink-0">
-                        <SearchBar
-                            isOpen={isSearchOpen}
-                            setIsOpen={setIsSearchOpen}
-                            query={searchQuery}
-                            setQuery={setSearchQuery}
-                            onSubmit={handleSearchSubmit}
-                            isScrolled={isScrolled}
-                        />
-
-                        <Link
-                            to="/feedback"
-                            title="Share feedback"
-                            aria-label="Share feedback"
-                            className={`relative flex items-center justify-center w-10 h-10 rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname === '/feedback' ? 'border-[#CB997E]/50 bg-[#CB997E]/25 text-hiraya-ink' : 'border-transparent text-hiraya-ink/70 hover:bg-hiraya-cream-deep'}`}
-                        >
-                            <MessageSquare size={19} strokeWidth={1.7} />
-                        </Link>
+                    <div className="hidden lg:flex items-center gap-2 shrink-0">
+                        {/* The Feedback icon that sat here was retired: product
+                            reviews from delivered orders replace it. */}
 
                         {/* Notification bell — always visible for members */}
                         {user && <NotificationBell />}
@@ -183,23 +216,19 @@ const Navbar = () => {
                                 to="/cart"
                                 title="Your Bag"
                                 aria-label={`Your bag, ${cartCount} item${cartCount === 1 ? '' : 's'}`}
-                                className={`relative flex items-center gap-2 h-10 px-3 rounded-full border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${
-                                    location.pathname === '/cart'
-                                        ? 'border-[#CB997E]/60 bg-[#CB997E]/25 text-hiraya-ink'
-                                        : 'border-hiraya-olive/20 bg-hiraya-cream-deep/60 text-hiraya-ink/70 hover:border-hiraya-olive/40 hover:bg-hiraya-cream-deep'
-                                }`}
+                                className={`${navControl(location.pathname === '/cart')} gap-2 h-9 px-3.5`}
                             >
-                                <ShoppingBag size={19} />
-                                <span className="text-[11px] font-black uppercase tracking-[0.15em]">My Bag</span>
+                                <ShoppingBag size={17} strokeWidth={1.6} />
+                                <span className="text-[10px] font-bold uppercase tracking-[0.16em]">My Bag</span>
                                 {cartCount > 0 && (
-                                    <span className="absolute -top-1.5 -right-1 bg-hiraya-olive text-hiraya-ink font-extrabold text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center shadow-md ring-2 ring-hiraya-cream/70">
+                                    <span className="absolute -top-1.5 -right-1 bg-cream-400 text-navy-950 font-extrabold text-[9px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center ring-2 ring-navy-950">
                                         {cartCount > 99 ? '99+' : cartCount}
                                     </span>
                                 )}
                             </Link>
                         )}
 
-                        <div className={`flex items-center gap-1.5 ${user ? 'border-l border-hiraya-olive/15 pl-2 ml-1' : ''}`}>
+                        <div className={`flex items-center gap-1.5 ${user ? 'border-l border-cream-50/15 pl-2.5 ml-0.5' : ''}`}>
                             {user ? (
                                 /* 🧑 CUSTOMER DASHBOARD MENU — Wishlist, Orders and
                                    Settings now live inside one dropdown instead of
@@ -209,76 +238,86 @@ const Navbar = () => {
                                         onClick={() => setIsProfileOpen((v) => !v)}
                                         aria-haspopup="menu"
                                         aria-expanded={isProfileOpen}
-                                        className="flex items-center gap-2 h-10 px-2 rounded-full border border-transparent transition hover:border-hiraya-olive/15 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70"
+                                        className={`relative flex items-center gap-2 h-9 pl-3.5 pr-2 rounded-full border transition-all duration-300 ${focusRing} ${isProfileOpen ? 'border-cream-50/40 bg-cream-50/12 text-hiraya-nav-ink' : 'border-cream-50/15 bg-cream-50/[0.04] hover:border-cream-50/35 hover:bg-cream-50/10'}`}
                                     >
-                                        <div className="flex flex-col items-end leading-tight">
-                                            <span className="text-[10px] uppercase tracking-widest text-hiraya-ink font-black">
+                                        <div className="flex flex-col items-start leading-tight">
+                                            <span className="text-[8px] uppercase tracking-[0.22em] text-hiraya-nav-muted font-semibold">
                                                 Member
                                             </span>
-                                            <span className="text-[14px] font-bold tracking-wide uppercase">
+                                            <span className="text-[12px] font-bold tracking-[0.08em] uppercase text-hiraya-nav-ink">
                                                 {user.full_name?.split(' ')[0]}
                                             </span>
                                         </div>
-                                        <User size={30} strokeWidth={1.5} className="text-hiraya-ink" />
+                                        <User size={22} strokeWidth={1.4} className="text-hiraya-nav-ink" />
                                         <ChevronDown
-                                            size={15}
-                                            className={`transition-transform ${isProfileOpen ? 'rotate-180' : ''}`}
+                                            size={14}
+                                            className={`transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`}
                                         />
                                     </button>
 
-                                    {isProfileOpen && (
-                                        <div
-                                            role="menu"
-                                            className="absolute right-0 mt-3 w-64 bg-hiraya-cream-deep backdrop-blur-2xl border border-hiraya-olive/20 rounded-2xl shadow-2xl overflow-hidden z-50 text-hiraya-ink"
-                                        >
-                                            <div className="px-4 py-3 border-b border-hiraya-olive/15">
-                                                <p className="text-[11px] font-bold uppercase tracking-wide truncate">
-                                                    {user.full_name}
-                                                </p>
-                                                <p className="text-[10px] text-hiraya-ink truncate">{user.email}</p>
-                                            </div>
-
-                                            {/*"My Dashboard" and the duplicate
-"My Bag" row were both removed.
-                                                Orders and Settings stay here; the
-                                                bag has exactly ONE entry point —
-                                                the white My Bag pill in the header. */}
-                                            <ProfileMenuItem
-                                                to="/orders"
-                                                icon={<Package size={15} />}
-                                                label="My Orders"
-                                                onClick={closeAll}
-                                            />
-                                            <ProfileMenuItem
-                                                to="/settings"
-                                                icon={<Settings size={15} />}
-                                                label="Account Settings"
-                                                onClick={closeAll}
-                                            />
-
-                                            <button
-                                                onClick={() => {
-                                                    setIsProfileOpen(false);
-                                                    setShowLogoutModal(true);
-                                                }}
-                                                className="w-full flex items-center gap-2.5 px-4 py-3 text-[11px] uppercase tracking-widest font-bold text-red-400 hover:bg-red-500/10 transition border-t border-hiraya-olive/15"
+                                    <AnimatePresence>
+                                        {isProfileOpen && (
+                                            <motion.div
+                                                role="menu"
+                                                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                                                transition={{ duration: 0.22, ease: PANEL_EASE }}
+                                                style={{ transformOrigin: 'top right' }}
+                                                className="glass absolute right-0 mt-3 w-64 overflow-hidden z-50 text-hiraya-ink"
                                             >
-                                                <LogOut size={15} /> Logout
-                                            </button>
-                                        </div>
-                                    )}
+                                                {/*
+                                                 * A frosted cream pane (`.glass`) over the page;
+                                                 * at 78% fill the name and email keep >= 9:1
+                                                 * whatever sits behind it.
+                                                 */}
+                                                <div className="px-4 py-3 border-b border-hiraya-structure-line">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.8px] truncate">
+                                                        {user.full_name}
+                                                    </p>
+                                                    <p className="text-[10px] text-hiraya-ink-muted truncate">{user.email}</p>
+                                                </div>
+
+                                                {/* Orders and Settings stay here; the bag
+                                                    has exactly ONE entry point — the My
+                                                    Bag pill in the header. */}
+                                                <ProfileMenuItem
+                                                    to="/orders"
+                                                    icon={<Package size={15} />}
+                                                    label="My Orders"
+                                                    onClick={closeAll}
+                                                />
+                                                <ProfileMenuItem
+                                                    to="/settings"
+                                                    icon={<Settings size={15} />}
+                                                    label="Account Settings"
+                                                    onClick={closeAll}
+                                                />
+
+                                                <button
+                                                    onClick={() => {
+                                                        setIsProfileOpen(false);
+                                                        setShowLogoutModal(true);
+                                                    }}
+                                                    className="w-full flex items-center gap-2.5 px-4 py-3 text-[11px] uppercase tracking-[0.16em] font-bold text-red-800 hover:bg-red-500/10 transition-colors border-t border-hiraya-structure-line"
+                                                >
+                                                    <LogOut size={15} /> Logout
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             ) : (
-                                <Link to="/login" className="flex items-center gap-2 h-10 px-5 bg-[#CB997E] text-hiraya-ink rounded-full hover:bg-[#A5A58D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 transition-all shadow-md font-bold shrink-0">
-                                    <User size={16} />
-                                    <span className="text-[12px] uppercase tracking-[0.15em]">Login</span>
+                                <Link to="/login" className={`${creamPlate} h-9 px-5 text-[11px] shrink-0 whitespace-nowrap`}>
+                                    <User size={15} />
+                                    <span>Login</span>
                                 </Link>
                             )}
                         </div>
                     </div>
 
                     {/* Mobile / Tablet Toggle Button */}
-                    <div className="flex items-center gap-0.5 sm:gap-1 lg:hidden">
+                    <div className="flex items-center gap-1 sm:gap-1.5 lg:hidden">
                         {user && <NotificationBell />}
 
                         {/* Cart stays reachable on mobile too — same badge rules,
@@ -286,13 +325,13 @@ const Navbar = () => {
                         {user && (
                             <Link
                                 to="/cart"
-                                className={`relative flex items-center justify-center w-9 h-9 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname === '/cart' ? 'bg-[#CB997E]/25 text-hiraya-ink' : 'hover:bg-hiraya-cream-deep text-hiraya-ink/70'}`}
+                                className={`${navControl(location.pathname === '/cart')} w-9 h-9`}
                                 title="Your Bag"
                                 aria-label={`Your bag, ${cartCount} item${cartCount === 1 ? '' : 's'}`}
                             >
-                                <ShoppingBag size={21} />
+                                <ShoppingBag size={18} strokeWidth={1.6} />
                                 {cartCount > 0 && (
-                                    <span className="absolute top-0 right-0 bg-hiraya-olive text-hiraya-ink font-extrabold text-[9px] min-w-[16px] h-4 px-0.5 rounded-full flex items-center justify-center">
+                                    <span className="absolute -top-1 -right-1 bg-cream-400 text-navy-950 font-extrabold text-[9px] min-w-[16px] h-4 px-0.5 rounded-full flex items-center justify-center ring-2 ring-navy-950">
                                         {cartCount > 99 ? '99+' : cartCount}
                                     </span>
                                 )}
@@ -305,134 +344,138 @@ const Navbar = () => {
                         {user && (
                             <Link
                                 to="/orders"
-                                className={`relative flex items-center justify-center w-9 h-9 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 ${location.pathname === '/orders' ? 'bg-[#CB997E]/25 text-hiraya-ink' : 'hover:bg-hiraya-cream-deep text-hiraya-ink/70'}`}
+                                className={`${navControl(location.pathname === '/orders')} w-9 h-9`}
                                 title="My Orders"
                                 aria-label="My orders"
                             >
-                                <Package size={21} />
+                                <Package size={18} strokeWidth={1.6} />
                             </Link>
                         )}
 
                         <button
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="flex items-center justify-center w-10 h-10 rounded-full border border-hiraya-olive/20 bg-hiraya-cream-deep/60 hover:bg-hiraya-cream-deep transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70"
+                            className={`${navControl(isMobileMenuOpen)} w-9 h-9`}
                             aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
                             aria-expanded={isMobileMenuOpen}
                             aria-controls="mobile-navigation"
                         >
-                            {isMobileMenuOpen ? <X size={26} /> : <Menu size={26} />}
+                            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
                     </div>
 
                 </div>
 
                 {/* Mobile Drawer Dropdown */}
-                {isMobileMenuOpen && (
-                    <div id="mobile-navigation" className="lg:hidden mt-3 pt-3 pb-4 px-3 rounded-2xl border border-hiraya-olive/15 bg-hiraya-cream-deep text-hiraya-ink shadow-2xl backdrop-blur-2xl max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain">
-                        <div className="flex flex-col gap-1 font-semibold uppercase text-xs tracking-wider">
-                            <Link
-                                to="/"
-                                onClick={scrollToTop}
-                                className={`px-4 py-3 rounded-xl border transition ${location.pathname === '/' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink border-transparent hover:bg-hiraya-cream hover:text-hiraya-olive'}`}
-                            >
-                                Home
-                            </Link>
-                            <Link
-                                to="/shop"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={`px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/shop' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                            >
-                                Shop
-                            </Link>
-                            <Link
-                                to="/try-on"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/try-on' || location.pathname === '/try-on/history' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                            >
-                                <Sparkles size={18} className={location.pathname === '/try-on' || location.pathname === '/try-on/history' ? 'text-[#CB997E]' : 'text-hiraya-ink/70'}/>
-                                AI Try-On
-                            </Link>
-                            {user && <Link
-                                to="/try-on/history"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/try-on/history' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                            ><History size={18} /> Try-On History</Link>}
-                            <Link
-                                to="/feedback"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/feedback' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                            >
-                                <MessageSquare size={18} /> Feedback
-                            </Link>
-
-                            {user && (
-                                <>
-                                    <Link
-                                        to="/cart"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className={`flex items-center justify-between gap-2 px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/cart' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <ShoppingBag size={18} /> My Bag
-                                        </span>
-                                        {cartCount > 0 && (
-                                            <span className="bg-hiraya-olive text-hiraya-ink text-[10px] font-black px-2 py-0.5 rounded-full">
-                                                {cartCount}
-                                            </span>
-                                        )}
-                                    </Link>
-
-                                    {/* The wishlist is gone entirely — saved
-                                        items now live inside My Bag (/cart). */}
-                                    <Link
-                                        to="/orders"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/orders' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                                    >
-                                        <Package size={18} /> My Orders
-                                    </Link>
-                                    <Link
-                                        to="/settings"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent transition ${location.pathname === '/settings' ? 'text-hiraya-olive bg-[#CB997E]/25 border-[#CB997E]/40 font-bold' : 'text-hiraya-ink hover:bg-white/[0.06] hover:text-hiraya-ink'}`}
-                                    >
-                                        <Settings size={18} /> Settings
-                                    </Link>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Mobile Actions */}
-                        <div className="mt-3 pt-4 border-t border-hiraya-olive/15 flex items-center justify-between">
-                            {user ? (
-                                <div className="flex items-center justify-between w-full">
-                                    <div>
-                                        <span className="text-[10px] uppercase tracking-widest text-hiraya-ink font-black block">
-                                            Logged in as
-                                        </span>
-                                        <span className="text-sm font-bold tracking-wide uppercase">
-                                            {user.full_name}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowLogoutModal(true)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 rounded-lg text-xs font-bold"
-                                    >
-                                        <LogOut size={16} /> Logout
-                                    </button>
-                                </div>
-                            ) : (
+                <AnimatePresence>
+                    {isMobileMenuOpen && (
+                        <motion.div
+                            id="mobile-navigation"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.25, ease: PANEL_EASE }}
+                            className="lg:hidden mt-3 p-3 rounded-2xl border border-cream-50/10 bg-navy-900/80 text-hiraya-nav-ink shadow-neu-dark max-h-[calc(100vh-6rem)] overflow-y-auto overscroll-contain"
+                        >
+                            <div className="flex flex-col gap-1 font-semibold uppercase text-xs tracking-[0.14em]">
                                 <Link
-                                    to="/login"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className="flex items-center justify-center gap-2 w-full py-3 bg-[#CB997E] text-hiraya-ink rounded-xl font-bold uppercase tracking-wider text-xs"
+                                    to="/"
+                                    onClick={scrollToTop}
+                                    className={drawerItem(isHome)}
                                 >
-                                    <User size={16} /> Login to Account
+                                    Home
                                 </Link>
-                            )}
-                        </div>
-                    </div>
-                )}
+                                <Link
+                                    to="/shop"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={drawerItem(location.pathname === '/shop')}
+                                >
+                                    Shop
+                                </Link>
+                                <Link
+                                    to="/try-on"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={drawerItem(location.pathname === '/try-on')}
+                                >
+                                    <Sparkles size={18} className={location.pathname === '/try-on' ? 'text-navy-950' : 'text-hiraya-nav-muted'}/>
+                                    AI Try-On
+                                </Link>
+                                <Link
+                                    to="/feedback"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={drawerItem(location.pathname === '/feedback')}
+                                >
+                                    <MessageSquare size={18} /> Feedback
+                                </Link>
+
+                                {user && (
+                                    <>
+                                        <Link
+                                            to="/cart"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className={`${drawerItem(location.pathname === '/cart')} justify-between`}
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                <ShoppingBag size={18} /> My Bag
+                                            </span>
+                                            {cartCount > 0 && (
+                                                <span className="bg-cream-400 text-navy-950 text-[10px] font-black px-2 py-0.5 rounded-full">
+                                                    {cartCount}
+                                                </span>
+                                            )}
+                                        </Link>
+
+                                        {/* The wishlist is gone entirely — saved
+                                            items now live inside My Bag (/cart). */}
+                                        <Link
+                                            to="/orders"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className={drawerItem(location.pathname === '/orders')}
+                                        >
+                                            <Package size={18} /> My Orders
+                                        </Link>
+                                        <Link
+                                            to="/settings"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                            className={drawerItem(location.pathname === '/settings')}
+                                        >
+                                            <Settings size={18} /> Settings
+                                        </Link>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Mobile Actions */}
+                            <div className="mt-3 pt-4 border-t border-cream-50/15 flex items-center justify-between">
+                                {user ? (
+                                    <div className="flex items-center justify-between w-full">
+                                        <div>
+                                            <span className="text-[10px] uppercase tracking-widest text-hiraya-nav-muted font-black block">
+                                                Logged in as
+                                            </span>
+                                            <span className="text-sm font-bold tracking-wide uppercase text-hiraya-nav-ink">
+                                                {user.full_name}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowLogoutModal(true)}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-full border border-red-400/30 bg-red-500/15 text-red-200 text-xs font-bold transition-colors hover:bg-red-500/25"
+                                        >
+                                            <LogOut size={16} /> Logout
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <Link
+                                        to="/login"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className={`${creamPlate} w-full py-3 text-[11px]`}
+                                    >
+                                        <User size={15} /> Login to Account
+                                    </Link>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </nav>
 
             {/* Reusable Logout Confirmation Modal */}
@@ -446,7 +489,7 @@ const Navbar = () => {
                 cancelText="Cancel"
                 isDanger={true}
             />
-        </>
+        </MotionConfig>
     );
 };
 
@@ -459,16 +502,24 @@ const ProfileMenuItem = ({ to, icon, label, badge = 0, onClick }) => (
         to={to}
         role="menuitem"
         onClick={onClick}
-        className="flex items-center gap-2.5 px-4 py-3 text-[11px] uppercase tracking-widest font-bold text-hiraya-ink hover:bg-hiraya-cream-deep hover:text-hiraya-ink transition border-b border-hiraya-olive/15 last:border-b-0"
+        className="flex items-center gap-2.5 px-4 py-3 text-[11px] uppercase tracking-[0.16em] font-semibold text-hiraya-ink hover:bg-hiraya-accent hover:text-hiraya-on-accent transition-colors border-b border-hiraya-structure-line last:border-b-0"
     >
-        <span className="text-hiraya-ink">{icon}</span>
+        <span>{icon}</span>
         <span className="flex-1">{label}</span>
         {badge > 0 && (
-            <span className="bg-hiraya-olive text-hiraya-ink text-[9px] font-black px-1.5 py-0.5 rounded-full">
+            <span className="bg-hiraya-accent text-hiraya-on-accent text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                 {badge}
             </span>
         )}
     </Link>
 );
+
+ProfileMenuItem.propTypes = {
+    to: PropTypes.string.isRequired,
+    icon: PropTypes.node.isRequired,
+    label: PropTypes.string.isRequired,
+    badge: PropTypes.number,
+    onClick: PropTypes.func,
+};
 
 export default Navbar;

@@ -156,15 +156,14 @@ export const useShopData = () => {
     const source = normalizedProducts;
     if (!searchKeyword.trim()) return source;
 
-    const query = searchKeyword.toLowerCase();
-    return source.filter((p) => {
-      if (!p) return false;
-      return (
-        p.name?.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query) ||
-        p.category?.toLowerCase().includes(query)
-      );
-    });
+    // NAME-ONLY MATCH. It used to also test `description` and `category`, which
+    // made the field behave like a full-text filter: a shopper looking for "linen"
+    // was shown pieces whose DESCRIPTION merely mentioned linen, and words like
+    // "cotton" matched a paragraph rather than a garment. The search bar says
+    // "Search the collection", so it matches what a shopper can actually read as
+    // the product's name — anything else is filter-bar territory, not search.
+    const query = searchKeyword.trim().toLowerCase();
+    return source.filter((p) => (p?.name || '').toLowerCase().includes(query));
   }, [normalizedProducts, searchKeyword]);
 
   // 4. Category Filter

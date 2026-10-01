@@ -19,11 +19,13 @@ use App\Http\Controllers\Api\AdminStockMovementController;
 use App\Http\Controllers\Api\AdminAccountController;
 use App\Http\Controllers\Api\AdminCustomerController;
 use App\Http\Controllers\Api\SuperAdminController;
+use App\Http\Controllers\Api\ApiCredentialController;
 use App\Http\Controllers\Api\ApiStatusController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\ProductReviewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,9 +33,36 @@ use App\Http\Controllers\Api\UploadController;
 |--------------------------------------------------------------------------
 */
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/check-email', [AuthController::class, 'checkEmail']);
+/*
+ * REGISTER + LOGIN — THROTTLED, BECAUSE THEY WERE COMPLETELY OPEN.
+ *
+ * Every other auth route below already carried a limit; these two did not, and
+ * that made them the weakest point in the whole flow. Measured before the fix:
+ * twelve consecutive wrong-password calls to POST /api/login returned
+ * `401, 401, 401, ...` — twelve attempts, zero objection.
+ *
+ * WHY LOGIN GETS 10 AND NOT 5
+ * ---------------------------
+ * /login is now a SINGLE-step customer sign-in. It used to serve both halves of
+ * a two-factor exchange, which is why it needed headroom for a password plus
+ * several authenticator retries; that exchange now happens entirely inside
+ * Supabase (see AdminSignIn.jsx) and never touches this route.
+ *
+ * A human mistypes a password, maybe twice. 10 per minute is generous for that
+ * and still caps an automated guessing run at ten attempts. If the staff
+ * console ever comes back through this endpoint, this number must be revisited
+ * — it is sized for one field, not for a password plus a TOTP.
+ *
+ * Both limits key on IP. Behind a proxy this would key on the proxy instead, but
+ * that is a deployment concern (see trustProxies), not a reason to ship no limit
+ * at all.
+ */
+Route::post('/register', [AuthController::class, 'register'])
+    ->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:10,1');
+Route::post('/check-email', [AuthController::class, 'checkEmail'])
+    ->middleware('throttle:20,1');
 
 /*
  * PASSWORD RESET — three steps, all PUBLIC (the customer is locked out by
@@ -101,22 +130,45 @@ Route::post('/products/analyze-image', [ProductImageAnalysisController::class, '
 Route::post('/tryon/verify-person', [PersonVerificationController::class, 'verify']);
 
 /*
- * PRODUCT WRITE OPERATIONS — PUBLIC (no auth / no admin gate), same reason as
- * the AI analysis above. The Super Admin inventory Save / Edit / Delete buttons
- * were answering 401 ("Unauthorized") because these lived behind `admin`; the
- * AI auto-fill worked but tapping Save failed. Moving them here makes the whole
- * inventory flow functional without an admin login.
+ * PRODUCT WRITE OPERATIONS — MOVED BACK BEHIND THE `admin` GATE.
  *
- * Declared BEFORE the GET /products/{product} route below.
+ * These used to sit here, PUBLIC, and the comment said why: the Super Admin
+ * inventory Save/Edit/Delete buttons were answering 401 because they lived
+ * behind `admin`, and "moving them here makes the whole inventory flow
+ * functional without an admin login".
+ *
+ * That was a workaround for a broken session, and it cost the product its
+ * security boundary. Rule 9 of the role model is explicit: authorization is
+ * enforced in the BACKEND, and these routes are exactly the writes a limited
+ * admin's two sections cover. Leaving them public meant ANYONE who could reach
+ * the host could create, edit or DELETE catalogue products — a limited admin
+ * (orders + inventory) could not, and neither could a customer, but an anonymous
+ * caller could.
+ *
+ * WHY THE 401 CAME BACK, AND WHY IT WAS A SYMPTOM
+ * The 401 was not a reason to open a door. It was the correct answer from a
+ * correctly-locked route to a request carrying no valid session — the real fault
+ * was upstream, in the session the console sends. The fix for a bad credential
+ * is to repair the credential, not to delete the lock. A console that can save
+ * its inventory only by removing authentication is not a working console, it is
+ * an open one.
+ *
+ * Declared BEFORE the GET /products/{product} route below, exactly as before —
+ * the only change is the middleware, and the reads above it are unaffected.
  */
-Route::post('/products', [ProductController::class, 'store']);
-Route::post('/products/{product}', [ProductController::class, 'update']);
-Route::put('/products/{product}', [ProductController::class, 'update']);
-Route::patch('/products/{product}/ai-tags', [ProductController::class, 'updateAiTags']);
-Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
+    ->group(function () {
+        Route::post('/products', [ProductController::class, 'store']);
+        Route::post('/products/{product}', [ProductController::class, 'update']);
+        Route::put('/products/{product}', [ProductController::class, 'update']);
+        Route::patch('/products/{product}/ai-tags', [ProductController::class, 'updateAiTags']);
+        Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+    });
 
 Route::get('/products/{product}', [ProductController::class, 'show']);
-Route::get('/garments', [GarmentController::class, 'index']);
+// Public, read-only: the reviews shown on a product's detail page.
+Route::get('/products/{product}/reviews', [ProductReviewController::class, 'forProduct']);
+Route::get('/garments',[GarmentController::class, 'index']);
 Route::get('/garments/catalog', [GarmentController::class, 'catalog']);
 
 Route::get('/payment-instructions', function () {
@@ -131,11 +183,15 @@ Route::post('/products/{id}/track-canvas', [AnalyticsController::class, 'trackCa
 Route::post('/products/{id}/track-tryon', [AnalyticsController::class, 'trackTryOn']);
 
 /*
- * Public feedback intake. A GUEST may leave feedback, so this sits outside
- * auth:sanctum. It is the writer the Super Admin "User Feedback" tab was
- * missing (that tab used to read a writerless Supabase table).
+ * Feedback intake — SIGNED-IN ACCOUNTS ONLY.
+ *
+ * It used to be public so a guest could type any name, which filled the Super
+ * Admin "User Feedback" tab with unverifiable "Anonymous Visitor" rows. Worse,
+ * outside auth:sanctum `$request->user()` was always null, so even a signed-in
+ * customer's email was never recorded. Gating it means every message carries
+ * the sender's real account name and email.
  */
-Route::post('/feedback', [AnalyticsController::class, 'submitFeedback']);
+Route::middleware('auth:sanctum')->post('/feedback', [AnalyticsController::class, 'submitFeedback']);
 
 /*
  * Public system status.
@@ -167,19 +223,73 @@ Route::post('/feedback', [AnalyticsController::class, 'submitFeedback']);
 Route::middleware('throttle:120,1')->get('/system-status', [SuperAdminController::class, 'publicStatus']);
 
 /*
-|--------------------------------------------------------------------------
-| Admin Operations — auth:sanctum + admin
-|--------------------------------------------------------------------------
-| These were previously in a "TEMPORARY PUBLIC" block with the middleware
-| removed, which made product CRUD, order management, catalogue analytics and
-| the fitting lookup reachable with NO authentication at all. They are now gated
-| by `admin` (which superadmin also satisfies).
-|
-| The ONE genuinely-public exception is the background-removal model-asset
-| proxy: it serves static model files the in-browser segmenter fetches, carries
-| no data, and is registered separately below.
-*/
-Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
+ * ADMIN INVITATION — REDEMPTION IS PUBLIC, AND THE TOKEN IS THE CREDENTIAL.
+ * =========================================================================
+ * The invitee has no account yet, so there is no session to authenticate with.
+ * The signed, single-use, expiring token in the emailed link IS the proof of
+ * identity, exactly as it is for a password reset — and it is the reason the
+ * signature covers the address and the expiry rather than being a lookup key.
+ *
+ * THROTTLED, because these are unauthenticated endpoints that take an address
+ * and a token: `accept` creates a real account and a real GoTrue identity on
+ * success, so an unlimited caller could probe addresses or mass-create
+ * identities. 10/min is far above what a human clicking a link can need.
+ *
+ * WHAT A STOLEN LINK CAN AND CANNOT DO
+ * ------------------------------------
+ * Can: set a password on the address it names, and enrol an authenticator.
+ * Cannot: reach the console. An account created this way stays INACTIVE —
+ * `mfa_enrolled_at` is null — and `ResolveSupabaseUser` refuses every console
+ * route until the holder of the account completes a TOTP challenge. So a leaked
+ * link yields an account that must still pass MFA, and the superadmin can see
+ * it sitting unenrolled in the Admin Accounts table and revoke it.
+ */
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/invitations/accept', [AdminAccountController::class, 'acceptInvitation']);
+    Route::get('/invitations/status', [AdminAccountController::class, 'inspectInvitation']);
+});
+
+/*
+ * Admin + Superadmin operations — NOW LOCKED (this comment previously said the
+ * opposite, and the code said it too).
+ *
+ * THIS USED TO BE PUBLIC. No sign-in gate, no session token, no role check,
+ * no second factor: `/admin` and `/superadmin` rendered the panel and
+ * everything it called answered for anyone who asked. Anyone who could reach
+ * the host could read every order and customer, edit the catalogue, and call
+ * `/admin/export` to dump the entire database. The rationale was a capstone
+ * demonstration where the panel has to open for a grader with no credentials —
+ * a real trade-off, and the wrong one for a system that holds customer data.
+ * It is closed now.
+ *
+ * THE CHAIN, AND WHY IT IS THREE MIDDLEWARES IN THIS ORDER
+ *
+ *   supabase.aal2   the session passed a TOTP challenge    (Supabase JWT)
+ *   supabase.user   that token maps to a real Hiraya user  (users table)
+ *   admin           and that user is staff                  (users.role)
+ *
+ * Each alone leaves a hole. `admin` without `supabase.aal2` is the old bug in
+ * a smaller window: a correct password on a staff account produces a perfectly
+ * valid aal1 session that sails straight through. That case is the one this
+ * refactor exists to close.
+ *
+ * `auth:sanctum` is deliberately ABSENT and its absence is not an oversight.
+ * The console sends a Supabase JWT rather than a Sanctum token, because `aal`
+ * exists only inside the Supabase-signed one; Sanctum cannot read it and would
+ * answer 401 before the aal2 gate ever ran. `supabase.user` does that join.
+ *
+ * ORDER IS LOAD-BEARING. `supabase.aal2` must run BEFORE `supabase.user`:
+ * the resolver trusts the email claim that aal2 has just proven, so swapping
+ * them would let a forged unsigned JWT name the superadmin's address and be
+ * resolved into that user before anything checked the signature.
+ *
+ * The storefront's own customer data — `/checkout`, `/orders`, the try-on
+ * pipeline — is unchanged and still behind `auth:sanctum`, because those are
+ * tied to `$request->user()->id` from a Sanctum session and are not the console.
+ */
+Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
+    ->prefix('admin')
+    ->group(function () {
     /*
      * Asset upload. The browser no longer writes to Supabase directly — that
      * required the `service_role` key in the front-end bundle, which is a
@@ -201,6 +311,8 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     // Order management
     Route::get('/orders', [AdminOrderController::class, 'index']);
     Route::get('/orders/{order}', [AdminOrderController::class, 'show']);
+    Route::get('/orders/{order}/proof/{type}', [AdminOrderController::class, 'proof'])
+        ->whereIn('type', ['dp', 'balance']);
     Route::patch('/orders/{order}/approve-dp', [AdminOrderController::class, 'approveDownPayment']);
     Route::patch('/orders/{order}/reject-dp', [AdminOrderController::class, 'rejectDownPayment']);
     Route::post('/orders/{order}/confirm-full-payment', [AdminOrderController::class, 'confirmFullPayment']);
@@ -215,6 +327,33 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
  */
 Route::get('/admin/assets/background-removal/{path?}', BackgroundRemovalAssetsController::class)
     ->where('path', '.*');
+
+/*
+ |--------------------------------------------------------------------------
+ | AUTHENTICATOR-APP TWO FACTOR — REMOVED
+ |--------------------------------------------------------------------------
+ | `/api/two-factor/{status,start,confirm,disable,recover}` and the
+ | `TwoFactorController` that served them are GONE, together with `TotpService`,
+ | the `UserTwoFactor` model and the `user_two_factors` table.
+ |
+ | They were a self-contained second factor: a secret generated locally, a TOTP
+ | computed locally, a challenge string cached under `login:2fa:*`, and recovery
+ | codes hashed into the project's own table. All of it is replaced by Supabase's
+ | built-in MFA, where the TOTP secret, the challenge, the code verification and
+ | the `aal` claim are owned by the identity provider.
+ |
+ | THE MIGRATION'S ONE REAL TRADE-OFF, STATED PLAINLY
+ | Supabase MFA has no recovery-code feature. The old flow issued ten hashed
+ | recovery codes precisely so a lost phone was not a lost account, and that
+ | escape hatch does not exist on the other side. The replacement is the
+ | `php artisan hiraya:reset-mfa <email>` command below, which requires server
+ | access. That is strictly worse for a user and strictly better for an
+ | attacker: recovery codes can be phished, shared over chat, or used by whoever
+ | finds them in a drawer, whereas a CLI command needs the machine.
+ |
+ | Nothing on the storefront ever called these routes, so no customer-facing
+ | behaviour changes. The console settings screen is now MfaEnrollment.jsx.
+*/
 
 /*
 |--------------------------------------------------------------------------
@@ -235,17 +374,120 @@ Route::get('/admin/assets/background-removal/{path?}', BackgroundRemovalAssetsCo
 | its own guards as defence-in-depth, but they should now never fire.
 */
 /*
- * DEV: token auth REMOVED (temporary) — the Super Admin console was answering
- * 401 UNAUTHENTICATED on every tab (api-status, analytics/sessions, etc.).
- * Restore the middleware chain below before going to production.
- *   ->middleware(['auth:sanctum', 'superadmin'])
+ * Admin Account Management (RBAC) — SUPERADMIN-ONLY.
+ *
+ * THIS GROUP IS NOT PUBLIC. It was previously described here as "PUBLIC, NO
+ * AUTHENTICATION ... reachable without a session by design", which was wrong on
+ * the facts and dangerous as documentation: this is the most sensitive group in
+ * the application — it provisions, promotes and revokes staff accounts — and the
+ * comment invited the next reader to treat an open door as intentional.
+ *
+ * The `superadmin` middleware below is the real gate. The controller keeps its
+ * own per-method `isSuperAdmin()` guards as defence-in-depth.
+ *
+ * The ONE remaining relaxation is an opt-in development bypass inside the
+ * controllers (`devAuthBypass()`), which is off unless `ALLOW_DEV_AUTH_BYPASS` is
+ * deliberately set to true and is refused outright in production. It exists so
+ * the console can be developed without a live Supabase session, and it is the
+ * only reason a caller without a token can reach any route in this group.
  */
-Route::prefix('admin/accounts')->group(function () {
+Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
+    ->prefix('admin/accounts')
+    ->group(function () {
     Route::get('/', [AdminAccountController::class, 'index']);
-    Route::post('/', [AdminAccountController::class, 'store']);
+
+    /*
+     * THE INVITATION IS CREATED HERE, AND NOTHING ELSE IS.
+     *
+     * `store` is gone: an account is no longer created by the superadmin typing
+     * a password. The invitee creates it by redeeming a link (see the public
+     * /invitations group), so the superadmin never holds a credential that
+     * belongs to someone else.
+     */
+    Route::post('/invite', [AdminAccountController::class, 'invite']);
+
+    /*
+     * RE-ISSUE A PENDING INVITATION.
+     *
+     * The link is shown exactly once, in the modal that created it, so a
+     * superadmin who loses it could otherwise only wait out the 48-hour TTL —
+     * `invite()` refuses an address that is already invited (a second link would
+     * destroy the single-use property). This is the deliberate way through, and it
+     * refuses any account that has already finished enrolling.
+     */
+    Route::post('/{user}/resend-invitation', [AdminAccountController::class, 'resendInvitation']);
+
     Route::patch('/{user}', [AdminAccountController::class, 'update']);
     Route::delete('/{user}', [AdminAccountController::class, 'destroy']);
 });
+
+/*
+ * ACTIVATION — THE INVITEE MARKS THEIR OWN ACCOUNT READY.
+ * =======================================================
+ * Deliberately NOT under `admin/accounts`, and deliberately NOT superadmin-only:
+ * the caller is the newly invited admin, who by definition holds no role the
+ * superadmin group accepts yet.
+ *
+ * It needs the full Supabase chain — `supabase.aal2` proves a TOTP challenge was
+ * passed, `supabase.user` resolves the verified email to the Laravel row — but
+ * NOT `admin`, because the row this activates is still pending. Requiring
+ * `admin` here would be circular: the account would have to already be usable in
+ * order to prove it should become usable.
+ *
+ * The identity comes from the verified TOKEN, never the body, so an admin can
+ * only ever activate themselves.
+ */
+Route::middleware(['supabase.aal2', 'supabase.user'])
+    ->post('admin/accounts/mfa-enrolled', [AdminAccountController::class, 'markMfaEnrolled']);
+
+/*
+|--------------------------------------------------------------------------
+| API Management Panel — credential CRUD
+|--------------------------------------------------------------------------
+| The WRITE side of external API key management. `GET /admin/api-status` REPORTS
+| on the third-party keys; these CHANGE them, which is a different risk entirely.
+|
+| WHY THIS IS ITS OWN GROUP RATHER THAN A FEW LINES IN THE `/admin` GROUP
+| ------------------------------------------------------------------------
+| Two reasons, and the first one is a security finding, not a style preference.
+|
+| The surrounding `Route::prefix('admin')` group at line 349 carries NO middleware
+| at all. Its own comment says so — "PUBLIC, NO AUTH. ... Both answer to anyone who
+| can reach the host" — and the `admin/accounts` group above repeats the same
+| decision. So that block is a deliberate, project-wide choice, and I am not
+| changing it here.
+|
+| But these routes must not inherit it. They ACCEPT A LIVE SECRET and WRITE it to
+| the database. Dropping a `POST` that stores a credential into a group with no
+| auth gate would mean anyone who can reach the host can overwrite the Supabase
+| service-role key and read every table in the database through it. That is a
+| materially worse outcome than the export route the project already accepts, so
+| these get a real gate regardless of what their neighbours do.
+|
+| `superadmin` alone, not `admin`: a credential can impersonate Hiraya against a
+| third-party vendor, so it belongs with the audit log and the export, not with
+| day-to-day catalogue work.
+|
+| THROTTLES ARE PER-ROUTE BECAUSE THESE ACCEPT SECRETS. An operator pasting a key
+| must not be mistaken for a brute-force attempt, but an automated attacker must
+| not get unlimited attempts either; the limits are loose enough for a human and
+| tight enough that automation is pointless. `verify` is tighter because it makes
+| an outbound call to a vendor on every hit.
+*/
+Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
+    ->prefix('admin/api-credentials')
+    ->group(function () {
+        Route::get('/', [ApiCredentialController::class, 'index']);
+
+        Route::post('/', [ApiCredentialController::class, 'store'])
+            ->middleware('throttle:20,1');
+        Route::post('/{id}/activate', [ApiCredentialController::class, 'activate'])
+            ->middleware('throttle:20,1');
+        Route::post('/{id}/verify', [ApiCredentialController::class, 'verify'])
+            ->middleware('throttle:10,1');
+        Route::delete('/{id}', [ApiCredentialController::class, 'destroy'])
+            ->middleware('throttle:20,1');
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -272,11 +514,16 @@ Route::prefix('admin/accounts')->group(function () {
 | had to "pass as an admin" first. One strict gate is clearer and sufficient.
 */
 /*
- * DEV: token auth REMOVED (temporary) — see note on admin/accounts above.
- * Restore: ->middleware(['auth:sanctum', 'superadmin'])
+ * Super Admin Platform Operations — settings, audit, export. PUBLIC, NO AUTH.
+ *
+ * `/admin/export` streams the entire database and `/admin/audit-logs` reads the
+ * security trail. Both answer to anyone who can reach the host. There is no
+ * middleware chain here at all, by project decision.
  */
-Route::prefix('admin')->group(function () {
-    Route::get('/settings', [SuperAdminController::class, 'settings']);
+Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
+    ->prefix('admin')
+    ->group(function () {
+        Route::get('/settings', [SuperAdminController::class, 'settings']);
     Route::put('/settings/{key}', [SuperAdminController::class, 'updateSetting']);
     Route::get('/audit-logs', [SuperAdminController::class, 'auditLogs']);
     Route::get('/export', [SuperAdminController::class, 'export']);
@@ -292,6 +539,12 @@ Route::prefix('admin')->group(function () {
      */
     Route::get('/analytics/sessions', [AnalyticsController::class, 'activeSessions']);
     Route::get('/analytics/tryon-activity', [AnalyticsController::class, 'tryOnActivity']);
+    // The four summary cards (orders, revenue, try-ons, reviews) on the dashboard.
+    Route::get('/analytics/summary', [AnalyticsController::class, 'summary']);
+    // Charts & Insights (revenue trend, top products, statuses, try-ons, ratings).
+    Route::get('/analytics/charts', [AnalyticsController::class, 'charts']);
+    // Recent try-ons/reviews + inventory, try-on and review analytics panels.
+    Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
     Route::get('/feedbacks', [AnalyticsController::class, 'feedbacks']);
 
     /*
@@ -349,8 +602,8 @@ Route::prefix('admin')->group(function () {
  * null and made every one of them fail:
  *
  *   GET  /user                -> returned { "user": null }
- *   GET  /user/measurements   -> 500 Attempt to read property on null
- *   PUT  /user/measurements   -> 500 Call to a member function update() on null
+ *   GET  /user/sizes          -> 500 Attempt to read property on null
+ *   PUT  /user/sizes          -> 500 Call to a member function update() on null
  *
  * That is why body measurements never saved or synced: the write threw a 500
  * and the read could never return a row. Restoring `auth:sanctum` makes the
@@ -366,8 +619,6 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
         $user = $request->user();
         $validated = $request->validate([
             'full_name'     => 'sometimes|string|max:255',
-            'top_size'      => 'sometimes|string|max:10',
-            'bottom_size'   => 'sometimes|string|max:10',
             'preferred_fit' => 'sometimes|string|max:50',
         ]);
         if ($user) {
@@ -379,8 +630,8 @@ Route::prefix('user')->middleware('auth:sanctum')->group(function () {
         ]);
     });
 
-    Route::get('/measurements', [UserController::class, 'getMeasurements']);
-    Route::put('/measurements', [UserController::class, 'updateMeasurements']);
+    Route::get('/sizes', [UserController::class, 'getSizes']);
+    Route::put('/sizes', [UserController::class, 'updateSizes']);
     Route::put('/password', [UserController::class, 'changePassword']);
 
     /*
@@ -439,6 +690,8 @@ foreach (['tryon', 'try-on'] as $tryOnPrefix) {
         Route::patch('/history/{sessionId}/favorite', [TryOnController::class, 'updateFavorite']);
         Route::delete('/history/{sessionId}', [TryOnController::class, 'destroyHistory']);
         Route::get('/history/{sessionId}/outfit', [TryOnController::class, 'reusableOutfit']);
+        // One look in full (render + before photo), opened from the Studio's history drawer.
+        Route::get('/history/{sessionId}', [TryOnController::class, 'historyDetail']);
         Route::post('/chat', [TryOnController::class, 'chat']);
     });
 }
@@ -493,4 +746,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+});
+
+/*
+ * Product reviews — customer-scoped. Only the owner of a DELIVERED order can
+ * review its lines; ProductReviewController enforces that (and one review per
+ * order line). Throttled because the body can carry a Base64 photo.
+ */
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/reviews/mine', [ProductReviewController::class, 'mine']);
+    Route::post('/order-items/{orderItem}/review', [ProductReviewController::class, 'store'])
+        ->middleware('throttle:20,1');
 });

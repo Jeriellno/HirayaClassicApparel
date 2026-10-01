@@ -1,8 +1,8 @@
 <?php
 
 /**
- * Make the QA user renderable: give user #1 the 5-core body measurements the
- * try-on flow requires, so the Studio does not block on "measurements missing".
+ * Make the QA user renderable: give user #1 the sizing profile the try-on flow
+ * reads, so the Studio does not treat them as having no size on file.
  */
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -17,14 +17,11 @@ if (! $user) {
     exit(1);
 }
 
-// The 5-core CM schema the Studio stores (see ProcessTryOnJob::resolveBodyMetrics).
-$user->chest_bust = 92;
-$user->waist = 76;
-$user->hips = 98;
-$user->shoulder_width = 44;
-$user->sleeve_length = 60;
+// The two size labels (see TryOnController::bodyMetricsFor, which derives the
+// centimetres from these).
+$user->upper_body_size = 'M';
+$user->lower_body_size = 'M';
 $user->save();
 
-echo 'user #' . $user->id . ' measurements set: chest=' . $user->chest_bust
-    . ' waist=' . $user->waist . ' hips=' . $user->hips
-    . ' shoulder=' . $user->shoulder_width . ' sleeve=' . $user->sleeve_length . PHP_EOL;
+echo 'user #' . $user->id . ' sizes set: upper=' . $user->upper_body_size
+    . ' lower=' . $user->lower_body_size . PHP_EOL;

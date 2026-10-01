@@ -55,6 +55,27 @@ export default {
           sand: '#A5A58D',        // Muted labels, hints, hairlines
           matcha: '#B7B7A4',      // Sunken bands / section wash
         },
+
+        // --- VINTAGE ATELIER — the global colour standard -------------------
+        // Mirrors the `--color-navy-*`, `--color-charcoal-*`, `--color-noir`
+        // and `--color-cream-*` tokens in src/index.css (the source of truth
+        // under Tailwind v4). Core stops: navy-800, charcoal-700, noir,
+        // cream-200. See the index.css block for measured contrast pairings.
+        navy: {
+          50: '#F0F2F6', 100: '#DDE2EB', 200: '#BCC5D5', 300: '#93A1B8',
+          400: '#687A98', 500: '#4A5D7E', 600: '#364A6A', 700: '#283A57',
+          800: '#1D2C45', 900: '#152036', 950: '#0D1524',
+        },
+        charcoal: {
+          50: '#F4F4F3', 100: '#E7E6E4', 200: '#CFCDCA', 300: '#B0ADA8',
+          400: '#8C8984', 500: '#6E6B66', 600: '#56534F', 700: '#43413E',
+          800: '#333230', 900: '#262524', 950: '#1A1A19',
+        },
+        noir: '#111110',
+        cream: {
+          50: '#FCFAF5', 100: '#F7F2E7', 200: '#EFE6D2', 300: '#E4D6BA',
+          400: '#D3C09C', 500: '#BCA47C', 600: '#9C845D', 700: '#7A6645',
+        },
       },
 
       fontFamily: {

@@ -125,7 +125,7 @@ export const PhotoGuide = (
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="mx-auto flex items-center gap-1.5 rounded-full border-hiraya-olive/15 bg-hiraya-sand/60 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink/80 transition-colors duration-200 hover:border-hiraya-gold/50 hover:text-hiraya-ink"
+        className="mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border border-cream-50/60 bg-cream-50/90 px-4 py-2 shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)] text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-accent transition-colors duration-200 hover:bg-hiraya-accent hover:text-hiraya-on-accent"
       >
         <Camera size={11} />
         What makes a good photo?
@@ -136,49 +136,54 @@ export const PhotoGuide = (
           role="dialog"
           aria-modal="true"
           aria-label="What makes a good photo"
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-hiraya-cream/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-hiraya-ink/55 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
           {/*
             * `stopPropagation` so a click INSIDE the card does not close it — only
             * the backdrop, the X, or Escape do.
+            *
+            * The sheet itself was a 24px-radius cream slab with a coloured glow;
+            * it is now the shared `.glass` pane (frosted vintage white, hairline,
+            * near-square), which is the surface every other overlay in the system
+            * is built on — and it keeps body copy at 11.9:1 over the scrim.
             */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-hiraya-olive/15 bg-hiraya-cream p-5 shadow-2xl sm:p-7"
+            className="glass relative max-h-[85vh] w-full max-w-2xl overflow-y-auto p-5 sm:p-7"
           >
             {/* CLOSE — the explicit exit the accordion never had. */}
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close the photo guide"
-              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-hiraya-olive/15 bg-hiraya-cream/60 text-hiraya-sand transition-colors hover:border-[#CB997E]/50 hover:text-hiraya-ink"
+              className="btn-icon absolute right-4 top-4 h-9 w-9 cursor-pointer"
             >
               <X size={16} />
             </button>
 
-            <h2 className="mb-1 pr-12 text-sm font-bold uppercase tracking-[0.25em] text-hiraya-ink">
+            <h2 className="display-md mb-1 pr-12 text-hiraya-ink">
               What makes a good photo?
             </h2>
-            <p className="mb-5 text-[11px] leading-relaxed text-hiraya-sand">
+            <p className="mb-5 text-[11px] leading-relaxed text-hiraya-ink-muted">
               The fitting engine reads your whole standing figure. These are the
               things it measures — and the ones that break a render.
             </p>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <section>
-                <h3 className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400/90">
+                <h3 className="mb-2 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                   <Check size={11} /> Ideal shot
                 </h3>
                 <ul className="space-y-2.5">
                   {DO_RULES.map((rule) => (
                     <li key={rule.title} className="flex gap-2">
-                      <Check size={11} className="mt-0.5 shrink-0 text-emerald-400/80" />
+                      <Check size={11} className="mt-0.5 shrink-0 text-emerald-700" />
                       <div>
                         <p className="text-[11px] font-semibold leading-tight text-hiraya-ink">
                           {rule.title}
                         </p>
-                        <p className="mt-0.5 text-[10px] leading-snug text-hiraya-sand">
+                        <p className="mt-0.5 text-[10px] leading-snug text-hiraya-ink-muted">
                           {rule.detail}
                         </p>
                       </div>
@@ -188,18 +193,18 @@ export const PhotoGuide = (
               </section>
 
               <section>
-                <h3 className="mb-2 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-red-400/90">
+                <h3 className="mb-2 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-red-700">
                   <X size={11} /> Avoid
                 </h3>
                 <ul className="space-y-2.5">
                   {AVOID_RULES.map((rule) => (
                     <li key={rule.title} className="flex gap-2">
-                      <X size={11} className="mt-0.5 shrink-0 text-red-400/80" />
+                      <X size={11} className="mt-0.5 shrink-0 text-red-700" />
                       <div>
                         <p className="text-[11px] font-semibold leading-tight text-hiraya-ink">
                           {rule.title}
                         </p>
-                        <p className="mt-0.5 text-[10px] leading-snug text-hiraya-sand">
+                        <p className="mt-0.5 text-[10px] leading-snug text-hiraya-ink-muted">
                           {rule.detail}
                         </p>
                       </div>
@@ -213,8 +218,14 @@ export const PhotoGuide = (
               * Silhouette reference. A guide drawing beats another paragraph of
               * prose: the whole failure mode is a POSE, and a pose is easiest to
               * copy from a picture than from a description.
+              *
+              * The two figures are drawn in the SEMANTIC verdict colours (emerald
+              * for the ideal, red for the failure), not in brand tokens — they are
+              * not decoration, they are a pass/fail key, so the universal
+              * good/bad pair carries the meaning that a maroon/indigo pair could
+              * not. Only the RULES between them moved onto the palette.
               */}
-            <figure className="mt-5 flex items-center justify-center gap-10 border-t border-hiraya-olive/15 pt-5">
+            <figure className="mt-5 flex items-center justify-center gap-10 border-t border-hiraya-structure-line pt-5">
               <div className="text-center">
                 <svg viewBox="0 0 60 120" className="mx-auto h-28 w-auto" role="img" aria-label="Ideal: standing straight, feet apart, arms away from the body">
                   <path d="M5 28 H55" stroke="#6ee7b7" strokeWidth="0.5" strokeDasharray="3 3" opacity="0.35" />
@@ -233,7 +244,7 @@ export const PhotoGuide = (
                   <path d="M24 112 L20 114" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round" />
                   <path d="M36 112 L40 114" stroke="#6ee7b7" strokeWidth="1.6" strokeLinecap="round" />
                 </svg>
-                <figcaption className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-emerald-400/80">
+                <figcaption className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-emerald-700/80">
                   Ideal
                 </figcaption>
               </div>
@@ -251,13 +262,13 @@ export const PhotoGuide = (
                   <path d="M26 112 L22 114" stroke="#f87171" strokeWidth="1.6" strokeLinecap="round" />
                   <path d="M37 112 L41 114" stroke="#f87171" strokeWidth="1.6" strokeLinecap="round" />
                 </svg>
-                <figcaption className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-red-400/80">
+                <figcaption className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-red-700/80">
                   Avoid
                 </figcaption>
               </div>
             </figure>
 
-            <p className="mt-4 text-center text-[10px] leading-snug text-hiraya-sand">
+            <p className="mt-4 text-center text-[10px] leading-snug text-hiraya-ink-muted">
               Your photo is used only to place garments on your body. It is never shared.
             </p>
 
@@ -266,7 +277,7 @@ export const PhotoGuide = (
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-full bg-[#CB997E] px-7 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-hiraya-ink transition-colors hover:bg-hiraya-cream-deep"
+                className="btn-primary cursor-pointer"
               >
                 Got it
               </button>

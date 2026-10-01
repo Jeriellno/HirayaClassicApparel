@@ -275,27 +275,100 @@ class ProcessTryOnJob implements ShouldQueue
     protected function callVtonApi(TryOnSession $session): array
     {
         /*
-         * TWO ENGINES, FREE FIRST — HUGGING FACE, THEN PIXELAPI.
+         * THREE TIERS, IN PRIORITY ORDER — FASHN, THEN PIXELAPI, THEN HUGGING FACE.
          *
-         * The yisol/IDM-VTON ZeroGPU Space (HuggingFaceVtonRenderer) drives the
-         * Space's plain HTTP Gradio API (/upload -> /call/tryon -> SSE stream),
-         * which DOES work from a server-side client — the earlier 403 on
-         * `/queue/join` was the old WebSocket route, not this one. It renders for
-         * free, so it is tried FIRST.
+         * THE ORDER IS SLOT-DRIVEN, NOT HARD-CODED TO A VENDOR. Each tier is a
+         * `config/services.php` SLOT (`services.fashn`, `services.vton`) handed to
+         * the SAME renderer, `VtonApiRenderer`, which reads every endpoint, field
+         * name and category vocabulary from that slot. So "which engine is
+         * primary" is decided entirely by which slot has a token:
          *
-         * LICENSING CAVEAT: IDM-VTON's weights are CC BY-NC-SA (NON-COMMERCIAL).
-         * Free of charge is not free of licence — a commercial storefront must
-         * use the paid path, so PIXELAPI (VtonApiRenderer) is kept as the
-         * fallback and remains the engine for production.
+         *   VTON_FASHN_API_TOKEN absent (TODAY)
+         *     -> the FASHN slot returns `not_configured` and is skipped
+         *     -> PIXELAPI renders, exactly as before this change
          *
-         * Gemini (billed-only image generation, `429, limit: 0` on a free key)
-         * and the local browser composite stay out of the chain for the same
-         * measured reasons as before.
+         *   VTON_FASHN_API_TOKEN present (paste the key, `config:clear && config:cache`)
+         *     -> FASHN renders FIRST, with PixelAPI behind it as the fallback.
+         *        No code change, no deploy — the .env value is the switch.
          *
-         * FALL-THROUGH RULE: any non-success from the HF Space (out of ZeroGPU
-         * quota, Space asleep, 403, transport drop) is logged and the chain
-         * continues to PixelAPI, so a customer render never dies with the free
-         * tier — it only fails when BOTH engines cannot serve it.
+         * A SLOT WITH NO TOKEN IS SKIPPED, NOT FAILED. `not_configured` is in the
+         * job's NON-RETRYABLE code set and simply continues the chain, so an
+         * absent key on an OPTIONAL provider never burns a retry or ends a
+         * session. That is what keeps today's behaviour identical.
+         *
+         * FALL-THROUGH RULE, UNCHANGED IN SPIRIT: any non-success from a tier is
+         * logged and the chain continues, so a customer render never dies on the
+         * primary — it only fails when EVERY configured tier cannot serve it.
+         *
+         * LICENSING CAVEAT (Hugging Face tier): IDM-VTON's weights are
+         * CC BY-NC-SA — NON-COMMERCIAL. Free of charge is not free of licence: a
+         * commercial storefront must render through the paid tiers, which is why
+         * Hugging Face now ranks LAST, behind both paid slots.
+         *
+         * WHAT THE TWO PAID TIERS ARE FOR: a purpose-built VTON model (IDM-VTON /
+         * FASHN VTON behind a hosted API) was trained to deform a garment onto a
+         * body, which is exactly the job. Gemini (billed-only image generation,
+         * `429, limit: 0` on a free key) and the local browser composite stay out
+         * of the chain for the same measured reasons as before.
+         */
+
+        /*
+         * TIER 1 + TIER 2 — THE PAID VTON SLOTS, HIGHEST PRIORITY FIRST.
+         *
+         * Both are driven through the SAME method (`callVtonApiRenderer()`) and
+         * differ only by the SLOT NAME, so there is exactly one render path to
+         * reason about, test and fix. Adding a third paid slot later is one entry
+         * here plus one config block — no new renderer.
+         *
+         * EACH ENTRY IS GATED ON ITS OWN TOKEN. The gate is deliberately reading
+         * the same key the renderer reads, so "the chain skips it" and "the
+         * renderer would report not_configured" can never disagree.
+         */
+        $paidSlots = [
+            ['slot' => 'fashn', 'engine' => 'FASHN'],
+            ['slot' => 'vton', 'engine' => 'PixelAPI'],
+        ];
+
+        // The most informative failure from a CONFIGURED tier (see the tail note).
+        $lastConfiguredFailure = null;
+
+        foreach ($paidSlots as $tier) {
+            $slot = $tier['slot'];
+
+            if (trim((string) config("services.{$slot}.token")) === '') {
+                // No credential — this tier is simply not in play today.
+                continue;
+            }
+
+            $result = $this->callVtonApiRenderer($session, $slot);
+
+            if (! empty($result['success'])) {
+                $result['engine'] = $tier['engine'];
+
+                return $result;
+            }
+
+            Log::warning("TryOn tier {$tier['engine']} ({$slot}) failed — falling through.", [
+                'code' => $result['code'] ?? null,
+                'error' => $result['error'] ?? null,
+            ]);
+
+            $lastConfiguredFailure = $result;
+        }
+
+        /*
+         * TIER 3 — HUGGING FACE (the free, non-commercial tier).
+         *
+         * ITS GUARD IS PRESERVED VERBATIM AND IS NOT A TOKEN CHECK.
+         *
+         * `config('services.huggingface.vton_space')` DEFAULTS to 'yisol/IDM-VTON'
+         * (config/services.php), so it is never empty and this tier is effectively
+         * always "configured". That is intentional and load-bearing: the guard is
+         * left exactly as it was so that today's behaviour is unchanged, and the
+         * SKIPPING of an unusable HF Space is left to the renderer's own
+         * `not_configured` verdict rather than being duplicated here. Tightening
+         * it into a token check would silently remove a tier that is currently
+         * reachable, which is a behaviour change this task must not make.
          */
         $hfResult = null;
 
@@ -308,33 +381,54 @@ class ProcessTryOnJob implements ShouldQueue
                 return $hfResult;
             }
 
-            Log::warning('Hugging Face VTON failed — falling back to PixelAPI.', [
+            Log::warning('Hugging Face VTON failed — no tiers left.', [
                 'code' => $hfResult['code'] ?? null,
                 'error' => $hfResult['error'] ?? null,
             ]);
         }
 
-        $fallback = $this->callVtonApiRenderer($session);
-
-        if (! empty($fallback['success'])) {
-            $fallback['engine'] = 'PixelAPI';
-
-            return $fallback;
+        /*
+         * EVERY TIER FAILED — report the MOST INFORMATIVE reason.
+         *
+         * Precedence is by how much the reason tells the operator AND the retry
+         * policy:
+         *
+         *  1. A CONFIGURED PAID TIER'S OWN FAILURE WINS. PixelAPI (or FASHN) is
+         *     the production engine, its codes drive `isRetryableFailure()`, and
+         *     its message is what the customer can act on. This is the pre-existing
+         *     rule, now expressed across two slots instead of one.
+         *  2. OTHERWISE THE HF FAILURE IS SURFACED — it is a real render attempt
+         *     that produced a real reason, whereas the paid tiers' `not_configured`
+         *     would bury it behind a missing-env-var message.
+         *  3. OTHERWISE THE LAST PAID RESULT (today: PixelAPI's `not_configured`),
+         *     which is the honest answer when NOTHING is configured.
+         */
+        if ($lastConfiguredFailure !== null) {
+            return $lastConfiguredFailure;
         }
 
-        /*
-         * BOTH FAILED — report the MOST INFORMATIVE reason.
-         *
-         * When PixelAPI is not even configured, its `not_configured` verdict
-         * would bury the real reason the HF render died, so the HF failure is
-         * surfaced instead. When PixelAPI IS configured, its own reason wins —
-         * it is the production engine and its codes drive the retry policy.
-         */
-        if (($fallback['code'] ?? null) === 'not_configured' && $hfResult !== null) {
+        if ($hfResult !== null) {
             return $hfResult;
         }
 
-        return $fallback;
+        /*
+         * NO PAID SLOT WAS CONFIGURED AND THE HF GUARD DID NOT ADMIT IT EITHER.
+         *
+         * Reached only when every paid token is empty AND the HF guard is falsy —
+         * which, given the guard's own default, means an operator actively cleared
+         * `HUGGINGFACE_VTON_SPACE` and `HUGGINGFACE_VTON_BASE`. Returning a
+         * `not_configured` here (rather than an empty array) keeps the caller's
+         * contract intact: `handle()` always receives a `code`, so the session
+         * fails with a real reason instead of an "Undefined array key" fatal.
+         */
+        Log::error('TryOn: no VTON provider is configured — every tier was skipped.');
+
+        return [
+            'success' => false,
+            'engine' => 'none',
+            'error' => 'No try-on engine is configured on this deployment. Set VTON_FASHN_API_TOKEN (FASHN) or VTON_API_TOKEN (PixelAPI), or configure the Hugging Face Space.',
+            'code' => 'not_configured',
+        ];
     }
 
     /**
@@ -548,8 +642,20 @@ class ProcessTryOnJob implements ShouldQueue
      * The transport, async polling and response-shape walking live in
      * App\Services\VtonApiRenderer, so this job stays a thin orchestrator and a
      * vendor swap is a config change rather than a code change.
+     *
+     * THE SLOT PARAMETER IS WHAT MAKES ONE METHOD SERVE EVERY PAID TIER.
+     * It is passed straight through to the renderer, which reads THAT slot's
+     * endpoint, field names, payload shape and category vocabulary — so FASHN and
+     * PixelAPI run through this identical code path and differ only by the name.
+     *
+     * THE DEFAULT IS 'vton' (PixelAPI), WHICH IS THE HISTORICAL BEHAVIOUR. Any
+     * existing caller that omits the slot gets exactly what it got before this
+     * parameter existed; there is no call site that can drift onto FASHN by
+     * accident.
+     *
+     * @param  string  $slot  `'fashn'` or `'vton'` — a config slot name.
      */
-    protected function callVtonApiRenderer(TryOnSession $session): array
+    protected function callVtonApiRenderer(TryOnSession $session, string $slot = 'vton'): array
     {
         $measurements = $session->measurements_json ?? [];
         $garments = $session->garment_photos_json ?? [];
@@ -565,6 +671,7 @@ class ProcessTryOnJob implements ShouldQueue
             null,
             $session->render_plan_json,
             $categories,
+            $slot,
         );
     }
 
@@ -868,12 +975,13 @@ class ProcessTryOnJob implements ShouldQueue
      * Resolve the session's measurements into the single canonical CM shape the
      * sizing heuristics read (height/waist/chest/hips).
      *
-     * The Studio stores the 5-core CM schema (chest_bust/waist/hips +
-     * shoulder_width/sleeve_length) with NO height and NO imperial units.
-     * Reading `waist ?? 30` therefore used to interpret a 70cm waist as 30 and
-     * mis-size every render. This normaliser aliases chest_bust -> chest,
-     * derives a height from shoulder/sleeve proportions when it is absent, and
-     * only falls back to a neutral average body when a metric is truly missing.
+     * The session carries centimetres the controller DERIVED from the customer's
+     * size profile (see TryOnController::bodyMetricsFor) — there is no typed
+     * measurement and no height anywhere in the schema. Reading `waist ?? 30`
+     * therefore used to interpret a 70cm waist as 30 and mis-size every render.
+     * This normaliser aliases chest_bust -> chest, derives a height from
+     * shoulder/sleeve proportions when it is absent, and only falls back to a
+     * neutral average body when a metric is truly missing.
      *
      * @return array{height: int, waist: int, chest: int, hips: int}
      */
@@ -893,9 +1001,8 @@ class ProcessTryOnJob implements ShouldQueue
         $hips  = $this->toCentimetres($hips, 96.0);
 
         if (! $height) {
-            // No height field exists in the 5-core schema. Estimate a neutral
-            // 170cm frame rather than assuming a value that contradicts the
-            // chest/waist the customer actually entered.
+            // No height field exists. Estimate a neutral 170cm frame rather than
+            // assuming a value that contradicts the sizes the customer chose.
             $height = 170;
         }
 

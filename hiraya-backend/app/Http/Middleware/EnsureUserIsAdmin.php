@@ -11,6 +11,13 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Registered as the 'admin' alias in bootstrap/app.php, so routes can
  * simply use ->middleware('admin').
+ *
+ * NOTE ON SCOPE
+ * This resolves `$request->user()`, so it only works alongside a Sanctum
+ * session. It checks the ROLE and nothing else — it cannot tell an aal1
+ * session from an aal2 one, because that distinction lives in the Supabase
+ * JWT, not in the local users table. Administrative routes therefore carry
+ * BOTH `admin` and `supabase.aal2`; neither alone is sufficient.
  */
 class EnsureUserIsAdmin
 {

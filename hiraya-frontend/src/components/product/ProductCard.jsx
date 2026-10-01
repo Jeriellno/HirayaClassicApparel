@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Sparkles, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Currency from '../common/Currency';
 import { getProductImageUrl } from '../../utils/imageHelper';
+import { themeSurfaceFor } from '../../utils/framePresets';
 
 /*
  * Placeholder shown when a product has no image, or the one it has fails to load.
@@ -32,8 +33,8 @@ const ProductCard = ({
    * A row can carry several image references and they are NOT equally valid.
    * Live example (verified against the database): product #19 has
    *
-   *   display_image_url = http://127.0.0.1:8000/storage/catalog/lJamb….png  (file MISSING)
-   *   image_url         = /supabase-storage/…/products/catalog/1789728007966-7k5biae.jpg (file EXISTS)
+   *   display_image_url = http://127.0.0.1:8000/storage/catalog/lJamb”¦.png  (file MISSING)
+   *   image_url         = /supabase-storage/”¦/products/catalog/1789728007966-7k5biae.jpg (file EXISTS)
    *
    * The old code resolved `display_image_url` ONLY, and on `onError` jumped
    * straight to the placeholder — so a stale first reference hid a perfectly
@@ -85,15 +86,29 @@ const ProductCard = ({
     <Link
       to={'/product/' + product?.id}
       aria-label={'View ' + (product?.name || 'garment') + ' details'}
+      /*
+       * "VINTAGE ATELIER" CARD — a sheet of cream stock lifted on the
+       * neumorphic light, holding the black catalog frame inset like a
+       * mounted print. Hover lifts the card and floats the garment inside it
+       * over a ground shadow (the motion reference's hovering piece, in
+       * miniature). A recommended piece carries a navy ring instead of a
+       * hairline.
+       */
       className={
-        'block bg-hiraya-cream rounded-xl overflow-hidden group transition-all duration-300 flex-col h-full relative ' +
-        (isRecommended
-          ? 'border-2 border-hiraya-gold shadow-[0_10px_30px_rgba(107,112,92,0.35)]'
-          : 'border border-hiraya-olive/15 hover:border-hiraya-gold shadow-lg shadow-hiraya-sand/20')
+        'group relative flex h-full flex-col rounded-[24px] bg-hiraya-surface p-2.5 shadow-neu transition-[translate,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1.5 hover:shadow-[var(--shadow-neu),0_30px_50px_-30px_rgba(21,32,54,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus focus-visible:ring-offset-2 ' +
+        (isRecommended ? 'ring-2 ring-hiraya-accent' : 'ring-1 ring-cream-50/80')
       }
     >
       {/* MEDIA */}
-      <div className={'relative w-full ' + heightClass + ' bg-hiraya-olive overflow-hidden flex-shrink-0'}>
+      {/*
+       * The tile takes the product's BACKGROUND THEME colour (set when the admin
+       * saved it), so a cream Summer card is not letterboxed with black bars.
+       * Legacy black-card products resolve to black, exactly as before.
+       */}
+      <div
+        className={'relative w-full ' + heightClass + ' bg-black overflow-hidden flex-shrink-0 rounded-[18px]'}
+        style={{ backgroundColor: themeSurfaceFor(product) }}
+      >
         {/*
          * `object-contain`, NOT `object-cover`.
          *
@@ -108,16 +123,24 @@ const ProductCard = ({
          * photo is still showing": the shopper sees a zoomed-in garment on a
          * flat backdrop instead of the framed catalog card that was actually
          * stored. `object-contain` letterboxes instead, so the whole finished
-         * card is always visible. The tile behind it is already black
-         * (`bg-black` below), so the letterboxing is invisible against the
-         * frame's own obsidian background.
+         * card is always visible. The tile behind it is BLACK (`bg-black`
+         * above), matching QuickViewModal and the catalog frame's own obsidian
+         * background, so the letterboxing is invisible. It previously used
+         * `bg-hiraya-olive` — an indigo that no longer matches this comment or
+         * the sibling components, and which showed as coloured bars inside a
+         * black-framed catalog card.
          */}
         <img
           src={displayImage}
           alt={product?.name || 'Garment'}
           onError={handleImageError}
           loading="lazy"
-          className="w-full h-full object-contain object-center group-hover:scale-105 transition-transform duration-700"
+          className="relative z-[1] w-full h-full object-contain object-center transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-2 group-hover:scale-[1.04]"
+        />
+        {/* The ground shadow the garment lifts away from on hover. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-4 left-1/2 h-3 w-1/2 -translate-x-1/2 rounded-[50%] bg-cream-100/10 opacity-0 blur-md transition-opacity duration-700 group-hover:opacity-100"
         />
 
         {fitBadge}
@@ -128,7 +151,7 @@ const ProductCard = ({
           * legibility against an unknown photo, using the palette's olive rather
           * than pure black.
           */}
-        <span className="absolute top-3 left-3 bg-hiraya-cream-deep/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] uppercase tracking-[0.15em] text-hiraya-ink font-bold border-hiraya-olive/20 z-20 flex items-center gap-1">
+        <span className="absolute top-3 left-3 bg-noir/45 backdrop-blur-md px-3 py-1 rounded-full text-[9px] uppercase tracking-[0.15em] text-cream-100 font-semibold border border-cream-50/15 z-20 flex items-center gap-1">
           {isFormalWear && <Sparkles size={10} />}
           {categoryLabel}
         </span>
@@ -141,19 +164,26 @@ const ProductCard = ({
             aria-label={isSaved ? 'Remove from bag' : 'Add to bag'}
             title={isSaved ? 'In your bag' : 'Add to Bag'}
             className={
-              'absolute top-3 right-3 z-20 h-9 w-9 rounded-full flex items-center justify-center backdrop-blur-md border transition duration-300 ' +
+              'absolute top-3 right-3 z-20 h-9 w-9 rounded-full flex items-center justify-center backdrop-blur-md border transition duration-300 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100 ' +
               (isSaved
-                ? 'bg-[#CB997E] border-hiraya-gold text-hiraya-olive'
-                : 'bg-hiraya-cream/50 border-hiraya-olive/20 text-hiraya-ink hover:bg-[#CB997E] hover:border-hiraya-gold hover:text-hiraya-olive')
+                ? 'bg-cream-100 border-cream-100 text-navy-900'
+                : 'bg-noir/40 border-cream-50/20 text-cream-100 hover:bg-cream-100 hover:border-cream-100 hover:text-navy-900')
             }
           >
-            <Heart size={15} className={isSaved ? 'fill-black' : ''} />
+            {/*
+             * The heart fills in the SAVED state only, and it fills with the
+             * current text colour rather than black. `fill-black` on maroon
+             * produced a black shape with a maroon outline — which read as a
+             * pair of dark horns on the accent plate rather than a filled
+             * heart in the button's own ink.
+             */}
+            <Heart size={15} className={isSaved ? 'fill-current' : ''} />
           </motion.button>
         )}
 
         {/* HOVER ACTION BAR */}
         {onQuickView && (
-          <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-10">
+          <div className="absolute inset-x-3 bottom-3 z-10 translate-y-3 opacity-0 transition-all duration-400 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
             <button
               type="button"
               onClick={(e) => {
@@ -161,7 +191,7 @@ const ProductCard = ({
                 e.stopPropagation();
                 onQuickView(product);
               }}
-              className="w-full flex items-center justify-center gap-2 bg-[#CB997E] text-hiraya-ink text-[10px] font-bold uppercase tracking-[0.2em] py-3 hover:bg-[#A5A58D] transition"
+              className="w-full flex items-center justify-center gap-2 rounded-full bg-cream-100 text-navy-950 text-[10px] font-semibold uppercase tracking-[0.2em] py-3 shadow-[0_12px_24px_-12px_rgba(0,0,0,0.8)] hover:bg-cream-50 transition cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100 focus-visible:ring-offset-2 focus-visible:ring-offset-noir"
             >
               View Details <ArrowRight size={13} />
             </button>
@@ -172,20 +202,20 @@ const ProductCard = ({
       {/**
         * DETAILS — the card's LIGHT half.
         *
-        * Ink here is olive (#6B705C on #FFE8D6 ≈ 5.5:1), NOT cream: the card is
+        * Ink here is olive (#0A2947 on #FBE8CE ≈ 5.5:1), NOT cream: the card is
         * a light surface sitting on the olive canvas, so its text inverts relative
         * to the page. That inversion is what separates a card from the background
         * in this palette — surface contrast, not a drop shadow alone.
         */}
-      <div className="px-4 py-4 bg-hiraya-cream flex-col justify-between flex-1">
+      <div className="flex flex-1 flex-col justify-between px-2.5 pb-2 pt-4">
         {isRecommended && (
-          <div className="mb-3 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-hiraya-olive/70">
+          <div className="mb-3 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-accent">
             <Sparkles size={11} /> Recommended for your measurements
           </div>
         )}
 
         <div>
-          <h3 className="text-sm font-semibold text-hiraya-olive tracking-wide leading-snug">
+          <h3 className="text-sm font-semibold text-hiraya-ink tracking-[0.02em] leading-snug">
             {product?.name || 'Untitled Item'}
           </h3>
 
@@ -193,8 +223,8 @@ const ProductCard = ({
             <div className="mt-2 flex-wrap gap-1">
               {Object.entries(product.attributes).map(([key, value]) =>
                 value ? (
-                  <span key={key} className="text-[9px] bg-[#CB997E]/25 border border-[#CB997E]/40 text-hiraya-olive px-2 py-0.5 rounded">
-                    <span className="text-hiraya-olive/70 capitalize">{key.replace('_', ' ')}:</span> {value}
+                  <span key={key} className="mr-1 inline-block text-[9px] bg-cream-200/70 text-hiraya-ink px-2.5 py-0.5 rounded-full shadow-neu-inset">
+                    <span className="text-hiraya-ink-muted capitalize">{key.replace('_', ' ')}:</span> {value}
                   </span>
                 ) : null
               )}
@@ -202,14 +232,14 @@ const ProductCard = ({
           )}
 
           {product?.description && (
-            <p className="text-[10px] text-hiraya-olive/70 mt-1.5 leading-relaxed line-clamp-2">
+            <p className="text-[10px] text-hiraya-ink-muted mt-1.5 leading-relaxed line-clamp-2">
               {product.description}
             </p>
           )}
         </div>
 
-        <div className="mt-4 pt-3 border-t border-hiraya-olive/15 flex items-center justify-between gap-3">
-          <Currency amount={numericPrice} className="text-[15px] font-bold text-hiraya-olive tracking-wide" />
+        <div className="mt-4 pt-3 border-t border-hiraya-structure-line/70 flex items-center justify-between gap-3">
+          <Currency amount={numericPrice} className="text-[16px] font-semibold text-navy-900 tracking-[0.02em]" />
 
           {/*
            * NO "VIEW" LABEL HERE — ON PURPOSE.

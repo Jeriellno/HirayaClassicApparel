@@ -126,12 +126,12 @@ export const resolveCategory = (rawCategory) => {
  * backend's today. Only the fetch failing can reach them.
  */
 const FALLBACK_SIZE_CHART = [
-  { label: 'XS', chest_bust_max: 81, waist_max: 63 },
-  { label: 'S', chest_bust_max: 88, waist_max: 70 },
-  { label: 'M', chest_bust_max: 95, waist_max: 77 },
-  { label: 'L', chest_bust_max: 102, waist_max: 84 },
-  { label: 'XL', chest_bust_max: 109, waist_max: 91 },
-  { label: '2XL', chest_bust_max: 116.5, waist_max: 98.5 },
+  { label: 'XS', chest_bust_max: 81, waist_max: 63, measurements: { chest_bust: 81, waist: 63, hips: 87, shoulder_width: 37, sleeve_length: 57 } },
+  { label: 'S', chest_bust_max: 88, waist_max: 70, measurements: { chest_bust: 88, waist: 70, hips: 94, shoulder_width: 39.5, sleeve_length: 59.5 } },
+  { label: 'M', chest_bust_max: 95, waist_max: 77, measurements: { chest_bust: 95, waist: 77, hips: 101, shoulder_width: 41.5, sleeve_length: 61.5 } },
+  { label: 'L', chest_bust_max: 102, waist_max: 84, measurements: { chest_bust: 102, waist: 84, hips: 108, shoulder_width: 43.5, sleeve_length: 63.5 } },
+  { label: 'XL', chest_bust_max: 109, waist_max: 91, measurements: { chest_bust: 109, waist: 91, hips: 115, shoulder_width: 45.5, sleeve_length: 65.5 } },
+  { label: '2XL', chest_bust_max: 116.5, waist_max: 98.5, measurements: { chest_bust: 116.5, waist: 98.5, hips: 122.5, shoulder_width: 47.5, sleeve_length: 67.5 } },
 ];
 
 let sizeChartCache = FALLBACK_SIZE_CHART;
@@ -150,6 +150,7 @@ export const loadSizeChart = async () => {
         label: s.label,
         chest_bust_max: Number(s.chest_bust_max),
         waist_max: Number(s.waist_max),
+        measurements: s.measurements || {},
       }));
     }
   } catch {
@@ -163,30 +164,113 @@ export const loadSizeChart = async () => {
 export const getSizeChart = () => sizeChartCache;
 
 /**
- * Size suggestion from the 5-core measurements.
+ * THE SIZE LABELS THE STORE STOCKS, smallest first.
  *
- * Derived from the chart loaded via `loadSizeChart()`, which is the SAME table
- * the backend uses — so the Size Suggester chip, the chat reply and the render
- * agree by construction instead of by two hand-kept copies staying in sync.
- *
- * A missing axis is treated as "no constraint" rather than as zero, matching
- * SizeChart::recommend().
+ * Drives the Account Settings selects and the Studio's size chips. The ladder is
+ * the fetched chart's own labels, so a size added to the backend appears in the
+ * UI without a second edit here.
  */
-export const recommendSizeFromMeasurements = (m = {}) => {
-  const chest = Number(m.chest_bust ?? m.chest ?? 0);
-  const waist = Number(m.waist ?? 0);
+export const getSizeLabels = () => sizeChartCache.map((s) => s.label);
 
-  if (!chest && !waist) return null;
+/**
+ * Canonicalise a stored size label against the chart, or null if unknown.
+ *
+ * The same guard exists server-side (SizeChart::normaliseLabel). Both are needed:
+ * this one keeps a stale value out of the UI's controlled <select> before the
+ * request that the server would reject anyway.
+ */
+const normaliseLabel = (label) => {
+  if (typeof label !== 'string') return null;
+  const wanted = label.trim().toUpperCase();
+  return getSizeLabels().find((l) => l.toUpperCase() === wanted) ?? null;
+};
 
-  for (const size of sizeChartCache) {
-    const fitsChest = !chest || chest <= size.chest_bust_max;
-    const fitsWaist = !waist || waist <= size.waist_max;
+/**
+ * WHICH SIZING AXIS GOVERNS A GARMENT CATEGORY.
+ *
+ * Bottoms are cut from the lower body; everything worn on the torso (tops,
+ * dresses, outerwear) is cut from the upper body. This mirrors the backend's
+ * own axis choice in OutfitRecommendationService, so the Studio's suggested size
+ * and the Spotlight's recommended size cannot disagree about a "pair of trousers".
+ */
+export const sizeAxisForCategory = (category = '') => {
+  const c = String(category).toLowerCase();
+  return ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'].some(
+    (word) => c.includes(word)
+  )
+    ? 'lower'
+    : 'upper';
+};
 
-    if (fitsChest && fitsWaist) return size.label;
-  }
+/**
+ * The size this customer wears for a given garment category.
+ *
+ * This REPLACES recommendSizeFromMeasurements(). There are no per-customer
+ * centimetres any more — the customer records an upper and a lower size, so the
+ * suggestion for a pair of trousers is their lower size and for a blouse it is
+ * their upper size. When only one axis is on file, that one answers for both:
+ * an incomplete profile should still produce a suggestion rather than silence.
+ */
+export const recommendSizeForCategory = (sizes = {}, category = '') => {
+  const upper = normaliseLabel(sizes.upper_body_size);
+  const lower = normaliseLabel(sizes.lower_body_size);
 
-  // Beyond the largest band -> the largest size the store offers.
-  return sizeChartCache[sizeChartCache.length - 1]?.label ?? null;
+  const wanted = sizeAxisForCategory(category) === 'lower' ? (lower ?? upper) : (upper ?? lower);
+
+  if (!wanted) return null;
+
+  // If the store stocks the exact label, that is the answer. Otherwise fall
+  // back to the NEAREST stocked size, so a customer who wears a 3XL is never
+  // told their own size does not exist.
+  if (getSizeLabels().some((l) => l.toUpperCase() === wanted)) return wanted;
+
+  const order = getSizeLabels();
+  const target = order.findIndex((l) => l.toUpperCase() === wanted);
+  if (target === -1) return null;
+
+  return (
+    order[Math.min(order.length - 1, Math.max(0, target))] ?? order[order.length - 1] ?? null
+  );
+};
+
+/**
+ * THE BODY METRICS THE LOCAL RENDERER NEEDS, DERIVED FROM THE CUSTOMER'S SIZES.
+ *
+ * The compositor and fitCheck still work in centimetres. The customer no longer
+ * supplies any — they supply two labels — so the centimetres come from the SAME
+ * size chart the backend uses (`/api/size-chart`), which is what keeps the
+ * browser's drape geometry and the server's render plan describing one body.
+ *
+ * Returns `{}` for a customer with no sizes on file; every consumer already
+ * treats that as "infer proportions from the photo" rather than as an error.
+ */
+export const bodyMetricsFromSizes = (sizes = {}) => {
+  const upper = normaliseLabel(sizes.upper_body_size);
+  const lower = normaliseLabel(sizes.lower_body_size);
+
+  const chart = getSizeChart();
+  const rowFor = (label) => chart.find((s) => s.label.toUpperCase() === String(label).toUpperCase());
+
+  const upperRow = rowFor(upper ?? lower);
+  const lowerRow = rowFor(lower ?? upper);
+
+  if (!upperRow && !lowerRow) return {};
+
+  const upperM = upperRow?.measurements || {};
+  const lowerM = lowerRow?.measurements || {};
+
+  // The chest is the upper body's own axis and the waist/hips the lower body's,
+  // so a customer whose two sizes differ is measured on each correct axis.
+  const metrics = {
+    chest_bust: upperM.chest_bust,
+    chest: upperM.chest_bust,
+    shoulder_width: upperM.shoulder_width,
+    sleeve_length: upperM.sleeve_length,
+    waist: lowerM.waist,
+    hips: lowerM.hips,
+  };
+
+  return Object.fromEntries(Object.entries(metrics).filter(([, v]) => Number.isFinite(Number(v)) && Number(v) > 0));
 };
 
 /**
@@ -269,152 +353,105 @@ export const resolveGarmentMeasurements = (table, sizeKey) => {
  */
 
 export const useTryOnState = () => {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // 1. MEASUREMENTS — 5 Core Standardized Body Measurements (measurements_json)
-  // Initial state is seeded from the authenticated user profile so users
-  // who completed the 5 Core fields during Registration or in Account
-  // Settings don't have to re-enter them inside the AI Try-On module.
-  const [measurements, setMeasurements] = useState(() => {
-    const u = user || {};
-    return {
-      chest_bust:     u.chest_bust     ?? '',
-      waist:          u.waist          ?? '',
-      hips:           u.hips           ?? '',
-      shoulder_width: u.shoulder_width ?? '',
-      sleeve_length:  u.sleeve_length  ?? '',
-    };
-  });
-  const [isSavingMeasurements, setIsSavingMeasurements] = useState(false);
-  const [measurementStatus, setMeasurementStatus] = useState('');
+  // 1. SIZING PROFILE — the two size labels that replaced the 5 Core Body
+  // Measurements. Seeded from the authenticated user so the Studio's size
+  // suggestions are right on first paint; the dedicated endpoint refreshes it.
+  //
+  // There is NO body-profile form here any more. The Studio reads these sizes
+  // and derives centimetres from the size chart (`bodyMetricsFromSizes`); the
+  // customer edits them in Account Settings, which is the single place a sizing
+  // profile is written from.
+  const [bodySizes, setBodySizes] = useState(() => ({
+    upper_body_size: user?.upper_body_size ?? '',
+    lower_body_size: user?.lower_body_size ?? '',
+  }));
+  const [chartTick, setChartTick] = useState(0);
+
+  /*
+   * The centimetre body metrics the local renderer and fitCheck read.
+   *
+   * DERIVED, never entered. These are recomputed whenever the labels change or
+   * the size chart finishes loading, which is the only way they can stay
+   * correct now that there is nothing for a customer to type. `chartTick` is the
+   * re-render signal for the chart: it is module-level state, so bumping a
+   * counter here is what tells React the derived metrics moved.
+   */
+  const measurements = useMemo(
+    () => bodyMetricsFromSizes(bodySizes),
+    [bodySizes, chartTick],
+  );
 
   useEffect(() => {
     let isMounted = true;
 
-    // Pull fresh measurements from the backend first; fall back to whatever
-    // is already on the auth user object.
-    const fetchUserMeasurements = async () => {
+    // Pull the authoritative sizes first; fall back to the auth user object.
+    const fetchUserSizes = async () => {
       try {
-        const res = await api.get('/user/measurements');
+        const res = await api.get('/user/sizes');
         if (isMounted && res.data) {
-          setMeasurements(prev => ({
-            chest_bust:     res.data.chest_bust     ?? prev.chest_bust     ?? user?.chest_bust     ?? '',
-            waist:          res.data.waist          ?? prev.waist          ?? user?.waist          ?? '',
-            hips:           res.data.hips           ?? prev.hips           ?? user?.hips           ?? '',
-            shoulder_width: res.data.shoulder_width ?? prev.shoulder_width ?? user?.shoulder_width ?? '',
-            sleeve_length:  res.data.sleeve_length  ?? prev.sleeve_length  ?? user?.sleeve_length  ?? '',
-          }));
+          setBodySizes({
+            upper_body_size: res.data.upper_body_size ?? user?.upper_body_size ?? '',
+            lower_body_size: res.data.lower_body_size ?? user?.lower_body_size ?? '',
+          });
         }
-      } catch (err) {
-        // If the dedicated endpoint is unavailable, the seeded state
-        // from the auth user (or initial state above) is still valid.
-        if (isMounted && user) {
-          setMeasurements(prev => ({
-            chest_bust:     prev.chest_bust     || user.chest_bust     || '',
-            waist:          prev.waist          || user.waist          || '',
-            hips:           prev.hips           || user.hips           || '',
-            shoulder_width: prev.shoulder_width || user.shoulder_width || '',
-            sleeve_length:  prev.sleeve_length  || user.sleeve_length  || '',
-          }));
-        }
+      } catch {
+        // Endpoint unavailable: the seeded state from the auth user (or the
+        // initial state above) is still valid, so leave it alone.
       }
     };
 
-    fetchUserMeasurements();
+    fetchUserSizes();
     /*
-     * Pull the size chart once so `recommendSizeFromMeasurements` works from the
-     * backend's table rather than the hardcoded fallback. Fire-and-forget: the
-     * chip must render immediately, and the fallback covers a failed fetch.
+     * Pull the size chart once so the derived body metrics and the size chips
+     * come from the backend's table rather than the hardcoded fallback.
+     * Fire-and-forget: the Studio must render immediately, and the fallback
+     * covers a failed fetch.
      */
-    loadSizeChart();
+    loadSizeChart().then(() => {
+      if (isMounted) setChartTick((n) => n + 1);
+    });
     return () => { isMounted = false; };
   }, [user?.id]);
-
-  const handleMeasurementChange = (e) => {
-    const { name, value } = e.target;
-    setMeasurements(prev => ({ ...prev, [name]: value }));
-  };
-
-  const saveMeasurementsToDB = async () => {
-    // All 5 Core fields are sent; missing values are sent as null
-    // so the backend can perform a clean overwrite.
-    setIsSavingMeasurements(true);
-    setMeasurementStatus('');
-    try {
-      const payload = {
-        chest_bust:     measurements.chest_bust     === '' || measurements.chest_bust     === null || measurements.chest_bust     === undefined ? null : Number(measurements.chest_bust),
-        waist:          measurements.waist          === '' || measurements.waist          === null || measurements.waist          === undefined ? null : Number(measurements.waist),
-        hips:           measurements.hips           === '' || measurements.hips           === null || measurements.hips           === undefined ? null : Number(measurements.hips),
-        shoulder_width: measurements.shoulder_width === '' || measurements.shoulder_width === null || measurements.shoulder_width === undefined ? null : Number(measurements.shoulder_width),
-        sleeve_length:  measurements.sleeve_length  === '' || measurements.sleeve_length  === null || measurements.sleeve_length  === undefined ? null : Number(measurements.sleeve_length),
-      };
-      await api.put('/user/measurements', payload);
-      setMeasurementStatus('Recorded in database!');
-
-      // Refresh the global AuthContext user so every Hiraya surface
-      // (Account Settings, Admin dashboards, etc.) sees the new
-      // 5 Core Body Measurements immediately.
-      if (typeof refreshUser === 'function') {
-        try { await refreshUser(); } catch (e) { /* non-fatal */ }
-      }
-
-      setChatMessages(prev => [
-        ...prev,
-        { role: 'assistant', text: `Body profile updated in database: Chest ${measurements.chest_bust || '–'}cm, Waist ${measurements.waist || '–'}cm, Hips ${measurements.hips || '–'}cm. Recalculated fit compatibility!` }
-      ]);
-    } catch (err) {
-      /*
-       * Surface the server's reason instead of a bare "Failed to update".
-       * A 422 names the offending field; a 401 means the session died; a
-       * transport error means the backend is unreachable. Without this the
-       * admin/user sees the same vague string for three very different fixes.
-       */
-      const status = err?.response?.status;
-      const serverMessage = err?.response?.data?.message;
-      const fieldError = err?.response?.data?.errors
-        ? Object.values(err.response.data.errors).flat()[0]
-        : null;
-
-      if (fieldError || (status && status >= 400 && status < 500 && serverMessage)) {
-        setMeasurementStatus(fieldError || serverMessage);
-      } else if (!err?.response) {
-        setMeasurementStatus('Cannot reach the server. Check that the backend is running.');
-      } else {
-        setMeasurementStatus('Failed to update database. Please try again.');
-      }
-    } finally {
-      setIsSavingMeasurements(false);
-    }
-  };
 
   // 2. GARMENT SELECTION, BAG & SAVED ITEMS
   const [selectedGarments, setSelectedGarments] = useState({
     top: null, bottom: null, footwear: null, outerwear: null, dress: null, accessories: null
   });
 
-  // Reuse flow: the History page leaves the selected garments here, then opens the
-  // Studio once. It is intentionally consumed on mount so a refresh/Back does not
-  // silently replace a user's new Style Stack with an old fitting.
+  /*
+   * REUSE A SAVED OUTFIT — load the garments of a past try-on into the Style
+   * Stack. Called by the Studio's history drawer ("Use This Outfit"), so the
+   * customer stays on the canvas. Each garment replaces its own layer only;
+   * layers the saved look did not wear are left as they are.
+   */
+  const applySavedOutfit = useCallback((garments) => {
+    if (!Array.isArray(garments) || garments.length === 0) return;
+    setSelectedGarments((current) => {
+      const next = { ...current };
+      for (const garment of garments) {
+        const category = resolveCategory(garment.category);
+        if (category === 'accessories') continue;
+        next[category] = { ...garment, productId: garment.id };
+      }
+      return next;
+    });
+  }, []);
+
+  // Legacy hand-off: a reuse left in sessionStorage by an older tab is applied
+  // once on mount, then cleared so a refresh/Back cannot re-apply it.
   useEffect(() => {
     const raw = sessionStorage.getItem('hiraya:reuse-outfit');
     if (!raw) return;
     sessionStorage.removeItem('hiraya:reuse-outfit');
     try {
-      const garments = JSON.parse(raw);
-      setSelectedGarments((current) => {
-        const next = { ...current };
-        for (const garment of garments) {
-          const category = resolveCategory(garment.category);
-          if (category === 'accessories') continue;
-          next[category] = { ...garment, productId: garment.id };
-        }
-        return next;
-      });
+      applySavedOutfit(JSON.parse(raw));
     } catch {
       // Ignore malformed temporary reuse data and leave the stack untouched.
     }
-  }, []);
+  }, [applySavedOutfit]);
 
   // The wishlist / "Saved" bookmark layer was retired end to end (UI, API and
   // the `wishlists` table). The Studio's garment picker is now fed by exactly
@@ -453,7 +490,7 @@ export const useTryOnState = () => {
    * RECOMMENDATIONS feed — the SAME personalised set Home's Spotlight shows.
    *
    * Home renders `/outfits/recommended`; the Studio only ever read bag + saved
-   * items. So a customer could see "Recommended for your measurements" on Home
+   * items. So a customer could see "Recommended for your size" on Home
    * and then find an EMPTY style stack in the Studio — the recommended piece was
    * never offered as something to try on. Ingesting the recommendation feed here
    * makes the two surfaces agree: anything Hiraya recommends is try-on-able.
@@ -599,7 +636,8 @@ export const useTryOnState = () => {
          * THE GARMENT'S OWN MEASUREMENTS — the missing half of the fit.
          *
          * Up to here the compositor only ever received the CUSTOMER's body
-         * measurements, so a garment's size could not affect the render at all:
+                   * metrics (derived from their two saved sizes), so a garment's size
+                   * could not affect the render at all:
          * a Size XS and a Size 2XL of the same dress came out identical, because
          * the draw was sized from the product PHOTO's pixel span.
          *
@@ -798,7 +836,7 @@ export const useTryOnState = () => {
    * Shape: { status: 'checking' | 'ready' | 'warn', figureType, notes: [{ level, text }] } | null
    *   'checking' — analysis in flight (drives the small spinner on the canvas)
    *   'ready'    — a usable full figure; the render will fit properly
-   *   'warn'     — usable but flagged (a bust crop, or no measurements on file)
+   *   'warn'     — usable but flagged (a bust crop, or no sizes on file)
    *
    * ADVISORY ONLY. It never blocks Generate — a customer with a bust photo can
    * still render, and is simply told the result will be limited.
@@ -1309,7 +1347,7 @@ export const useTryOnState = () => {
    *   1. a full-body photo (it is the canvas the garments are drawn onto), and
    *   2. at least one selected garment.
    *
-   * Measurements are deliberately NOT required. They drive the SIZE SUGGESTION,
+   * Sizes are deliberately NOT required. They drive the SIZE SUGGESTION,
    * which is a separate, non-blocking feature — gating the render on them meant a
    * customer who wanted to see the outfit first could not, which is backwards.
    */
@@ -1330,22 +1368,24 @@ export const useTryOnState = () => {
 
   // 4. CHATBOT LOGIC
   const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', text:"Hello! I am your Hiraya AI Personal Stylist. Upload your photo and measurements, select an outfit stack, and I will calculate your optimal fit size!" }
+    { role: 'assistant', text:"Hello! I am your Hiraya AI Personal Stylist. Upload your photo, select an outfit stack, and I will calculate your optimal fit size!" }
   ]);
   const [isChatTyping, setIsChatTyping] = useState(false);
 
   const triggerAiConclusion = useCallback((size = 'M') => {
     const selectedNames = Object.values(selectedGarments).filter(Boolean).map(g => g.name).join(', ');
-    const conclusion = `✨ **Virtual Fitting Complete!**\n\nBased on your chest (${measurements.chest_bust}cm), waist (${measurements.waist}cm), and hips (${measurements.hips}cm), your recommended size for this ensemble (${selectedNames}) is **Size ${size}**.\n\nThe drape and waist fit matches your body proportions accurately. How does this look to you?`;
+    const conclusion = `✨ **Virtual Fitting Complete!**\n\nMatching your saved sizes (top ${bodySizes.upper_body_size || '–'}, bottom ${bodySizes.lower_body_size || '–'}) against ${selectedNames}, the recommended size for this ensemble is **Size ${size}**.\n\nHow does this look to you?`;
     setChatMessages(prev => [...prev, { role: 'assistant', text: conclusion }]);
-  }, [selectedGarments, measurements]);
+  }, [selectedGarments, bodySizes]);
 
   /**
    * SERVER RENDER REQUEST — hand the job to the Laravel backend.
    *
-   * This is the FRONTEND -> BACKEND wire. It POSTs the portrait, the selected
-   * garments and the 5-core measurements to `/tryon/generate`, then polls
-   * `/tryon/status/{id}` the way the controller expects.
+   * This is the FRONTEND -> BACKEND wire. It POSTs the portrait and the selected
+   * garments to `/tryon/generate`, then polls
+   * `/tryon/status/{id}` the way the controller expects. The body centimetres the
+   * render needs are derived SERVER-side from the customer's saved sizes, so no
+   * measurement is sent from here.
    *
    * THIS IS THE ONLY PATH — THERE IS NO LOCAL FALLBACK.
    * ---------------------------------------------------
@@ -1470,7 +1510,6 @@ export const useTryOnState = () => {
           product_id: p.product?.productId ?? p.product?.id ?? p.product?.product_id ?? null,
           image: p.dataUri,
         })),
-        measurements,
       });
 
       const activeSessionId = res.data?.session_id || res.data?.id;
@@ -1755,7 +1794,7 @@ export const useTryOnState = () => {
        * so a 422 — which Laravel answers with a per-field `errors` map — reached
        * the canvas as "http_422" and `explainRenderFailure` had nothing to show but
        * a generic "Fitting Interrupted". The customer was told the fitting failed
-       * when the real message was "measurements.chest_bust must be at least 30".
+               * when the real message named a measurement field that no longer exists.
        *
        * `detail` and `fieldErrors` are attached so the caller can surface the
        * exact reason and, where a field is named, point at it.
@@ -2129,7 +2168,7 @@ export const useTryOnState = () => {
       if (server.ok && server.image) {
         setGeneratedImage(server.image);
         setRenderEngine('ai');
-        const size = server.size || recommendSizeFromMeasurements(measurements);
+        const size = server.size || recommendSizeForCategory(bodySizes, 'top');
         setRecommendedSize(size || null);
         setAiFeedback(server.feedback || null);
         setTryOnProgress(100);
@@ -2251,7 +2290,18 @@ export const useTryOnState = () => {
       const activeGarmentNames = Object.values(selectedGarments).filter(Boolean).map(g => g.name);
       const res = await api.post('/tryon/chat', {
         message: userText,
-        context: { measurements, selected_garments: activeGarmentNames, has_generated_image: !!generatedImage }
+        /*
+         * The stylist is told the customer's SIZES and the centimetres derived
+         * from them, because its knowledge block now works in size labels —
+         * sending a bare cm profile it no longer has a vocabulary for would
+         * make it reason about numbers the customer never gave.
+         */
+        context: {
+          sizes: bodySizes,
+          measurements,
+          selected_garments: activeGarmentNames,
+          has_generated_image: !!generatedImage,
+        }
       });
       /*
        * Carry the whole reply, not just the text.
@@ -2280,7 +2330,7 @@ export const useTryOnState = () => {
       // A failed chat must still offer a next step, not a bare apology.
       setChatMessages(prev => [...prev, {
         role: 'assistant',
-        text: "I couldn't reach the stylist service just now. Try again in a moment — meanwhile you can review your measurements or pick another piece for the stack.",
+        text: "I couldn't reach the stylist service just now. Try again in a moment — meanwhile you can review your sizes or pick another piece for the stack.",
         suggestions: ['What is my size?', 'What colors suit me?'],
         products: [],
         links: [],
@@ -2291,8 +2341,10 @@ export const useTryOnState = () => {
   };
 
   return {
-    measurements, handleMeasurementChange, saveMeasurementsToDB, isSavingMeasurements, measurementStatus,
+    bodySizes, measurements,
     garmentsByCategory, selectedGarments, toggleGarment, clearLayer, clearAllStack,
+    // Load a past try-on's garments back into the stack (history drawer).
+    applySavedOutfit,
     // `wishlistLoading` kept as the public prop name for AiTryOn/StyleStack
     // compatibility — it now reflects the bag feed being ready.
     wishlistLoading: cartLoading,

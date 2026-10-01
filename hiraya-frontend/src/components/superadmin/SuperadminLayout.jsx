@@ -1,8 +1,10 @@
+import { useState } from 'react';
+import PropTypes from 'prop-types';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import {
   LayoutDashboard,
   Shirt,
   Package,
-  BarChart3,
   MessageSquare,
   Sliders,
   Users,
@@ -11,7 +13,11 @@ import {
   KeyRound,
   LogOut,
   Radio,
+  Menu,
+  X,
 } from 'lucide-react';
+import logoImg from '../../assets/logo.png';
+
 
 /*
  * "Canvas Assets" and "AI Stylist Config" were REMOVED.
@@ -25,97 +31,325 @@ import {
  *
  * "Orders" and "Customers" REPLACED them: real surfaces the highest-privilege
  * role needs and previously had no access to at all.
+ *
+ * A plain admin sees only two of these (Inventory, Orders) — both in MAIN — so
+ * the grouping is invisible to them; the sidebar simply has one heading.
+ * `navLinks` is filtered BEFORE grouping (see SuperAdmin.jsx), so an empty group
+ * never renders its heading.
+ */
+/*
+ * GROUPED BY HOW OFTEN A SECTION IS ACTUALLY USED — not alphabetically, and not
+ * by the order the features happened to be built. MAIN is the console's working
+ * week, ANALYTICS is what you check on it, ENGAGEMENT is the inbox, and
+ * ADMINISTRATION is the surface that changes the system itself. A section's
+ * group is declared ON the section, so there is one place to move a tab between
+ * groups and no second list to keep in step.
  */
 export const superAdminNavLinks = [
-  { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard },
-  { id: 'inventory', name: 'Inventory Catalog', icon: Shirt },
-  { id: 'orders', name: 'Orders', icon: Package },
-  { id: 'customers', name: 'Customers', icon: Users },
-  { id: 'api-status', name: 'API & AI Status', icon: KeyRound },
-  { id: 'analytics', name: 'Canvas Analytics', icon: BarChart3 },
-  { id: 'feedback', name: 'User Feedback', icon: MessageSquare },
-  { id: 'admins', name: 'Admin Accounts', icon: UserCog },
-  { id: 'audit-logs', name: 'Audit Logs', icon: History },
-  { id: 'settings', name: 'System Settings', icon: Sliders },
+  { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, group: 'MAIN' },
+  { id: 'inventory', name: 'Inventory Catalog', icon: Shirt, group: 'MAIN' },
+  { id: 'orders', name: 'Orders', icon: Package, group: 'MAIN' },
+  { id: 'customers', name: 'Customers', icon: Users, group: 'MAIN' },
+  { id: 'api', name: 'API & AI', icon: KeyRound, group: 'ANALYTICS' },
+  { id: 'feedback', name: 'User Feedback', icon: MessageSquare, group: 'ENGAGEMENT' },
+  { id: 'admins', name: 'Admin Accounts', icon: UserCog, group: 'ADMINISTRATION' },
+  { id: 'audit-logs', name: 'Audit Logs', icon: History, group: 'ADMINISTRATION' },
+  { id: 'settings', name: 'System Settings', icon: Sliders, group: 'ADMINISTRATION' },
 ];
 
-const SuperadminLayout = ({ activeTab, setActiveTab, onLogout, children }) => {
+/**
+ * SUB-TABS — the second level inside a section.
+ *
+ * "API & AI Status" and "API Key Manager" are two views of ONE subject: the
+ * external keys the platform depends on. One row that lands on a Status view
+ * with a Keys tab beside it shows the answer to "how are the keys" and the door
+ * to "change one" in the same glance. Both hit endpoints in the SAME backend
+ * middleware group, so this merges two screens that were already one privilege.
+ *
+ * `analytics` is NOT listed here: Canvas Analytics folds into the Dashboard as
+ * the 'analytics' sub-tab.
+ */
+export const SECTION_SUBTABS = {
+  api: [
+    { id: 'status', name: 'API & AI Status' },
+    { id: 'keys', name: 'API Key Manager' },
+  ],
+};
+
+/** The group headings and their order. */
+export const NAV_GROUPS = ['MAIN', 'ANALYTICS', 'ENGAGEMENT', 'ADMINISTRATION'];
+
+/** HOW MANY SECTIONS EACH ROLE IS OFFERED — shown next to the console title. */
+const ROLE_LABEL = {
+  admin: 'Admin Level',
+  superadmin: 'Super Admin Level',
+};
+
+/*
+ * ============================================================================
+ * THE CONSOLE FRAME — "Vintage Atelier", neumorphic
+ * ============================================================================
+ *
+ *   SIDEBAR   a floating navy panel lifted off the page on the dark
+ *             neumorphic light; the active section is a cream pill that
+ *             glides between rows (a shared layoutId). Below `md` it becomes a
+ *             drawer behind a menu button instead of covering the content.
+ *   HEADER    a floating frosted-cream bar: title, live badge, role, exit.
+ *   GROUND    the cream canvas with a soft ambient glow — a navy wash at the
+ *             top-left, a warm cream light at the top-right, a slate haze at
+ *             the foot — so the raised panels have light to sit in.
+ *
+ * Presentation only: the nav data, the grouping, the sub-tab rules and every
+ * callback are exactly the ones this layout has always received.
+ */
+const SuperadminLayout = ({
+  activeTab,
+  setActiveTab,
+  onLogout,
+  role = 'superadmin',
+  navLinks = superAdminNavLinks,
+  activeSubTab,
+  setActiveSubTab,
+  canSignOut = true,
+  children,
+}) => {
+  // Mobile drawer — pure UI state.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  /*
+   * RENDER THE SIDEBAR AS GROUPS OF SECTIONS.
+   *
+   * `navLinks` arrives ALREADY FILTERED by role (see SuperAdmin.jsx). Grouping
+   * happens here, after the filter, so an empty group never produces a heading.
+   * A link with no group joins "UNGROUPED" (never an invented "MAIN"), so a
+   * forgotten `group` is a visible label rather than a silently mis-sorted row.
+   */
+  const groupedNav = navLinks.reduce((groups, link) => {
+    const key = link.group || 'UNGROUPED';
+    const existing = groups.find((g) => g.key === key);
+
+    if (existing) {
+      existing.items.push(link);
+    } else {
+      groups.push({ key, items: [link] });
+    }
+
+    return groups;
+  }, []);
+
+  // Declared order first; any group discovered outside NAV_GROUPS goes last.
+  const ORDER = [...NAV_GROUPS].reduce((acc, key, index) => ({ ...acc, [key]: index }), {});
+  groupedNav.sort((a, b) => (ORDER[a.key] ?? 99) - (ORDER[b.key] ?? 99));
+
+  const subtabs = SECTION_SUBTABS[activeTab] || [];
+
+  /*
+   * WHICH GROUP OWNS THE ACTIVE SECTION — the ONLY group allowed to show its
+   * sub-tabs, so they are never repeated under every heading.
+   */
+  const activeNavEntry = navLinks.find((link) => link.id === activeTab);
+  const activeGroupKey = activeNavEntry?.group || 'MAIN';
+
+  const chooseSection = (id) => {
+    setActiveTab(id);
+    setDrawerOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-[#07090D] text-hiraya-ink flex font-sans">
-      {/* Permanent Sidebar — always visible, no burger menu */}
-      <aside className="fixed inset-y-0 left-0 z-40 w-64 bg-[#0A0D14] border-r border-[#CB997E]/20 pt-24 px-4 overflow-y-auto">
-        <p className="text-[10px] text-hiraya-olive/70 uppercase tracking-widest px-3 mb-4 font-semibold">
-          Control Panel Subsystems
-        </p>
-        <nav className="space-y-1">
-          {superAdminNavLinks.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-[#CB997E]/15 text-hiraya-ink border border-[#CB997E]/40 font-medium'
-                    : 'text-hiraya-ink hover:text-hiraya-ink hover:bg-hiraya-cream/60'
-                }`}
-              >
-                <Icon size={16} className={isActive ? 'text-hiraya-ink' : 'text-hiraya-ink'} />
-                {item.name}
-              </button>
-            );
-          })}
+    <MotionConfig reducedMotion="user">
+    <div className="relative min-h-screen font-sans text-hiraya-ink">
+      {/* THE GROUND — cream canvas with an ambient glow. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-cream-100 bg-[radial-gradient(55%_45%_at_18%_0%,rgba(29,44,69,0.12),transparent_70%),radial-gradient(40%_40%_at_100%_12%,rgba(211,192,156,0.35),transparent_70%),radial-gradient(55%_45%_at_60%_105%,rgba(67,65,62,0.10),transparent_70%)]"
+      />
+
+      {/* Mobile scrim behind the open drawer. */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setDrawerOpen(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 cursor-default bg-navy-950/40 backdrop-blur-sm md:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ---- SIDEBAR — a floating navy panel ---- */}
+      <aside
+        className={`fixed inset-y-3 left-3 z-50 flex w-64 flex-col overflow-hidden rounded-[26px] bg-[linear-gradient(180deg,#1D2C45_0%,#152036_42%,#0D1524_100%)] text-cream-100 shadow-[10px_14px_34px_-10px_rgba(13,21,36,0.65),-6px_-6px_16px_rgba(255,255,255,0.6)] ring-1 ring-cream-50/10 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] md:translate-x-0 ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-[calc(100%+1.5rem)]'
+        }`}
+      >
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full border border-cream-50/[0.07]" />
+        <div aria-hidden="true" className="vintage-grain pointer-events-none absolute inset-0 opacity-25 mix-blend-soft-light" />
+
+        {/* Brand block */}
+        <div className="relative flex items-center gap-3 px-5 pb-5 pt-6">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cream-50/10 shadow-[inset_0_1px_0_rgba(247,242,231,0.12)]">
+            <img src={logoImg} alt="" className="h-8 w-8 object-contain" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-serif text-lg font-semibold leading-none tracking-[0.1em]">HIRAYA</p>
+            <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.24em] text-cream-400">
+              {navLinks.length === superAdminNavLinks.length ? 'Control Panel' : 'Your Sections'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close navigation"
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-cream-300 hover:bg-cream-50/10 hover:text-cream-50 md:hidden"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="relative mx-5 h-px bg-cream-50/10" />
+
+        {/* Groups */}
+        <nav aria-label="Console sections" className="relative flex-1 space-y-5 overflow-y-auto px-3 py-5 scrollbar-none">
+          {groupedNav.map((group) => (
+            <div key={group.key}>
+              <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.22em] text-cream-400/80">
+                {group.key}
+              </p>
+              <div className="flex flex-col gap-1">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => chooseSection(item.id)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[12px] font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100/60 ${
+                        isActive ? 'text-navy-950' : 'text-cream-300 hover:bg-cream-50/[0.06] hover:text-cream-50'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.span
+                          layoutId="console-nav-pill"
+                          transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                          className="absolute inset-0 rounded-2xl bg-cream-100 shadow-[0_10px_22px_-10px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.8)]"
+                        />
+                      )}
+                      <span
+                        className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${
+                          isActive ? 'bg-navy-900 text-cream-100' : 'bg-cream-50/[0.06] text-cream-300 group-hover:text-cream-50'
+                        }`}
+                      >
+                        <Icon size={15} />
+                      </span>
+                      <span className="relative truncate">{item.name}</span>
+                    </button>
+                  );
+                })}
+
+                {/*
+                  * THE SECOND LEVEL — only under the ACTIVE section, and only in
+                  * the group that section belongs to (the group guard is what
+                  * stops the sub-tabs repeating under every heading).
+                  */}
+                {group.key === activeGroupKey && subtabs.length > 0 && (
+                  <div className="mb-1 ml-7 mt-1 flex flex-col gap-0.5 border-l border-cream-50/15 pl-3">
+                    {subtabs.map((sub) => {
+                      const isSubActive = activeSubTab === sub.id;
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => setActiveSubTab?.(sub.id)}
+                          aria-current={isSubActive ? 'page' : undefined}
+                          className={`w-full cursor-pointer rounded-lg px-2.5 py-1.5 text-left text-[11px] transition-colors ${
+                            isSubActive
+                              ? 'bg-cream-50/10 font-semibold text-cream-50'
+                              : 'text-cream-400 hover:text-cream-50'
+                          }`}
+                        >
+                          {sub.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </nav>
+
+        {/* Footer — the role, pressed into the panel. */}
+        <div className="relative m-3 rounded-2xl bg-navy-950/60 px-4 py-3 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.45),inset_-2px_-2px_6px_rgba(54,74,106,0.18)]">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-cream-400">Signed in at</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-cream-100">{ROLE_LABEL[role] ?? 'Admin Level'}</p>
+        </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header — fixed, no burger toggle */}
-        <header className="fixed top-0 left-0 w-full bg-[#07090D]/95 backdrop-blur-md border-b border-[#CB997E]/30 z-50 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg font-light tracking-[0.15em] sm:tracking-[0.2em] text-hiraya-ink uppercase font-serif truncate">
-                  Hiraya Master Console
-                </h1>
-                <span className="flex items-center gap-1 text-[9px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/40 font-mono animate-pulse whitespace-nowrap">
-                  <Radio size={10} /> Live Database Synced
-                </span>
-              </div>
-              <span className="text-[10px] bg-[#CB997E]/20 text-hiraya-ink px-2 py-0.5 rounded border border-[#CB997E]/40 uppercase tracking-widest font-semibold">
-                Super Admin Level
+      {/* ---- HEADER — a floating frosted bar ---- */}
+      <header className="fixed left-3 right-3 top-3 z-30 flex items-center justify-between gap-3 rounded-[22px] bg-cream-50/75 px-4 py-3 shadow-glass ring-1 ring-cream-50/80 backdrop-blur-xl sm:px-6 md:left-[calc(16rem+1.5rem)]">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={drawerOpen}
+            className="btn-icon h-10 w-10 shrink-0 rounded-full md:hidden"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="truncate font-serif text-sm uppercase tracking-[0.12em] text-navy-900 sm:text-base">
+                Hiraya Master Console
+              </h1>
+              {/* The live-sync badge: green is a STATE colour, so it stays green. */}
+              <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
+                <Radio size={9} className="animate-pulse" /> Live
               </span>
             </div>
+            <span className="mt-0.5 inline-block text-[9px] font-medium uppercase tracking-[0.14em] text-charcoal-500">
+              {activeNavEntry?.name ?? ROLE_LABEL[role] ?? 'Admin Level'}
+            </span>
           </div>
-
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 px-3 py-1.5 rounded-lg transition-all uppercase tracking-wider"
-          >
-            <LogOut size={14} /> Exit Console
-          </button>
-        </header>
+        </div>
 
         {/*
-         * Page Content
-         *
-         * The console body is offset by the FIXED 16rem sidebar. Previously this
-         * was `ml-64 max-w-7xl w-full mx-auto`: the left margin AND the centered
-         * 1280px cap stacked, so on an ordinary 1366px laptop the content was
-         * pushed right and clipped past the viewport.
-         *
-         * `md:pl-64` keeps the sidebar offset as PADDING (so it can never collide
-         * with the width cap), and `max-w-7xl mx-auto` centers the readings panel
-         * inside whatever space is left. The container is only widened, never
-         * forced, so it fits every normal screen.
+         * "Exit Console" CLOSES THE SUPABASE SESSION. /admin is behind
+         * ProtectedRoute (staff role + aal2), so every user of this layout IS
+         * signed in and must be able to sign out.
          */}
-        <main className="pt-24 pb-12 px-4 sm:px-6 md:pl-72 md:pr-8 w-full max-w-[1400px] mx-auto">
-          {children}
-        </main>
-      </div>
+        {canSignOut && (
+          <button
+            onClick={onLogout}
+            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-red-600/30 bg-red-500/10 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-red-700 transition-colors hover:bg-red-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50"
+          >
+            <LogOut size={14} /> <span className="hidden sm:inline">Exit Console</span>
+          </button>
+        )}
+      </header>
+
+      {/* Page content — offset by the floating sidebar on md+. */}
+      <main className="px-3 pb-12 pt-28 sm:px-6 md:pl-[calc(16rem+2.5rem)] md:pr-8">
+        <div className="mx-auto w-full max-w-[1280px]">{children}</div>
+      </main>
     </div>
+    </MotionConfig>
   );
+};
+
+SuperadminLayout.propTypes = {
+  activeTab: PropTypes.string,
+  setActiveTab: PropTypes.func.isRequired,
+  onLogout: PropTypes.func,
+  role: PropTypes.string,
+  navLinks: PropTypes.array,
+  activeSubTab: PropTypes.string,
+  setActiveSubTab: PropTypes.func,
+  canSignOut: PropTypes.bool,
+  children: PropTypes.node,
 };
 
 export default SuperadminLayout;

@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\RefreshApiKeys;
 use App\Console\Commands\TryOnCheckProvider;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -61,4 +62,40 @@ Schedule::command(TryOnCheckProvider::class, ['--quiet-ok'])
      * wait on a provider that is timing out. See the lock note above for the one
      * interaction this has to be protected against.
      */
+    ->runInBackground();
+
+/*
+ * DYNAMIC API KEY ROTATION.
+ *
+ * The counterpart to the provider probe above: that command asks "is the vendor
+ * up?", this one asks "are our credentials still valid, and if not, is there a
+ * spare ready?". Between them, an expiring third-party key is handled before a
+ * customer ever meets it.
+ *
+ * WHY THE DEFAULT RUN MAKES NO OUTBOUND CALL
+ * ------------------------------------------
+ * Without `--verify`, this only checks `expires_at` — data the vendor already gave
+ * us — and rotates a local pointer when a key is past it. That is the whole
+ * safety story: a key that dies at 14:00 is replaced at 13:55, with no deploy, no
+ * .env edit and no failed request.
+ *
+ * Adding `--verify` would make it contact each vendor, and that is deliberately
+ * NOT the default on a frequent schedule: the try-on provider serialises jobs, so
+ * an unattended probe competes with real renders for the same capacity. Hourly is
+ * also slow enough to catch a revoked key (a manual dashboard deletion, which no
+ * expiry field would predict) well before anyone relies on it.
+ *
+ * FIVE MINUTES, matching the provider probe, and the same `withoutOverlapping(10)`
+ * with an EXPLICIT short lock. The default overlap lock is 24 HOURS and is only
+ * released by a finish callback — so a backgrounded command that dies without
+ * finishing would silently suppress this schedule for a full day, which is the
+ * exact condition the feature exists to prevent. See the long note above.
+ */
+Schedule::command(RefreshApiKeys::class, ['--quiet-ok' => true])
+    ->hourly()
+    ->withoutOverlapping(10);
+
+Schedule::command(RefreshApiKeys::class, ['--verify' => true, '--quiet-ok' => true])
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
     ->runInBackground();

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1250" viewBox="0 0 1000 1250">
+  <!-- Summer: a sunny tropical beach with palms. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#86CDEB"/>
+      <stop offset="0.65" stop-color="#CDEBF3"/>
+      <stop offset="1" stop-color="#FCE6C6"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2F9CC2"/>
+      <stop offset="1" stop-color="#7ED3DA"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4DDB1"/>
+      <stop offset="1" stop-color="#E6C38B"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF6D8"/>
+      <stop offset="0.45" stop-color="#FFE4A0"/>
+      <stop offset="1" stop-color="#FFE4A0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1000" height="780" fill="url(#sky)"/>
+  <circle cx="780" cy="250" r="230" fill="url(#sun)"/>
+  <circle cx="780" cy="250" r="80" fill="#FFF1C4"/>
+
+  <!-- clouds -->
+  <g fill="#FFFFFF" opacity="0.85">
+    <ellipse cx="200" cy="200" rx="110" ry="34"/>
+    <ellipse cx="260" cy="178" rx="70" ry="36"/>
+    <ellipse cx="150" cy="186" rx="60" ry="26"/>
+    <ellipse cx="560" cy="120" rx="90" ry="26"/>
+    <ellipse cx="610" cy="104" rx="56" ry="26"/>
+  </g>
+
+  <!-- sea -->
+  <rect x="0" y="700" width="1000" height="200" fill="url(#sea)"/>
+  <rect x="0" y="700" width="1000" height="4" fill="#E9F7FA" opacity="0.7"/>
+  <g stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.45" stroke-linecap="round">
+    <path d="M60 740 q30 -8 60 0 t60 0"/>
+    <path d="M380 760 q30 -8 60 0 t60 0"/>
+    <path d="M700 735 q30 -8 60 0 t60 0"/>
+    <path d="M220 800 q30 -8 60 0 t60 0"/>
+    <path d="M560 820 q30 -8 60 0 t60 0"/>
+    <path d="M820 790 q30 -8 60 0 t60 0"/>
+  </g>
+
+  <!-- sand + foam line -->
+  <path d="M0 880 C 200 850 380 900 560 872 C 740 846 880 880 1000 866 V1250 H0 z" fill="url(#sand)"/>
+  <path d="M0 880 C 200 850 380 900 560 872 C 740 846 880 880 1000 866" stroke="#FFFFFF" stroke-width="10" fill="none" opacity="0.75"/>
+  <g fill="#D9B479" opacity="0.5">
+    <ellipse cx="180" cy="1040" rx="60" ry="8"/>
+    <ellipse cx="760" cy="1120" rx="80" ry="9"/>
+    <ellipse cx="480" cy="1190" rx="70" ry="8"/>
+  </g>
+
+  <!-- palm, left -->
+  <path d="M120 1200 C 110 1000 140 820 210 600" stroke="#8A5D3B" stroke-width="30" fill="none" stroke-linecap="round"/>
+  <g stroke="#6E4A2F" stroke-width="3" opacity="0.5">
+    <line x1="112" y1="1100" x2="142" y2="1096"/><line x1="114" y1="1000" x2="146" y2="995"/>
+    <line x1="124" y1="900" x2="158" y2="894"/><line x1="142" y1="800" x2="176" y2="794"/>
+    <line x1="166" y1="710" x2="198" y2="704"/>
+  </g>
+  <g fill="#3F8A55">
+    <path d="M210 600 C 140 540 60 540 -20 600 C 60 560 140 570 210 600 z"/>
+    <path d="M210 600 C 180 500 110 450 30 440 C 110 480 170 530 210 600 z"/>
+    <path d="M210 600 C 250 500 330 470 400 480 C 320 500 260 540 210 600 z"/>
+    <path d="M210 600 C 290 560 370 580 430 650 C 350 610 280 600 210 600 z"/>
+    <path d="M210 600 C 200 520 220 460 260 420 C 240 490 230 540 210 600 z"/>
+  </g>
+  <g fill="#2F6E43">
+    <path d="M210 600 C 150 600 80 640 40 720 C 100 660 160 630 210 600 z"/>
+    <path d="M210 600 C 260 620 310 680 330 760 C 290 690 250 640 210 600 z"/>
+  </g>
+
+  <!-- palm, right (smaller, further) -->
+  <path d="M930 1000 C 925 880 940 780 900 680" stroke="#8A5D3B" stroke-width="18" fill="none" stroke-linecap="round"/>
+  <g fill="#45925B">
+    <path d="M900 680 C 850 640 800 640 760 670 C 810 650 860 655 900 680 z"/>
+    <path d="M900 680 C 940 630 990 620 1030 640 C 980 645 940 660 900 680 z"/>
+    <path d="M900 680 C 880 620 890 580 920 550 C 905 600 905 640 900 680 z"/>
+    <path d="M900 680 C 950 690 990 730 1000 780 C 970 740 940 710 900 680 z"/>
+    <path d="M900 680 C 860 700 830 740 820 790 C 845 740 870 710 900 680 z"/>
+  </g>
+</svg>

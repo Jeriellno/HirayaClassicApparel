@@ -12,26 +12,34 @@ const AccordionItem = ({ title, subtitle, icon: Icon, defaultOpen = false, child
   const panelId = `accordion-panel-${String(title).replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
-    <div className="border-b border-hiraya-sand last:border-b-0">
+    /*
+     * THE RULE IS THE SYSTEM HAIRLINE.
+     *
+     * Every divider in this component was `border-hiraya-sand`, which is now
+     * INDIGO — so a stack of accordions drew full-strength dark bars between each
+     * row instead of ruled stock. The dividers are the parchment hairline, and
+     * the row divider on hover gains the accent only on the ACTIVE row.
+     */
+    <div className="border-b border-hiraya-structure-line last:border-b-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={panelId}
-        className="w-full flex items-center justify-between gap-4 py-4 text-left group"
+        className="group flex w-full cursor-pointer items-center justify-between gap-4 py-4 text-left"
       >
-        <span className="flex items-center gap-3 min-w-0">
+        <span className="flex min-w-0 items-center gap-3">
           {Icon && (
-            <span className="text-hiraya-ink shrink-0">
+            <span className={`shrink-0 transition-colors ${open ? 'text-hiraya-accent' : 'text-hiraya-ink-muted group-hover:text-hiraya-accent'}`}>
               <Icon size={15} />
             </span>
           )}
           <span className="min-w-0">
-            <span className="block text-[11px] uppercase tracking-[0.18em] font-bold text-hiraya-ink">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink">
               {title}
             </span>
             {subtitle && (
-              <span className="block text-[11px] text-hiraya-sand font-normal mt-0.5 truncate">
+              <span className="mt-0.5 block truncate text-[11px] font-normal text-hiraya-ink-muted">
                 {subtitle}
               </span>
             )}
@@ -40,7 +48,7 @@ const AccordionItem = ({ title, subtitle, icon: Icon, defaultOpen = false, child
 
         <ChevronDown
           size={16}
-          className={`shrink-0 text-hiraya-sand transition-transform duration-300 group-hover:text-hiraya-ink ${open ? 'rotate-180 text-hiraya-ink' : ''
+          className={`shrink-0 text-hiraya-ink-muted transition-transform duration-300 group-hover:text-hiraya-accent ${open ? 'rotate-180 text-hiraya-accent' : ''
             }`}
         />
       </button>
@@ -53,7 +61,7 @@ const AccordionItem = ({ title, subtitle, icon: Icon, defaultOpen = false, child
           }`}
       >
         <div className="overflow-hidden">
-          <div className="pb-5 text-[12.5px] text-hiraya-sand font-normal leading-relaxed">{children}</div>
+          <div className="pb-5 text-[12.5px] font-normal leading-relaxed text-hiraya-ink-soft">{children}</div>
         </div>
       </div>
     </div>

@@ -13,11 +13,13 @@ export const useOutfitRecommendations = (limit = 8) => {
     const queryKey = [
         'outfits-recommended',
         user?.id ?? 'guest',
-        user?.chest_bust ?? null,
-        user?.waist ?? null,
-        user?.hips ?? null,
-        user?.shoulder_width ?? null,
-        user?.sleeve_length ?? null,
+        /*
+         * The sizing profile is two labels now, so those are the only two values
+         * that can change the result. Listing five measurement columns that no
+         * longer exist only produced cache keys that were unique per null.
+         */
+        user?.upper_body_size ?? null,
+        user?.lower_body_size ?? null,
     ];
 
     return useQuery({

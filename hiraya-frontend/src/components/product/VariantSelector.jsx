@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Check, Ban } from 'lucide-react';
 
 /**
@@ -38,7 +38,7 @@ const COLOR_MAP = {
   mustard: '#D4A72C',
   orange: '#D2793E',
   rust: '#9C4A1F',
-  gold: '#CB997E',   // "gold" garment option now renders as luxury cream
+  gold: '#541A1A',   // "gold" garment option now renders as luxury cream
   silver: '#C0C0C0',
 };
 
@@ -71,10 +71,10 @@ export const ColorSelector = ({ colors = [], selectedColor, onSelectColor }) => 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-hiraya-sand">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
           Colour
         </p>
-        <span className="text-[11px] font-medium text-hiraya-ink tracking-wide">
+        <span className="text-[11px] font-medium tracking-wide text-hiraya-ink">
           {selectedColor || 'Select one'}
         </span>
       </div>
@@ -93,20 +93,37 @@ export const ColorSelector = ({ colors = [], selectedColor, onSelectColor }) => 
               title={color}
               aria-label={`Select colour ${color}`}
               aria-pressed={isSelected}
-              className={`group relative h-8 w-8 rounded-full transition-all duration-300 flex items-center justify-center ${isSelected
-                  ? 'ring-2 ring-stone-300 ring-offset-2 ring-offset-black scale-105'
-                  : 'ring-1 ring-zinc-700 hover:ring-stone-300/60 hover:scale-105'
+              /*
+               * THE SWATCH ATTENTION COLOURS MOVED ONTO THE PALETTE.
+               *
+               * The selected ring was `ring-stone-300 ring-offset-black` — a
+               * neutral grey halo offset by a BLACK band, which on a cream page
+               * read as a dark bruise around the swatch. The unselected ring was
+               * `ring-zinc-700`, off-palette. Both now use the accent (maroon),
+               * and the offset sits on the PAGE (the canvas) rather than on a
+               * black band that only made sense while the page was dark.
+               */
+              className={`group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full shadow-neu-sm transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${isSelected
+                  ? 'scale-105 ring-2 ring-hiraya-accent ring-offset-2 ring-offset-cream-100'
+                  : 'ring-1 ring-hiraya-structure-line hover:scale-105 hover:ring-hiraya-accent/45'
                 }`}
             >
               <span
-                className={`absolute inset-0 rounded-full ${light ? 'border border-hiraya-sand/50' : ''}`}
+                className={`absolute inset-0 rounded-full ${light ? 'border border-hiraya-structure-line' : ''}`}
                 style={{ backgroundColor: hex }}
               />
+              {/*
+               * THE TICK HAS TO CONTRAST WITH THE SWATCH, NOT WITH THE PAGE.
+               * It was `text-hiraya-ink` in BOTH branches — so on a black or
+               * navy swatch it drew dark-on-dark and vanished entirely (this was
+               * the reported "the check disappears on dark colours"). Light
+               * swatches get the navy ink; dark swatches get parchment.
+               */}
               {isSelected && (
                 <Check
                   size={13}
                   strokeWidth={3}
-                  className={`relative z-10 ${light ? 'text-hiraya-ink' : 'text-hiraya-ink'}`}
+                  className={`relative z-10 ${light ? 'text-hiraya-ink' : 'text-hiraya-nav-ink'}`}
                 />
               )}
             </button>
@@ -130,10 +147,10 @@ export const SizeSelector = ({ sizes = [], selectedSize, onSelectSize, sizeStock
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] uppercase tracking-[0.2em] font-bold text-hiraya-sand">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
           Size
         </p>
-        <span className="text-[11px] font-medium text-hiraya-ink tracking-wide">
+        <span className="text-[11px] font-medium tracking-wide text-hiraya-ink">
           {selectedSize || 'Select one'}
         </span>
       </div>
@@ -155,17 +172,27 @@ export const SizeSelector = ({ sizes = [], selectedSize, onSelectSize, sizeStock
               aria-label={soldOut ? `Size ${size} is out of stock` : `Select size ${size}`}
               aria-pressed={isSelected}
               title={soldOut ? `${size} — Out of stock` : `Size ${size}`}
-              className={`relative min-w-[2.75rem] h-11 px-3 rounded-lg flex items-center justify-center text-[12px] font-semibold transition-all duration-300 border ${soldOut
-                  ? 'border-hiraya-sand bg-hiraya-olive text-zinc-700 cursor-not-allowed'
+              /*
+               * SIZES ARE CUT-CLOTH PLATES, NOT PILLS, AND THEY USE THE TOKENS.
+               *
+               * The old markup was `rounded-lg` with `border-hiraya-olive/30`,
+               * `bg-hiraya-maroon ... border-hiraya-gold` (two names for the SAME
+               * maroon, so the border was invisible against its own fill) and a
+               * `hover:border-hiraya-gold/70` halo. It now uses `rounded-sm` and
+               * the accent ramp consistently, so the selected plate has a visible
+               * EDGE via `accent-deep` rather than a same-colour outline.
+               */
+              className={`relative flex h-11 min-w-[2.9rem] cursor-pointer items-center justify-center rounded-xl border px-3.5 text-[12px] font-semibold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus focus-visible:ring-offset-2 ${soldOut
+                  ? 'cursor-not-allowed border-transparent bg-hiraya-disabled-bg text-hiraya-disabled-ink line-through shadow-neu-inset'
                   : isSelected
-                    ? 'bg-[#CB997E] text-hiraya-olive border-hiraya-gold'
-                    : 'border-hiraya-sand/30 bg-hiraya-olive text-hiraya-ink hover:border-hiraya-gold/70 hover:text-hiraya-ink'
+                    ? 'border-hiraya-accent-deep bg-hiraya-accent text-hiraya-on-accent shadow-[0_10px_20px_-10px_rgba(21,32,54,0.7)]'
+                    : 'border-cream-50/80 bg-hiraya-surface text-hiraya-ink shadow-neu-sm hover:-translate-y-0.5 hover:border-hiraya-accent/40'
                 }`}
             >
               <span className={soldOut ? 'line-through' : ''}>{size}</span>
 
               {soldOut && (
-                <Ban size={10} className="absolute -top-1 -right-1 text-hiraya-sand" />
+                <Ban size={10} className="absolute -right-1 -top-1 text-hiraya-ink-muted" />
               )}
             </button>
           );

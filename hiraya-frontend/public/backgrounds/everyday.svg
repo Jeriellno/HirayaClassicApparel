@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1250" viewBox="0 0 1000 1250">
+  <!-- Everyday / Casual: a sunlit living room with plants and a reading shelf. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F0E5"/>
+      <stop offset="1" stop-color="#E8DCCB"/>
+    </linearGradient>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#DDEFF6"/>
+      <stop offset="1" stop-color="#FBF6EC"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CFA67A"/>
+      <stop offset="1" stop-color="#A97F55"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF4D6" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#FFF4D6" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="lamp" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE9BE" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#FFE9BE" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1000" height="1250" fill="url(#wall)"/>
+
+  <!-- window, left, with sheer curtain -->
+  <rect x="40" y="170" width="330" height="560" rx="6" fill="#B89A78"/>
+  <rect x="56" y="186" width="298" height="528" fill="url(#win)"/>
+  <rect x="200" y="186" width="10" height="528" fill="#B89A78"/>
+  <rect x="56" y="440" width="298" height="10" fill="#B89A78"/>
+  <g fill="#A9CBB0" opacity="0.8">
+    <ellipse cx="120" cy="640" rx="70" ry="50"/>
+    <ellipse cx="290" cy="660" rx="80" ry="45"/>
+  </g>
+  <path d="M30 150 H130 C 110 350 120 560 90 760 H30 z" fill="#FFFFFF" opacity="0.7"/>
+  <path d="M380 150 H300 C 320 350 310 560 340 760 H380 z" fill="#FFFFFF" opacity="0.6"/>
+  <rect x="20" y="140" width="380" height="12" rx="6" fill="#8C6D4F"/>
+  <!-- sunbeam across the room -->
+  <polygon points="360,190 640,190 1000,1000 700,1000" fill="url(#sun)" opacity="0.6"/>
+
+  <!-- pendant lamp -->
+  <line x1="560" y1="0" x2="560" y2="150" stroke="#5C4A3A" stroke-width="3"/>
+  <circle cx="560" cy="210" r="140" fill="url(#lamp)"/>
+  <path d="M510 150 h100 l30 60 h-160 z" fill="#E9C27C"/>
+  <ellipse cx="560" cy="212" rx="80" ry="8" fill="#FFF3D1"/>
+
+  <!-- shelf with books + plant, right -->
+  <rect x="700" y="300" width="260" height="14" rx="3" fill="#8C6D4F"/>
+  <rect x="700" y="470" width="260" height="14" rx="3" fill="#8C6D4F"/>
+  <g>
+    <rect x="715" y="228" width="22" height="72" fill="#C46A4C"/>
+    <rect x="740" y="240" width="18" height="60" fill="#5C7C8A"/>
+    <rect x="761" y="220" width="24" height="80" fill="#D9B062"/>
+    <rect x="788" y="236" width="16" height="64" fill="#7A8F64"/>
+    <path d="M880 300 h50 l-6 -46 h-38 z" fill="#E9E1D3"/>
+    <path d="M905 254 C 880 210 860 200 840 196 C 870 215 890 230 905 254 z" fill="#6E9A6E"/>
+    <path d="M905 254 C 925 205 945 195 965 190 C 945 215 925 230 905 254 z" fill="#5B8A5E"/>
+    <path d="M905 254 C 900 210 905 185 915 165 C 918 200 912 230 905 254 z" fill="#6E9A6E"/>
+    <rect x="720" y="420" width="70" height="50" rx="4" fill="#F1E6D2"/>
+    <rect x="800" y="400" width="20" height="70" fill="#A56B8C"/>
+    <rect x="823" y="410" width="20" height="60" fill="#5C7C8A"/>
+    <circle cx="900" cy="440" r="26" fill="#E3C9A2"/>
+  </g>
+
+  <!-- wooden floor + rug -->
+  <rect x="0" y="900" width="1000" height="350" fill="url(#floor)"/>
+  <rect x="0" y="880" width="1000" height="20" fill="#E0D2BD"/>
+  <g stroke="#9A7149" stroke-width="2" opacity="0.6">
+    <line x1="0" y1="960" x2="1000" y2="960"/>
+    <line x1="0" y1="1040" x2="1000" y2="1040"/>
+    <line x1="0" y1="1130" x2="1000" y2="1130"/>
+    <line x1="0" y1="1230" x2="1000" y2="1230"/>
+  </g>
+  <ellipse cx="500" cy="1120" rx="420" ry="110" fill="#E9DCC6"/>
+  <ellipse cx="500" cy="1120" rx="380" ry="92" fill="none" stroke="#C9A77C" stroke-width="6"/>
+
+  <!-- monstera in a pot, floor right -->
+  <path d="M860 1000 h110 l-12 150 h-86 z" fill="#D8CDBB"/>
+  <g fill="#4F8158">
+    <path d="M915 1000 C 850 930 800 900 760 900 C 790 950 850 990 915 1000 z"/>
+    <path d="M915 1000 C 960 910 1000 880 1040 870 C 1010 930 970 980 915 1000 z"/>
+    <path d="M915 1000 C 900 900 920 840 950 800 C 960 870 945 950 915 1000 z"/>
+  </g>
+  <!-- sofa arm, left -->
+  <path d="M-20 900 h210 a40 40 0 0 1 40 40 v160 h-250 z" fill="#9FB3A6"/>
+  <rect x="-20" y="880" width="120" height="70" rx="30" fill="#B7C8BD"/>
+</svg>

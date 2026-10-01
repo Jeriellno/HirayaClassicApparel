@@ -1,44 +1,108 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Check, X, CheckCircle2, Ruler, ChevronRight, ChevronLeft, AlertCircle, Loader2 } from 'lucide-react';
+﻿import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Check, X, CheckCircle2, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { parseApiError } from '../api/axios';
+import AuthShell from '../components/auth/AuthShell';
+import {
+    PASSWORD_REQUIREMENTS,
+    meetsPasswordPolicy,
+    passwordPolicyError,
+} from '../utils/passwordPolicy';
 
-// Shared Gold & Black input styling so every field on this page stays visually
-// identical without repeating a 200-character class string per input.
-const FIELD_BASE =
-    'w-full rounded-xl border bg-hiraya-cream/50 px-5 py-3.5 text-sm text-hiraya-ink placeholder-hiraya-sand outline-none transition-all focus:ring-1';
-const FIELD_OK = 'border-hiraya-sand/30 focus:border-[#CB997E]/60 focus:ring-[#CB997E]/25';
-const FIELD_ERR = 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30';
+// Shared field styling, drawn from the .field primitive so every input on this
+// page stays identical without repeating a long class string per input. Only the
+// error overrides differ between fields.
+const FIELD_BASE = 'field';
+const FIELD_OK = '';
+const FIELD_ERR = 'border-red-500/50 focus:border-red-500';
 const fieldClass = (hasError) => `${FIELD_BASE} ${hasError ? FIELD_ERR : FIELD_OK}`;
 
-// 5 Core Standardized Body Measurements
-// (identical for Men and Women across all Hiraya surfaces)
-const CORE_MEASUREMENT_FIELDS = [
-    { key: 'chest_bust',     label: 'Chest / Bust',    placeholder: '90'  },
-    { key: 'waist',          label: 'Waist',           placeholder: '75'  },
-    { key: 'hips',           label: 'Hips',            placeholder: '95'  },
-    { key: 'shoulder_width', label: 'Shoulder Width',  placeholder: '42'  },
-    { key: 'sleeve_length',  label: 'Sleeve Length',   placeholder: '62'  },
+/*
+ * EMAIL SHAPE — the same check Login.jsx and the Forgot gateway use.
+ *
+ * WHY IT HAD TO BE ADDED HERE.
+ *
+ * The old `validateStep1` checked that the email was PRESENT but never that it
+ * was well-FORMED, so "not-an-email" passed and the customer was marched
+ * through registration before anything objected.
+ *
+ * The `type="email"` input does not help: the whole form is `noValidate`, which
+ * exists precisely to switch off the browser's own bubbles, and the browser's
+ * "enter an email address" message is in the browser's language, not the app's.
+ *
+ * Checking the shape here is also what makes the two pages agree. Login rejects
+ * "not-an-email" in the same keystroke, so Register accepting it made the same
+ * input behave differently on two screens of the same flow.
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/*
+ * REGISTRATION IS ONE STEP AGAIN — BUT IT STILL COLLECTS A SIZING PROFILE.
+ *
+ * The "5 Core Body Profile" (chest / bust, waist, hips, shoulder width, sleeve
+ * length in centimetres) is what was removed: forcing five numbers before an
+ * account could exist meant one typo locked a shopper out, and five typed
+ * decimals could never be kept in step with the size chart the store actually
+ * sells from.
+ *
+ * What the form now asks for instead is the SAME three things Account Settings
+ * holds (see VirtualTryOnSection.jsx): an upper body size, a lower body size
+ * and a fit style. Asking here means the sizing profile is complete the moment
+ * the account is created, instead of a shopper having to remember to go and
+ * fill it in later before recommendations and AI try-on had anything to work
+ * with. It is still one step, and still far shorter than five measurement boxes.
+ */
+/*
+ * A SIZING PROFILE WITH NO PRE-PICKED ANSWER.
+ *
+ * These three fields used to default to M / M / Regular. That was wrong for two
+ * reasons, and both were reported from the shop floor:
+ *
+ *  1. It INVENTED an answer. A customer who never thought about it still ended
+ *     up with a confident M in the database, which then drove size suggestions
+ *     and AI try-on as if it had been chosen. Better a blank that the customer
+ *     fills in than a guess the store treats as fact.
+ *  2. A pre-selected `<select>` cannot show a placeholder, so the two size
+ *     boxes opened on "Medium (M)" / "Medium (M)" with no label explaining
+ *     which was which. Two identical-looking dropdowns is exactly the confusion
+ *     that made people pick the wrong one.
+ *
+ * So the empty state is the DEFAULT, every box says what it is, and the form
+ * refuses to submit until all three are answered. The empty option is
+ * `disabled`, so it cannot be re-selected once a real choice is made.
+ */
+const SIZE_LABELS = [
+    { value: 'XS', text: 'Extra Small (XS)' },
+    { value: 'S', text: 'Small (S)' },
+    { value: 'M', text: 'Medium (M)' },
+    { value: 'L', text: 'Large (L)' },
+    { value: 'XL', text: 'Extra Large (XL)' },
+    { value: '2XL', text: '2X Large (2XL)' },
+];
+
+/*
+ * THE FIT LADDER MIRRORS THE "Fit Style" SELECT IN ACCOUNT SETTINGS, and the
+ * server enforces the same three values (`in:slim,regular,oversized` in
+ * AuthController::register). The form and the API therefore cannot disagree:
+ * there is no fourth option here that the backend would reject.
+ */
+const FIT_OPTIONS = [
+    { value: 'slim', text: 'Slim / Fitted' },
+    { value: 'regular', text: 'Regular' },
+    { value: 'oversized', text: 'Oversized / Loose' },
 ];
 
 const Register = () => {
-    const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
-        // Step 1 — account
         full_name: '',
         email: '',
         password: '',
         password_confirmation: '',
+        upper_body_size: '',
+        lower_body_size: '',
+        preferred_fit: '',
         agree_terms: false,
-
-        // Step 2 — 5 Core Body Measurements
-        chest_bust: '',
-        waist: '',
-        hips: '',
-        shoulder_width: '',
-        sleeve_length: '',
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -53,13 +117,20 @@ const Register = () => {
     // that token and forced a second login trip.
     const { register } = useAuth();
 
-    const requirements = [
-        { label:"At least 8 characters", valid: formData.password.length >= 8 },
-        { label:"At least 1 uppercase letter", valid: /[A-Z]/.test(formData.password) },
-        { label:"At least 1 number or symbol", valid: /[0-9!@#$%^&*]/.test(formData.password) },
-    ];
+    /*
+     * THE CHECKLIST IS THE SHARED POLICY, NOT A LOCAL LIST.
+     *
+     * These three requirements used to be re-typed here, and the SERVER never
+     * checked them. They now come from utils/passwordPolicy.js, which the reset
+     * page and App\Rules\PasswordStrength enforce identically, so the form can
+     * no longer promise more (or less) than the API does.
+     */
+    const requirements = PASSWORD_REQUIREMENTS.map((requirement) => ({
+        label: requirement.label,
+        valid: requirement.test(formData.password),
+    }));
 
-    const isPasswordValid = requirements.every(req => req.valid);
+    const isPasswordValid = meetsPasswordPolicy(formData.password);
     const passwordsMatch = formData.password_confirmation && formData.password === formData.password_confirmation;
 
     const updateField = (field, value) => {
@@ -67,88 +138,61 @@ const Register = () => {
         if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
     };
 
-    const validateStep1 = () => {
-        let errs = {};
-        if (!formData.full_name.trim()) errs.full_name ="Full Name is required";
-        if (!formData.email.trim()) errs.email ="Email Address is required";
-        if (!formData.password) errs.password ="Password is required";
-        else if (!isPasswordValid) errs.password ="Password does not meet requirements";
-        if (formData.password !== formData.password_confirmation) {
-            errs.password_confirmation ="Passwords do not match";
+    const validate = () => {
+        const errs = {};
+        if (!formData.full_name.trim()) errs.full_name = "Full Name is required";
+        if (!formData.email.trim()) errs.email = "Email Address is required";
+        else if (!EMAIL_REGEX.test(formData.email.trim())) errs.email = "Please enter a valid email address.";
+        if (!formData.upper_body_size) errs.upper_body_size = "Please choose your upper body size.";
+        else if (!SIZE_LABELS.some((s) => s.value === formData.upper_body_size)) {
+            errs.upper_body_size = "Please choose a valid upper body size.";
         }
-        if (!formData.agree_terms) errs.agree_terms ="You must accept the terms";
+        if (!formData.lower_body_size) errs.lower_body_size = "Please choose your lower body size.";
+        else if (!SIZE_LABELS.some((s) => s.value === formData.lower_body_size)) {
+            errs.lower_body_size = "Please choose a valid lower body size.";
+        }
+        if (!formData.preferred_fit) errs.preferred_fit = "Please choose your fit style.";
+        else if (!FIT_OPTIONS.some((f) => f.value === formData.preferred_fit)) {
+            errs.preferred_fit = "Please choose a valid fit style.";
+        }
+        if (!formData.password) errs.password = "Password is required";
+        else if (!isPasswordValid) errs.password = passwordPolicyError(formData.password);
+        if (formData.password !== formData.password_confirmation) {
+            errs.password_confirmation = "Passwords do not match";
+        }
+        if (!formData.agree_terms) errs.agree_terms = "You must accept the terms";
 
         setErrors(errs);
         return Object.keys(errs).length === 0;
-    };
-
-    // All 5 Core fields are optional during registration; if any value is
-    // provided, it must fall within a sensible body-measurement range.
-    const validateStep2 = () => {
-        let errs = {};
-        const ranges = {
-            chest_bust:     { min: 40, max: 200, label: 'Chest / Bust' },
-            waist:          { min: 40, max: 200, label: 'Waist' },
-            hips:           { min: 40, max: 200, label: 'Hips' },
-            shoulder_width: { min: 20, max: 100, label: 'Shoulder Width' },
-            sleeve_length:  { min: 30, max: 100, label: 'Sleeve Length' },
-        };
-
-        Object.entries(ranges).forEach(([key, { min, max, label }]) => {
-            const v = formData[key];
-            if (v !== '' && v !== null && v !== undefined) {
-                const n = Number(v);
-                if (Number.isNaN(n) || n < min || n > max) {
-                    errs[key] = `${label} must be between ${min} and ${max}`;
-                }
-            }
-        });
-
-        setErrors(prev => ({ ...prev, ...errs }));
-        return Object.keys(errs).length === 0;
-    };
-
-    const handleNext = () => {
-        if (validateStep1()) setStep(2);
-    };
-
-    const handleBack = () => {
-        setErrors({});
-        setStep(1);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrors({});
 
-        if (!validateStep1()) {
-            setStep(1);
-            return;
-        }
-        if (!validateStep2()) return;
+        if (!validate()) return;
 
         setIsLoading(true);
         try {
             /**
-             * Exact payload keys expected by Laravel's /api/register:
-             *   full_name, email, password, password_confirmation + optional
-             *   5 Core body measurements.
-             * Empty measurement strings are dropped so the backend stores NULL
-             * instead of failing numeric validation on an empty string.
+             * Payload keys expected by Laravel's /api/register:
+             *   full_name, email, password, password_confirmation,
+             *   upper_body_size, lower_body_size, preferred_fit.
+             *
+             * The three sizing fields are sent for the same reason the backend
+             * validates them: the account's sizing profile is written in the
+             * same INSERT, so a customer who answers here lands on the shop
+             * with a complete profile rather than an empty one.
              */
             const payload = {
                 full_name: formData.full_name.trim(),
                 email: formData.email.trim().toLowerCase(),
                 password: formData.password,
                 password_confirmation: formData.password_confirmation,
+                upper_body_size: formData.upper_body_size,
+                lower_body_size: formData.lower_body_size,
+                preferred_fit: formData.preferred_fit,
             };
-
-            CORE_MEASUREMENT_FIELDS.forEach(({ key }) => {
-                const value = formData[key];
-                if (value !== '' && value !== null && value !== undefined) {
-                    payload[key] = Number(value);
-                }
-            });
 
             const response = await register(payload);
             const status = response?.status;
@@ -165,13 +209,6 @@ const Register = () => {
             if (Object.keys(fieldErrors).length > 0) {
                 // Bind each backend validation message under its own input.
                 setErrors(fieldErrors);
-
-                // A field error on step-1 fields means the customer must be sent
-                // back to step 1 to actually see it.
-                const step1Fields = ['full_name', 'email', 'password', 'password_confirmation'];
-                if (step1Fields.some((field) => field in fieldErrors)) {
-                    setStep(1);
-                }
             } else if (status === 429) {
                 setErrors({ general: message });
             } else {
@@ -183,252 +220,288 @@ const Register = () => {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black p-4 font-sans">
-            {/* Ambient gold glow */}
-            <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -top-1/3 left-1/2 h-[70vh] w-[70vh] -translate-x-1/2 rounded-full bg-hiraya-cream/\[0.05\] blur-[120px]" />
-                <div className="absolute bottom-0 right-0 h-[40vh] w-[40vh] rounded-full bg-hiraya-cream/\[0.03\] blur-[100px]" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(245,235,224,0.08),transparent_60%)]" />
-            </div>
-
-            <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="relative z-10 w-full max-w-[460px]"
-            >
-                <div className="overflow-hidden rounded-[2rem] border-hiraya-sand/30 bg-hiraya-cream-deep/80 p-8 shadow-2xl backdrop-blur-xl">
-                    <div className="mb-6 text-center">
-                        <h1 className="font-serif text-3xl font-light uppercase leading-none tracking-[0.2em] text-hiraya-ink">
-                            {step === 1 ? 'Register' : 'Body Profile'}
-                        </h1>
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.25em] text-hiraya-sand">
-                            {step === 1
-                                ? 'Create your account'
-                                : '5 Core measurements for AI virtual fitting'}
-                        </p>
-
-                        <div className="mt-5 flex items-center justify-center gap-2">
-                            <div className={`h-1 w-8 rounded-full transition-colors ${step >= 1 ? 'bg-[#CB997E]' : 'bg-hiraya-sand/70'}`} />
-                            <div className={`h-1 w-8 rounded-full transition-colors ${step >= 2 ? 'bg-[#CB997E]' : 'bg-hiraya-sand/70'}`} />
-                        </div>
-                    </div>
-
+        /*
+         * The sliding Sign In / Create Account card (see AuthShell). The shell
+         * owns the page, the heading and the switch back to /login; the form
+         * below is this page's own, unchanged in fields, validation and submit.
+         *
+         * On desktop the identity and password pairs sit side by side, which is
+         * what keeps the longer form inside the same card height as Sign In —
+         * so the card does not jump in size when the overlay slides across.
+         */
+        <AuthShell mode="signup" title="Create Account" kicker="Join Hiraya">
+            <div>
                     {errors.general && (
-                        <div className="mb-4 flex items-start gap-2 rounded-xl border-red-500/30 bg-red-500/10 p-3 text-center text-xs font-medium text-red-400">
+                        <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-600/40 bg-red-500/12 p-3 text-xs font-medium text-red-700">
                             <AlertCircle size={14} className="mt-0.5 shrink-0" />
                             <span className="leading-relaxed">{errors.general}</span>
                         </div>
                     )}
 
-                    <AnimatePresence mode="wait">
-                        {step === 1 && (
-                            <motion.form
-                                key="step-1"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                                transition={{ duration: 0.2 }}
-                                onSubmit={(e) => { e.preventDefault(); handleNext(); }}
-                                noValidate
-                                className="space-y-3.5"
-                            >
-                                {/* FULL NAME */}
-                                <div>
-                                    <input
-                                        type="text"
-                                        placeholder="Full Name"
-                                        autoComplete="name"
-                                        className={fieldClass(errors.full_name)}
-                                        value={formData.full_name}
-                                        onChange={(e) => updateField('full_name', e.target.value)}
-                                    />
-                                    {errors.full_name && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-400">{errors.full_name}</p>}
-                                </div>
+                    <form
+                        onSubmit={handleSubmit}
+                        noValidate
+                        className="space-y-3.5"
+                    >
+                        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:items-start">
+                        {/* FULL NAME */}
+                        <div>
+                            <input
+                                type="text"
+                                placeholder="Full Name"
+                                autoComplete="name"
+                                className={fieldClass(errors.full_name)}
+                                value={formData.full_name}
+                                onChange={(e) => updateField('full_name', e.target.value)}
+                            />
+                            {errors.full_name && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{errors.full_name}</p>}
+                        </div>
 
-                                {/* EMAIL */}
-                                <div>
-                                    <input
-                                        type="email"
-                                        placeholder="Email Address"
-                                        autoComplete="email"
-                                        className={fieldClass(errors.email)}
-                                        value={formData.email}
-                                        onChange={(e) => updateField('email', e.target.value)}
-                                    />
-                                    {errors.email && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-400">{errors.email}</p>}
-                                </div>
+                        {/* EMAIL */}
+                        <div>
+                            <input
+                                type="email"
+                                placeholder="Email Address"
+                                autoComplete="email"
+                                className={fieldClass(errors.email)}
+                                value={formData.email}
+                                onChange={(e) => updateField('email', e.target.value)}
+                            />
+                            {errors.email && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{errors.email}</p>}
+                        </div>
+                        </div>
 
-                                {/* PASSWORD */}
-                                <div>
-                                    <div className="relative">
-                                        <input
-                                            type={showPassword ?"text" :"password"}
-                                            placeholder="Password"
-                                            autoComplete="new-password"
-                                            className={`${fieldClass(errors.password)} pr-12`}
-                                            value={formData.password}
-                                            onChange={(e) => updateField('password', e.target.value)}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-hiraya-sand transition-colors hover:text-hiraya-ink"
-                                        >
-                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                        </button>
-                                    </div>
-                                    {formData.password.length > 0 && (
-                                        <div className="mt-2 space-y-1 rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 p-2.5">
-                                            {requirements.map((req, idx) => (
-                                                <div key={idx} className="flex items-center gap-1.5">
-                                                    {req.valid
-                                                        ? <Check size={12} className="text-emerald-500 shrink-0" />
-                                                        : <X size={12} className="shrink-0 text-hiraya-sand" />}
-                                                    <span className={`text-[10px] ${req.valid ? 'font-medium text-emerald-500' : 'text-hiraya-sand'}`}>
-                                                        {req.label}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {errors.password && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-400">{errors.password}</p>}
-                                </div>
-
-                                {/* CONFIRM PASSWORD */}
-                                <div>
-                                    <div className="relative">
-                                        <input
-                                            type={showConfirmPassword ?"text" :"password"}
-                                            placeholder="Confirm Password"
-                                            autoComplete="new-password"
-                                            className={`${fieldClass(errors.password_confirmation)} pr-20`}
-                                            value={formData.password_confirmation}
-                                            onChange={(e) => updateField('password_confirmation', e.target.value)}
-                                        />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                            {passwordsMatch && <CheckCircle2 size={16} className="text-emerald-500" />}
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                                                className="text-hiraya-sand transition-colors hover:text-hiraya-ink"
-                                            >
-                                                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {errors.password_confirmation && (
-                                        <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-400">{errors.password_confirmation}</p>
-                                    )}
-                                </div>
-
-                                {/* TERMS */}
-                                <div className="pt-1 px-1">
-                                    <label className="flex cursor-pointer items-start gap-2 text-xs text-hiraya-sand">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.agree_terms}
-                                            onChange={(e) => updateField('agree_terms', e.target.checked)}
-                                            className="mt-0.5 cursor-pointer rounded border-hiraya-sand/40 bg-black text-hiraya-ink accent-stone-200 focus:ring-0"
-                                        />
-                                        <span className="select-none text-[11px] leading-tight">
-                                            I agree to the <span className="text-hiraya-ink underline">Terms of Service</span> and <span className="text-hiraya-ink underline">Privacy Policy</span>.
-                                        </span>
-                                    </label>
-                                    {errors.agree_terms && <p className="mt-1 text-[10px] font-medium text-red-400">{errors.agree_terms}</p>}
-                                </div>
-
+                        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:items-start">
+                        {/* PASSWORD */}
+                        <div>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Password"
+                                    autoComplete="new-password"
+                                    className={`${fieldClass(errors.password)} pr-12`}
+                                    value={formData.password}
+                                    onChange={(e) => updateField('password', e.target.value)}
+                                />
                                 <button
-                                    type="submit"
-                                    disabled={!formData.agree_terms}
-                                    className={`mt-2 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-xs font-bold uppercase tracking-widest transition-all ${
-                                        formData.agree_terms
-                                            ? 'cursor-pointer bg-[#CB997E] text-hiraya-olive shadow-lg shadow-stone-200/10 hover:bg-hiraya-cream-deep active:scale-95'
-                                            : 'cursor-not-allowed bg-hiraya-sand text-hiraya-sand'
-                                    }`}
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-hiraya-ink-muted transition-colors hover:text-hiraya-accent cursor-pointer"
                                 >
-                                    Continue <ChevronRight size={14} />
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
-                            </motion.form>
-                        )}
-
-                        {step === 2 && (
-                            <motion.form
-                                key="step-2"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                transition={{ duration: 0.2 }}
-                                onSubmit={handleSubmit}
-                                noValidate
-                                className="space-y-3.5"
-                            >
-                                <div className="mb-2 flex items-center gap-2 text-hiraya-sand">
-                                    <Ruler size={14} className="text-hiraya-ink" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest">
-                                        All 5 fields are optional — you can skip and update later in Settings.
-                                    </span>
-                                </div>
-
-                                <div className="space-y-3">
-                                    {CORE_MEASUREMENT_FIELDS.map(({ key, label, placeholder }) => (
-                                        <div key={key}>
-                                            <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-hiraya-sand">
-                                                {label} (cm)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                step="0.1"
-                                                name={key}
-                                                placeholder={placeholder}
-                                                className={fieldClass(errors[key])}
-                                                value={formData[key]}
-                                                onChange={(e) => updateField(key, e.target.value)}
-                                            />
-                                            {errors[key] && (
-                                                <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-400">{errors[key]}</p>
-                                            )}
+                            </div>
+                            {formData.password.length > 0 && (
+                                <div className="mt-2 space-y-1 rounded-xl border border-hiraya-structure-line bg-hiraya-surface-raised p-2.5 shadow-neu-sm">
+                                    {requirements.map((req, idx) => (
+                                        <div key={idx} className="flex items-center gap-1.5">
+                                            {req.valid
+                                                ? <Check size={12} className="text-emerald-600 shrink-0" />
+                                                : <X size={12} className="shrink-0 text-hiraya-ink-muted" />}
+                                            <span className={`text-[10px] ${req.valid ? 'font-medium text-emerald-700' : 'text-hiraya-ink-muted'}`}>
+                                                {req.label}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
+                            )}
+                            {errors.password && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{errors.password}</p>}
+                        </div>
 
-                                <div className="grid grid-cols-2 gap-2 pt-2">
+                        {/* CONFIRM PASSWORD */}
+                        <div>
+                            <div className="relative">
+                                <input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    placeholder="Confirm Password"
+                                    autoComplete="new-password"
+                                    className={`${fieldClass(errors.password_confirmation)} pr-20`}
+                                    value={formData.password_confirmation}
+                                    onChange={(e) => updateField('password_confirmation', e.target.value)}
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                    {passwordsMatch && <CheckCircle2 size={16} className="text-emerald-600" />}
                                     <button
                                         type="button"
-                                        onClick={handleBack}
-                                        className="flex items-center justify-center gap-2 rounded-full border-hiraya-sand/30 bg-hiraya-sand/60 py-3.5 text-xs font-bold uppercase tracking-widest text-hiraya-ink transition-all hover:border-hiraya-gold/50 hover:text-hiraya-ink active:scale-95"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                        className="text-hiraya-ink-muted transition-colors hover:text-hiraya-accent cursor-pointer"
                                     >
-                                        <ChevronLeft size={14} /> Back
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={isLoading}
-                                        className="flex items-center justify-center gap-2 rounded-full bg-[#CB997E] py-3.5 text-xs font-bold uppercase tracking-widest text-hiraya-olive shadow-lg shadow-stone-200/10 transition-all hover:bg-hiraya-cream-deep active:scale-95 disabled:cursor-not-allowed disabled:bg-hiraya-sand disabled:text-hiraya-sand disabled:shadow-none"
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader2 size={14} className="animate-spin" /> Creating Account...
-                                            </>
-                                        ) : (
-                                            'Finish'
-                                        )}
+                                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                     </button>
                                 </div>
-                            </motion.form>
-                        )}
-                    </AnimatePresence>
+                            </div>
+                            {errors.password_confirmation && (
+                                <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{errors.password_confirmation}</p>
+                            )}
+                        </div>
+                        </div>
 
-                    <div className="mt-6 text-center">
-                        <p className="text-[11px] text-hiraya-sand">
-                            Already have an account?{' '}
-                            <Link to="/login" className="ml-1 border-b border-hiraya-olive/20 font-bold text-hiraya-ink transition-colors hover:text-hiraya-ink">Sign In</Link>
-                        </p>
-                    </div>
-                </div>
-            </motion.div>
-        </div>
+                        {/*
+                         * SIZING PROFILE — upper size, lower size, fit style.
+                         *
+                         * These replace the old "5 Core Body Measurements" step
+                         * (chest / waist / hips / shoulder / sleeve in
+                         * centimetres). Same three fields Account Settings
+                         * holds, so a customer is never asked to describe
+                         * themselves twice in two different ways; the backend
+                         * resolves centimetres from the size chart behind these
+                         * labels, which is what makes recommendations and AI
+                         * try-on agree with the catalogue.
+                         *
+                         * EVERY BOX IS LABELLED AND STARTS EMPTY. Two size
+                         * dropdowns opening on the same "Medium (M)" with
+                         * nothing above them to tell them apart is unreadable —
+                         * which one is the shirt and which the trousers? The
+                         * label sits above its own box, and the first option is
+                         * the name of the choice ("Upper body (tops & shirts)")
+                         * rather than a size, so the box is self-describing
+                         * before it is touched.
+                         */}
+                        <div className="pt-2">
+                            <p className="kicker mb-2.5 text-hiraya-ink-muted">Sizing Profile</p>
+                            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                                <div>
+                                    <label
+                                        htmlFor="upper_body_size"
+                                        className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
+                                    >
+                                        Upper Body Size
+                                    </label>
+                                    <select
+                                        id="upper_body_size"
+                                        name="upper_body_size"
+                                        className={`${fieldClass(errors.upper_body_size)} cursor-pointer px-3 text-[13px]`}
+                                        value={formData.upper_body_size}
+                                        onChange={(e) => updateField('upper_body_size', e.target.value)}
+                                    >
+                                        <option value="" disabled>
+                                            Tops
+                                        </option>
+                                        {SIZE_LABELS.map((size) => (
+                                            <option key={size.value} value={size.value}>
+                                                {size.text}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.upper_body_size && (
+                                        <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">
+                                            {errors.upper_body_size}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="lower_body_size"
+                                        className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
+                                    >
+                                        Lower Body Size
+                                    </label>
+                                    <select
+                                        id="lower_body_size"
+                                        name="lower_body_size"
+                                        className={`${fieldClass(errors.lower_body_size)} cursor-pointer px-3 text-[13px]`}
+                                        value={formData.lower_body_size}
+                                        onChange={(e) => updateField('lower_body_size', e.target.value)}
+                                    >
+                                        <option value="" disabled>
+                                            Bottoms
+                                        </option>
+                                        {SIZE_LABELS.map((size) => (
+                                            <option key={size.value} value={size.value}>
+                                                {size.text}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.lower_body_size && (
+                                        <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">
+                                            {errors.lower_body_size}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="preferred_fit"
+                                        className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted"
+                                    >
+                                        Fit Style
+                                    </label>
+                                    <select
+                                        id="preferred_fit"
+                                        name="preferred_fit"
+                                        className={`${fieldClass(errors.preferred_fit)} cursor-pointer px-3 text-[13px]`}
+                                        value={formData.preferred_fit}
+                                        onChange={(e) => updateField('preferred_fit', e.target.value)}
+                                    >
+                                        <option value="" disabled>
+                                            Fit style
+                                        </option>
+                                        {FIT_OPTIONS.map((fit) => (
+                                            <option key={fit.value} value={fit.value}>
+                                                {fit.text}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.preferred_fit && (
+                                        <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">
+                                            {errors.preferred_fit}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="mt-2.5 pl-1 text-[10px] leading-relaxed text-hiraya-ink-muted">
+                                You can change these any time in{' '}
+                                <span className="font-semibold text-hiraya-ink">Account Settings</span> — they
+                                power size suggestions and AI try-on fits.
+                            </p>
+                        </div>
+
+                        {/* TERMS */}
+                        <div className="pt-1 px-1">
+                            <label className="flex cursor-pointer items-start gap-2 text-hiraya-ink-muted">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.agree_terms}
+                                    onChange={(e) => updateField('agree_terms', e.target.checked)}
+                                    className="mt-0.5 cursor-pointer accent-hiraya-accent focus:ring-0"
+                                />
+                                <span className="select-none text-[11px] leading-tight">
+                                    I agree to the <span className="text-hiraya-ink underline">Terms of Service</span> and <span className="text-hiraya-ink underline">Privacy Policy</span>.
+                                </span>
+                            </label>
+                            {errors.agree_terms && <p className="mt-1 text-[10px] font-medium text-red-700">{errors.agree_terms}</p>}
+                        </div>
+
+                        {/*
+                         * The gate on the terms checkbox is unchanged — the button
+                         * is disabled until it is ticked. This now SUBMITS rather
+                         * than advancing to a second step, so it is also disabled
+                         * while the request is in flight (otherwise a double-click
+                         * created two accounts).
+                         */}
+                        <button
+                            type="submit"
+                            disabled={!formData.agree_terms || isLoading}
+                            className={`btn-primary group mt-2 w-full rounded-full py-3.5 ${
+                                formData.agree_terms && !isLoading ? '' : 'cursor-not-allowed'
+                            }`}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 size={14} className="animate-spin" /> Creating Account...
+                                </>
+                            ) : (
+                                <>Create Account <ChevronRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" /></>
+                            )}
+                        </button>
+                        {/* "Sign in" now lives in the shell's overlay (desktop)
+                            and its Sign In / Create Account switch (mobile). */}
+                    </form>
+            </div>
+        </AuthShell>
     );
 };
 

@@ -1,135 +1,264 @@
+﻿import PropTypes from 'prop-types';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabase';
+import {
+    getAssuranceLevels,
+    isPrivilegedRole,
+    isHirayaRole,
+    roleOf as supabaseRoleOf,
+    fetchAuthoritativeRole,
+    wasAal2JustConfirmed,
+} from '../services/supabaseMfa';
 
-/**
- * Normalizes any role value the API may hand us into a comparable token:
- *   'Admin' | 'ROLE_ADMIN' | 'super_admin' | 'super-admin'  -> 'admin' / 'superadmin'
- *
- * The backend stores a plain VARCHAR role ('user' | 'admin'), but being
- * tolerant here means a future `super_admin` (or an `is_admin` boolean) can
- * never silently lock a valid admin out of the console.
- */
 export const normalizeRole = (raw) =>
     String(raw || '')
         .toLowerCase()
         .replace(/[\s_-]+/g, '');
 
-/**
- * TEMPORARY ADMIN ACCESS SWITCH — ⚠️ DEVELOPMENT ONLY ⚠️
- *
- * When `true`, every admin/superadmin gate short-circuits to allow access, so
- * http://localhost:5173/admin loads the console with NO login and NO role
- * check. It ONLY unlocks the UI shell — the backend still gates /api/admin/*
- * with `auth:sanctum` + `admin`, so while the bypass is on the console comes up
- * looking healthy and every request silently 401s (no token is attached).
- *
- * WHY THIS IS `false` (was `true` — that is what broke "Add New Garment").
- *
- * With the bypass ON, /admin renders its whole UI shell with NO login and NO
- * token, but every call it then makes still hits the backend, which DOES gate
- * /api/admin/* with `auth:sanctum` + `admin` (routes/api.php). With no token
- * attached, the console comes up looking perfectly healthy and every request
- * quietly fails:
- *
- *   GET  /api/admin/orders                -> 401 Unauthenticated
- *   POST /api/admin/products/analyze-image -> 401 Unauthenticated
- *
- * That is the reported symptom: the admin "Add New Garment" modal opens and
- * the AI auto-fill (analyze-image) / background cut-out never runs, so the
- * product keeps the ORIGINAL photo. The UI gate was lifted, the API gate was
- * not — the two disagreed.
- *
- * `false` re-arms the strict `role === 'admin'` / `role === 'superadmin'` check
- * and the signed-out -> /login redirect, so the console is only ever reachable
- * WITH a real session token — the same one the API demands. Set to `true` ONLY
- * when you deliberately want an unauthenticated shell for pure UI work (the
- * API calls will 401 while it is on).
- *
- * ⚠️ CURRENTLY `true` — DEVELOPER REQUEST.
- *
- * It was set to `true` so that http://localhost:5173/admin and /superadmin open
- * straight from the URL bar WITHOUT a login, on request (the strict gate was
- * blocking local access to the console).
- *
- * NO MORE 401s (temporary): the backend token gate on the Super Admin console
- * routes was ALSO removed for development (see hiraya-backend/routes/api.php),
- * so /api/admin/* now answers without a bearer token. The console is fully
- * usable from the URL bar with no login.
- *
- * RESTORE TOGETHER: set this back to `false` AND re-add
- * ->middleware(['auth:sanctum', 'superadmin']) on the admin groups in
- * routes/api.php before shipping.
- *
- * SET BACK TO `false` BEFORE SHIPPING. This is a local-development affordance and
- * must not reach production, where it would expose the admin shell to anyone who
- * guesses the URL.
- */
-export const BYPASS_ADMIN_AUTH = true;
-
-/** Reads the effective role from every shape login may return. */
 const resolveRole = (user) => {
     if (!user || typeof user !== 'object') return '';
     const raw =
-        user.role ??
+        user.app_metadata?.role ??
+        user.user_metadata?.role ??
         user.role_name ??
         (Array.isArray(user.roles) ? user.roles[0] : user.roles) ??
-        (user.is_admin || user.isAdmin ? 'admin' : '');
+        (user.is_admin || user.isAdmin ? 'admin' : '') ??
+        (isHirayaRole(user.role) ? user.role : '');
     return normalizeRole(raw);
 };
 
-/** Full-screen Gold & Black gate shown while the session is being verified. */
+export const resolveSupabaseRole = (user) => supabaseRoleOf(user) || resolveRole(user);
+
 const SessionGate = ({ label }) => (
-    <div className="flex min-h-screen items-center justify-center bg-black">
+    <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-[11px] uppercase tracking-[0.35em] text-hiraya-ink">
             {label}
         </div>
     </div>
 );
 
-/**
- * ProtectedRoute — route authorization primitive.
+SessionGate.propTypes = {
+    label: PropTypes.string.isRequired,
+};
+
+/*
+ * THE LEVEL IS ONLY AN ANSWER FOR THE USER IT WAS LOADED FOR, AND A STALE aal1
+ * IS NOT AN ANSWER AT ALL.
  *
- * Supports three modes:
- *   - Unauthenticated guard:   <ProtectedRoute /> or <ProtectedRoute><Page/></ProtectedRoute>
- *   - Role guard:              <ProtectedRoute requiredRole="admin" />
- *   - Role list guard:         <ProtectedRoute allowedRoles={['admin', 'superadmin']} />
+ * This used to keep one `{ loading, currentLevel }` and reset it from an effect.
+ * The first render has no Supabase user yet, so the effect stored
+ * `{ loading: false, currentLevel: null }`. When the user arrived, the guard
+ * rendered ONCE before the effect could start the real fetch — it read
+ * "not loading, not aal2" and redirected a verified superadmin to /login. The
+ * 15-second grace window hid this right after a code was typed, but never on a
+ * refresh or a slow role lookup.
  *
- * When used as a layout route (the recommended pattern for admin trees) it
- * renders an <Outlet/>; when given `children` it renders those instead, so the
- * existing inline-wrapped routes keep working unchanged.
+ * The result is now stamped with the user id it belongs to, and anything not
+ * stamped for the CURRENT user is reported as still loading.
  *
- * `forbiddenRedirect` controls where a signed-in-but-unauthorized user lands
- * (defaults to /shop, per the shared-gateway role-routing model).
+ * The retry below covers the remaining case: GoTrue answers `aal1` from a
+ * cached view moments after `mfa.verify()` issued the aal2 token. `getAssurance
+ * Levels` already prefers the token's own claim, but if BOTH sources say aal1
+ * inside the grace window we ask again rather than acting on the first stale
+ * answer — that stale read was the other half of the redirect back to /login.
  */
+const useAal = ({ requireAal2, userKey }) => {
+    const [state, setState] = useState({ key: null, currentLevel: null, nextLevel: null });
+
+    useEffect(() => {
+        if (!requireAal2) return undefined;
+
+        let cancelled = false;
+
+        const read = async () => {
+            const levels = await getAssuranceLevels();
+            if (cancelled) return;
+
+            if (levels.currentLevel === 'aal1' && wasAal2JustConfirmed()) {
+                for (let attempt = 0; attempt < 4; attempt += 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 300));
+                    if (cancelled) return;
+                    const again = await getAssuranceLevels();
+                    if (again.currentLevel === 'aal2') {
+                        if (!cancelled) {
+                            setState({ key: userKey, currentLevel: 'aal2', nextLevel: again.nextLevel });
+                        }
+                        return;
+                    }
+                }
+            }
+
+            if (!cancelled) {
+                setState({ key: userKey, currentLevel: levels.currentLevel, nextLevel: levels.nextLevel });
+            }
+        };
+
+        read().catch(() => {
+            if (!cancelled) setState({ key: userKey, currentLevel: null, nextLevel: null });
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [requireAal2, userKey]);
+
+    if (!requireAal2) return { loading: false, currentLevel: null, nextLevel: null };
+    if (state.key !== userKey) return { loading: true, currentLevel: null, nextLevel: null };
+    return { loading: false, currentLevel: state.currentLevel, nextLevel: state.nextLevel };
+};
+
+const useSupabaseIdentity = () => {
+    const [state, setState] = useState({ loading: true, user: null, role: '' });
+
+    const load = useCallback(async () => {
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            if (error) throw error;
+
+            /*
+             * A SESSION THAT IS BRIEFLY ABSENT IS NOT "SIGNED OUT".
+             * -----------------------------------------------
+             * `getSession()` reads from local storage and revalidates with GoTrue.
+             * Right after `mfa.verify()` the client rewrites the session (and
+             * `verifyMfaChallenge` explicitly calls `refreshSession()`), so a read
+             * that lands inside that window can come back with no session at all.
+             *
+             * This used to report `user: null` on that one read, which is
+             * indistinguishable from a real sign-out — and the guard's answer to
+             * `user: null` is `<Navigate to="/login" replace />`. That is the
+             * bounce: a superadmin who had just paid for a 6-digit code was sent
+             * back to the form that asks for one, with nothing on screen saying
+             * why, and typing the password again reproduced it forever.
+             *
+             * So a missing session is only believed after a second look. Inside
+             * the aal2 grace window — the same window that says a code was just
+             * accepted — we retry briefly and keep showing the "Verifying
+             * Session..." gate instead of redirecting. The user stays on a spinner
+             * for a moment rather than being logged out; a genuine sign-out never
+             * reaches this path because sign-out clears the window first
+             * (`signOutSupabase` calls `__resetAal2Grace`).
+             */
+            let user = data?.session?.user ?? null;
+
+            if (!user && wasAal2JustConfirmed()) {
+                for (let attempt = 0; attempt < 6 && !user; attempt += 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 250));
+                    const retry = await supabase.auth.getSession();
+                    user = retry?.data?.session?.user ?? null;
+                }
+            }
+
+            /*
+             * THE ROLE LOOKUP MUST NOT BE ABLE TO DESTROY THE SESSION.
+             * ------------------------------------------------------
+             * This used to be one try block covering BOTH the session read and
+             * the role lookup, so a failure in the SECOND step — a network blip,
+             * a RLS refusal, or the ReferenceError that lived inside
+             * `fetchAuthoritativeRole` — fell into the same catch and set
+             * `user: null`.
+             *
+             * That produced a bounce loop with no error message anywhere: the
+             * staff member had a valid aal2 session and a freshly accepted 6-digit
+             * code, but the guard read them as signed out and sent them back to
+             * /login, which asked for the code they had just paid for.
+             *
+             * A missing role is recoverable — it only costs a redirect to
+             * `forbiddenRedirect` — so it is read separately and degrades on its
+             * own. Only a failure to establish WHO the user is may report nobody.
+             */
+            let role = '';
+            if (user) {
+                try {
+                    role = await fetchAuthoritativeRole(user);
+                } catch (lookupError) {
+                    console.warn('[ProtectedRoute] role lookup failed:', lookupError);
+                }
+
+                /*
+                 * A ROLE THAT DISAPPEARED IS NOT THE SAME AS "NOT AN ADMIN".
+                 *
+                 * `fetchAuthoritativeRole` reads the `users` table, and that read is
+                 * behind RLS. If the read is refused or returns nothing, the fallback
+                 * is the JWT's own claims — and Supabase writes NO `app_metadata.role`
+                 * for these accounts (see the comment in supabaseMfa.js), so the
+                 * honest answer comes back as ''.
+                 *
+                 * '' then failed the `allowedRoles` check, and the guard sent the
+                 * staff member to `forbiddenRedirect`. For an admin that is the
+                 * second bounce in the same sign-in: not aal2, then not privileged.
+                 *
+                 * A role that is missing while the session IS aal2 is therefore
+                 * treated as an unresolved read, not a denial: keep waiting for the
+                 * authoritative value rather than deciding the worst thing on a
+                 * failed lookup. This grants nothing — RLS still refuses every query,
+                 * and the backend still refuses every aal1 request. It only stops a
+                 * transient read from being answered with a redirect.
+                 */
+                if (!role) {
+                    for (let attempt = 0; attempt < 4 && !role; attempt += 1) {
+                        await new Promise((resolve) => setTimeout(resolve, 300));
+                        try {
+                            role = await fetchAuthoritativeRole(user);
+                        } catch {
+                            /* keep waiting; the loop bound ends it */
+                        }
+                    }
+                }
+            }
+
+            setState({ loading: false, user, role });
+        } catch {
+            setState({ loading: false, user: null, role: '' });
+        }
+    }, []);
+
+    useEffect(() => {
+        load();
+    }, [load]);
+
+    return state;
+};
+
 const ProtectedRoute = ({
     children,
     requiredRole,
     allowedRoles,
-    forbiddenRedirect = '/shop',
+    requireAal2 = false,
+    verifyRedirect = '/login',
+    loginRedirect = '/login',
+    forbiddenRedirect = '/home',
     unauthorizedRedirect = '/login',
 }) => {
     const { user, loading } = useAuth();
     const location = useLocation();
+    const supabaseIdentity = useSupabaseIdentity();
 
-    // 0. TEMPORARY ADMIN BYPASS — when enabled, ANY role-gated route renders
-    //    its children immediately, regardless of session or role. This is what
-    //    lets /admin and /superadmin load straight from the URL bar.
-    //    Remove this block (or set BYPASS_ADMIN_AUTH = false) to re-arm the
-    //    auth + role gates below.
-    const isRoleGated = Boolean(requiredRole) || Boolean(allowedRoles?.length);
-    if (BYPASS_ADMIN_AUTH && isRoleGated) {
-        return children ?? <Outlet />;
+    const identity = requireAal2
+        ? { user: supabaseIdentity.user, loading: supabaseIdentity.loading }
+        : { user, loading };
+
+    const aal = useAal({
+        requireAal2: requireAal2 && Boolean(identity.user),
+        userKey: identity.user?.id ?? null,
+    });
+
+    // 1. Session Loading State
+    if (identity.loading) return <SessionGate label="Verifying Session..." />;
+
+    // 2. Unauthenticated check
+    if (!identity.user) {
+        return (
+            <Navigate
+                to={requireAal2 ? loginRedirect : unauthorizedRedirect}
+                replace
+                state={{ from: location.pathname }}
+            />
+        );
     }
 
-    // 1. Session still resolving — never make an access decision yet.
-    if (loading) return <SessionGate label="Verifying Session..." />;
-
-    // 2. Not signed in — bounce to login, remembering where they wanted to go.
-    if (!user) {
-        return <Navigate to={unauthorizedRedirect} replace state={{ from: location.pathname }} />;
-    }
-
-    // 3. Role gate. Both props are accepted; `allowedRoles` wins if provided.
+    // 3. Role Authorization check
     const required = allowedRoles
         ? allowedRoles.map(normalizeRole)
         : requiredRole
@@ -137,33 +266,62 @@ const ProtectedRoute = ({
             : null;
 
     if (required && required.length > 0) {
-        const role = resolveRole(user);
+        const role = requireAal2
+            ? supabaseIdentity.role || resolveRole(identity.user)
+            : resolveRole(identity.user);
 
-        // superadmin implicitly satisfies an 'admin' requirement.
         const satisfied =
             required.includes(role) || (role === 'superadmin' && required.includes('admin'));
 
         if (!satisfied) return <Navigate to={forbiddenRedirect} replace />;
     }
 
+    /*
+     * 4. AAL2 Verification check.
+     *
+     * The aal1 -> aal2 ELEVATION NOW HAPPENS INSIDE /login, NOT ON ITS OWN ROUTE.
+     *
+     * `verifyRedirect` used to point at `/admin/verify-2fa`, a separate screen that
+     * existed only so a staff member arriving some other way (bookmark, refresh
+     * mid-challenge) could answer a code. With one login form that state is a
+     * `step` inside it, so a console route that is not yet aal2 belongs back at
+     * the sign-in form — the only place a challenge can be opened and the only
+     * place the password can be re-checked. `from` is carried so a completed
+     * sign-in returns here rather than to the role's default landing page.
+     */
+    const effectiveRole = requireAal2
+        ? supabaseIdentity.role || resolveRole(identity.user)
+        : resolveRole(identity.user);
+    const needsAal2 = requireAal2 && isPrivilegedRole(effectiveRole);
+
+    if (needsAal2) {
+        if (aal.loading) return <SessionGate label="Verifying Second Factor..." />;
+
+        const isAal2 = aal.currentLevel === 'aal2' || wasAal2JustConfirmed();
+
+        if (!isAal2 && location.pathname !== verifyRedirect) {
+            return (
+                <Navigate
+                    to={verifyRedirect}
+                    replace
+                    state={{ from: location.pathname }}
+                />
+            );
+        }
+    }
+
     return children ?? <Outlet />;
 };
 
-/**
- * AdminRoute — the pre-wired admin gate used by every /admin/* route.
- *
- * It is a thin, opinionated wrapper around ProtectedRoute so the routing table
- * never has to repeat the policy:
- *   - signed out  -> /login   (remembering where they were headed)
- *   - signed in but not admin/superadmin -> /shop (never a blank screen)
- *
- * `allowedRoles` is fixed here deliberately: admin-only surfaces should not be
- * able to weaken the rule by passing different props at the call site.
- */
-export const AdminRoute = ({ children }) => (
-    <ProtectedRoute allowedRoles={['admin', 'superadmin']} forbiddenRedirect="/shop">
-        {children}
-    </ProtectedRoute>
-);
+ProtectedRoute.propTypes = {
+    children: PropTypes.node,
+    requiredRole: PropTypes.string,
+    allowedRoles: PropTypes.arrayOf(PropTypes.string),
+    requireAal2: PropTypes.bool,
+    verifyRedirect: PropTypes.string,
+    loginRedirect: PropTypes.string,
+    forbiddenRedirect: PropTypes.string,
+    unauthorizedRedirect: PropTypes.string,
+};
 
-export default ProtectedRoute;
+export default ProtectedRoute;  

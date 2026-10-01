@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Sparkles, ShoppingBag, ArrowUpRight } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { Send, Loader2, Sparkles, ShoppingBag, ArrowUpRight, X } from 'lucide-react';
+import Currency from '../common/Currency';
 import logoImg from '../../assets/logo.png';
 
 /**
@@ -71,8 +73,8 @@ const ProductCard = ({ product, onSelectProduct }) => {
       type="button"
       disabled={!clickable}
       onClick={() => clickable && onSelectProduct(product)}
-      className={`w-full flex items-center gap-2 rounded-xl border-hiraya-olive/15 bg-hiraya-cream/60 p-2 text-left transition ${
-        clickable ? 'hover:border-[#CB997E]/40 hover:bg-hiraya-cream/60' : 'cursor-default'
+      className={`flex w-full items-center gap-2 rounded-lg border border-hiraya-structure-line bg-hiraya-surface-raised p-2 text-left transition ${
+        clickable ? 'cursor-pointer hover:border-hiraya-accent/45' : 'cursor-default'
       }`}
     >
       {product.image_url ? (
@@ -85,15 +87,29 @@ const ProductCard = ({ product, onSelectProduct }) => {
           }}
         />
       ) : (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-hiraya-cream/60">
-          <ShoppingBag size={14} className="text-hiraya-sand" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-hiraya-surface-sunken">
+          <ShoppingBag size={14} className="text-hiraya-ink-muted" />
         </div>
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[11px] font-medium text-hiraya-ink">{product.name}</p>
-        <p className="text-[10px] text-hiraya-sand">
+        <p className="text-[10px] text-hiraya-ink-muted">
           {product.category}
-          {product.price ? ` · ₱${Number(product.price).toLocaleString()}` : ''}
+          {/*
+           * THE PRICE GOES THROUGH <Currency>.
+           *
+           * This line hard-coded the peso as `` — which the file had stored as
+           * a mojibake pair, so every catalog match in the chat printed two junk
+           * glyphs instead of the sign. <Currency> pins the
+           * glyph-safe stack and adds tabular numerals, so a column of matches
+           * now lines up.
+           */}
+          {product.price ? (
+            <>
+              {' · '}
+              <Currency amount={product.price} decimals={false} />
+            </>
+          ) : ''}
           {product.in_stock === false ? ' · out of stock' : ''}
         </p>
       </div>
@@ -101,12 +117,27 @@ const ProductCard = ({ product, onSelectProduct }) => {
   );
 };
 
-export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct, onNavigate }) => {
-  const [inputQuery, setInputQuery] = useState('');
-  const chatBottomRef = useRef(null);
+/*
+ * `onClose` and `className` exist for the Studio's side drawer: the drawer
+ * passes a close handler (rendered as an × in the header) and a class that
+ * lets the panel fill the drawer. Without them the panel renders as before.
+ */
+const DEFAULT_PANEL =
+  'z-10 flex h-[75vh] w-full shrink-0 flex-col overflow-hidden rounded-[24px] bg-hiraya-surface-raised shadow-neu ring-1 ring-cream-50/80 lg:h-auto lg:w-[340px]';
 
+export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct, onNavigate, onClose, className = DEFAULT_PANEL }) => {
+  const [inputQuery, setInputQuery] = useState('');
+  const listRef = useRef(null);
+
+  /*
+   * Keep the newest turn in view by scrolling the MESSAGE LIST, not the page.
+   * This used `scrollIntoView` on a sentinel, which also scrolls every
+   * scrollable ancestor — on a phone, where the chat sits in the page flow,
+   * each reply yanked the whole page down to the chat.
+   */
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const list = listRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
   }, [messages, isTyping]);
 
   const handleSubmit = (e) => {
@@ -128,29 +159,57 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
   const links = showSuggestions ? last?.links ?? [] : [];
 
   return (
-    <aside className="w-[340px] border-l border-hiraya-olive/15 bg-hiraya-cream/50 backdrop-blur-2xl flex flex-col z-10 shrink-0">
-      <div className="p-4 border-b border-hiraya-olive/15 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <HirayaMark size={18} />
-          <span className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink">
+    <aside className={className}>
+      <div className="flex items-center justify-between border-b border-hiraya-structure-line px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-900 text-cream-100 shadow-neu-sm">
+            <HirayaMark size={18} />
+          </span>
+          <span className="text-[11px] font-semibold uppercase leading-snug tracking-[0.16em] text-hiraya-ink">
             AI Stylist &amp; Size Suggester
           </span>
         </div>
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-2.5 w-2.5" title="Stylist online">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600" />
+          </span>
+          {typeof onClose === 'function' && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close the AI stylist"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-hiraya-ink transition-colors hover:bg-navy-900 hover:text-cream-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 p-4 space-y-3 overflow-y-auto">
+      <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
-              <div className="w-6 h-6 rounded-full bg-[#CB997E]/20 border border-[#CB997E]/40 text-hiraya-ink flex items-center justify-center shrink-0 mt-1">
+              <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-hiraya-accent/35 bg-hiraya-accent-wash text-hiraya-accent">
                 <HirayaMark size={14} />
               </div>
             )}
-            <div className={`p-3 rounded-2xl text-[11px] leading-relaxed border max-w-[85%] whitespace-pre-line ${
+            {/**
+              * THE BUBBLES ARE ROUNDED MESSAGES, NOT CARDS.
+              *
+              * A chat bubble is one of the few places a generous radius is
+              * genuinely correct — it is the conventional shape for a spoken turn
+              * — so `rounded-2xl` stays. What changed is the PAINT: the assistant
+              * turn was `bg-hiraya-peach/70 ... text-hiraya-on-accent`, i.e.
+              * vintage-white ink on a PALE fill, measured ~1.2:1 — every stylist
+              * reply was rendering effectively invisible. The assistant bubble is
+              * now a raised surface with full ink.
+              */}
+            <div className={`max-w-[85%] whitespace-pre-line rounded-2xl border p-3 text-[11px] leading-relaxed ${
               msg.role === 'user'
-                ? 'bg-[#CB997E] text-hiraya-olive border-[#CB997E] font-medium self-end'
-                : 'bg-hiraya-cream/60 text-hiraya-ink border-hiraya-olive/15'
+                ? 'self-end rounded-br-md border-hiraya-accent-deep bg-hiraya-accent font-medium text-hiraya-on-accent shadow-[0_8px_16px_-10px_rgba(21,32,54,0.7)]'
+                : 'rounded-bl-md border-cream-50/80 bg-hiraya-surface text-hiraya-ink shadow-neu-sm'
             }`}>
               {msg.role === 'assistant' ? renderRich(msg.text) : msg.text}
             </div>
@@ -160,7 +219,7 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         {/* Catalog matches for the size just recommended — a shopping surface. */}
         {products.length > 0 && (
           <div className="space-y-1.5 pl-8">
-            <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-hiraya-olive/70">
+            <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-accent">
               <Sparkles size={10} /> Available in your size
             </p>
             {products.map((p) => (
@@ -178,7 +237,7 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
          */}
         {links.length > 0 && (
           <div className="space-y-1.5 pl-8">
-            <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-hiraya-olive/70">
+            <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-accent">
               <ArrowUpRight size={10} /> See the full details
             </p>
             {links.map((l) => (
@@ -187,8 +246,8 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
                 type="button"
                 disabled={typeof onNavigate !== 'function'}
                 onClick={() => typeof onNavigate === 'function' && onNavigate(l.url)}
-                className={`flex w-full items-center justify-between gap-2 rounded-xl border-[#CB997E]/20 bg-[#CB997E]/5 px-3 py-2 text-left text-[11px] text-hiraya-ink transition ${
-                  typeof onNavigate === 'function' ? 'hover:bg-[#CB997E]/15' : 'cursor-default opacity-70'
+                className={`flex w-full items-center justify-between gap-2 rounded-lg border border-hiraya-accent/25 bg-hiraya-accent-wash px-3 py-2 text-left text-[11px] text-hiraya-ink transition ${
+                  typeof onNavigate === 'function' ? 'cursor-pointer hover:bg-hiraya-accent/15' : 'cursor-default opacity-70'
                 }`}
               >
                 <span className="truncate">{l.label}</span>
@@ -199,22 +258,21 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         )}
 
         {isTyping && (
-          <div className="flex items-center gap-2 text-hiraya-sand text-[10px] italic">
-            <Loader2 size={12} className="animate-spin text-hiraya-ink" /> Hiraya stylist is calculating your fit…
+          <div className="flex items-center gap-2 text-[10px] italic text-hiraya-ink-muted">
+            <Loader2 size={12} className="animate-spin text-hiraya-accent" /> Hiraya stylist is calculating your fit…
           </div>
         )}
-        <div ref={chatBottomRef} />
       </div>
 
       {/* Quick-reply chips — the fastest path from question to answer. */}
       {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-hiraya-olive/15 px-3 pt-2.5">
+        <div className="flex flex-wrap gap-1.5 border-t border-hiraya-structure-line px-3 pt-2.5">
           {suggestions.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => onSendMessage(s)}
-              className="rounded-full border-[#CB997E]/30 bg-[#CB997E]/10 px-2.5 py-1 text-[10px] text-hiraya-ink transition hover:bg-[#CB997E]/20"
+              className="cursor-pointer rounded-full border border-cream-50/80 bg-hiraya-surface px-3 py-1.5 text-[10px] font-medium text-hiraya-accent shadow-neu-sm transition hover:bg-hiraya-accent hover:text-hiraya-on-accent"
             >
               {s}
             </button>
@@ -222,20 +280,56 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="p-3 border-t border-hiraya-olive/15 flex gap-2">
+      <form onSubmit={handleSubmit} className="flex gap-2 border-t border-hiraya-structure-line p-3">
         <input
           type="text"
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           placeholder="Ask AI about fit, sizing, or styling..."
-          className="flex-1 bg-hiraya-cream/60 border border-hiraya-olive/15 rounded-xl px-3 py-2 text-xs text-hiraya-ink outline-none focus:border-[#CB997E]"
+          aria-label="Message the AI stylist"
+          className="field flex-1 rounded-full px-4 py-2.5 text-xs"
         />
-        <button type="submit" className="p-2 bg-[#CB997E] text-hiraya-ink rounded-xl hover:bg-hiraya-cream-deep transition font-bold">
+        <button type="submit" aria-label="Send message" className="btn-primary h-10 w-10 shrink-0 cursor-pointer rounded-full p-0">
           <Send size={14} />
         </button>
       </form>
     </aside>
   );
+};
+
+HirayaMark.propTypes = {
+  size: PropTypes.number,
+  className: PropTypes.string,
+};
+
+ProductCard.propTypes = {
+  product: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    name: PropTypes.string,
+    category: PropTypes.string,
+    price: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    image_url: PropTypes.string,
+    in_stock: PropTypes.bool,
+  }).isRequired,
+  onSelectProduct: PropTypes.func,
+};
+
+StylistChat.propTypes = {
+  messages: PropTypes.arrayOf(
+    PropTypes.shape({
+      role: PropTypes.string,
+      text: PropTypes.string,
+      suggestions: PropTypes.array,
+      products: PropTypes.array,
+      links: PropTypes.array,
+    })
+  ).isRequired,
+  isTyping: PropTypes.bool,
+  onSendMessage: PropTypes.func.isRequired,
+  onSelectProduct: PropTypes.func,
+  onNavigate: PropTypes.func,
+  onClose: PropTypes.func,
+  className: PropTypes.string,
 };
 
 export default StylistChat;

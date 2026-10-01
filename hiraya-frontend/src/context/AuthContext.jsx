@@ -1,6 +1,14 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useCallback,
+    useRef,
+} from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import api, { getAuthToken, clearStoredSession, parseApiError } from '../api/axios';
-import { devAdminAutoLogin } from '../utils/devAdminAutoLogin';
 
 const AuthContext = createContext();
 
@@ -47,6 +55,27 @@ const persistSession = (token, userData, remember = true) => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(readStoredUser);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+
+    /*
+     * LOGOUT MUST LAND IN ONE NAVIGATION, NOT TWO.
+     *
+     * `logout()` used to finish with `window.location.href = '/login'`, a FULL page
+     * load, on top of the `setUser(null)` it had already done. That produced the
+     * double refresh everybody saw: React re-rendered, the router's `ProtectedRoute`
+     * found no user and issued its own `<Navigate to="/login" replace />`, and then
+     * the hard navigation landed anyway — a second document load of a SPA, throwing
+     * away the bundle it had just booted and re-running every module.
+     *
+     * The state change is ALREADY enough to send the user to /login: `ProtectedRoute`
+     * is what decides the destination, and doing it in one place means the guards and
+     * the logout can never disagree about where "signed out" lives. So this navigates
+     * in-app and nothing more. The `ref` is the second half of the fix — a second
+     * click (or a re-render that fires the effect again) used to be able to kick off
+     * the same teardown twice, doubling the request and the redirect.
+     */
+    const logoutStarted = useRef(false);
 
     /**
      * Verifies the stored token against /api/user on app refresh.
@@ -55,22 +84,27 @@ export const AuthProvider = ({ children }) => {
     const checkUser = useCallback(async () => {
         let token = getAuthToken();
 
+        // The latch guards ONE teardown. On a boot where nobody is signed in there
+        // is no teardown to guard, so re-arm it here rather than letting a stale
+        // `true` from a previous session in this tab make a later logout a no-op.
+        logoutStarted.current = false;
+
         if (!token) {
             /*
-             * DEV CONVENIENCE: on the admin console there is no session to
-             * restore, so a local auto-login is attempted before giving up.
-             * It performs a REAL `/api/login` and stores the token, so the
-             * admin API works exactly as after a manual sign-in — the backend
-             * gate is not weakened. No-op outside a Vite dev build.
+             * NO AUTO-LOGIN, and this is deliberate.
+             *
+             * This branch used to attempt a silent local sign-in for the admin
+             * console (devAdminAutoLogin), so the console could open itself with
+             * a session nobody had asked for. Combined with BYPASS_ADMIN_AUTH on
+             * the client and the removed token gate on the server, that made the
+             * console reachable by anyone who opened the URL — a customer, a bot,
+             * anybody.
+             *
+             * The only way into the console now is an explicit sign-in, and a
+             * superadmin additionally has to pass TOTP. If there is no token,
+             * the correct answer is "nobody is signed in" — which is what the
+             * router turns into a redirect to /login.
              */
-            const devUser = await devAdminAutoLogin(api, persistSession);
-
-            if (devUser) {
-                setUser(normalizeUser(devUser));
-                setLoading(false);
-                return normalizeUser(devUser);
-            }
-
             setUser(null);
             clearStoredSession();
             setLoading(false);
@@ -112,7 +146,13 @@ export const AuthProvider = ({ children }) => {
     }, [checkUser]);
 
     /**
-     * Signs the customer in.
+     * Signs in — for EVERY role.
+     *
+     * Customers come back with `{ token, user }` and a Sanctum session. Staff
+     * come back with `{ mfa_required: true, role }` and NO token: the session
+     * that opens the console has to carry a Supabase `aal2` claim, so Login.jsx
+     * finishes the handshake there. That is a branch in the response body, not
+     * an error and not a redirect to a second form — there is only one form.
      */
     const login = async (credentials) => {
         const { remember, ...payload } = credentials || {};
@@ -122,6 +162,18 @@ export const AuthProvider = ({ children }) => {
             const { token } = res.data || {};
             const userData = normalizeUser(res.data?.user);
 
+            /*
+             * A PRIVILEGED ACCOUNT: no token is issued. Persist nothing and do not
+             * treat this as a signed-in customer — the caller completes aal2
+             * first. This used to be a 403 with a `staff_door` pointer; the branch
+             * stays, but as a success case, because a correct password on a staff
+             * account is the FIRST STEP of a sign-in, not a failure.
+             */
+            if (res.data?.mfa_required) {
+                setUser(null);
+                clearStoredSession();
+                return res;
+            }
             if (!token) {
                 const tokenError = new Error(
                     'Sign-in succeeded but no session token was returned. Please try again.',
@@ -134,6 +186,14 @@ export const AuthProvider = ({ children }) => {
             persistSession(token, userData, remember !== false);
             setUser(userData || null);
 
+            /*
+             * Re-arm the logout latch. It exists only to stop ONE click from tearing
+             * the session down twice, and `AuthProvider` sits above the router — it
+             * stays mounted across /login, so without this reset the NEXT sign-out in
+             * the same tab would return early and appear to do nothing at all.
+             */
+            logoutStarted.current = false;
+
             return res;
         } catch (error) {
             if (error?.isAuthError) throw error;
@@ -144,6 +204,7 @@ export const AuthProvider = ({ children }) => {
             normalised.isAuthError = true;
             normalised.status = status;
             normalised.errors = errors;
+
             throw normalised;
         }
     };
@@ -159,6 +220,7 @@ export const AuthProvider = ({ children }) => {
         if (token) {
             persistSession(token, userData, true);
             setUser(userData || null);
+            logoutStarted.current = false;
         }
 
         return res;
@@ -195,18 +257,28 @@ export const AuthProvider = ({ children }) => {
      * Guarantees non-blocking local session destruction before network call.
      */
     const logout = async () => {
+        if (logoutStarted.current) return;
+        logoutStarted.current = true;
+
         // 1. Burahin agad ang local storage para instant UI response
         clearStoredSession();
         setUser(null);
 
+        // 2. Itapon ang mga naka-cache na query (cart, orders, notifications).
+        //    Without this the NEXT sign-in would briefly render the previous
+        //    account's data straight out of the react-query cache.
+        queryClient.clear();
+
         try {
-            // 2. Subukang tawagin ang backend sa background
+            // 3. Subukang tawagin ang backend sa background
             await api.post('/logout');
         } catch (err) {
             console.warn('Backend logout endpoint skipped or unreachable:', err);
         } finally {
-            // 3. I-force redirect pabalik sa login
-            window.location.href = '/login';
+            // 4. In-app navigation, `replace` so Back does not return to a page
+            //    that will only bounce straight back here. See the note on
+            //    `logoutStarted` for why this is no longer a full page load.
+            navigate('/login', { replace: true });
         }
     };
 

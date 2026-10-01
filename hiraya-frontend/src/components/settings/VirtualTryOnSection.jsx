@@ -1,79 +1,99 @@
-import { Sparkles } from 'lucide-react';
+﻿import { Sparkles } from 'lucide-react';
 import { Field } from './Field';
 
-// 5 Core Standardized Body Measurements (identical for Men & Women)
-export const CORE_MEASUREMENT_FIELDS = [
-    { key: 'chest_bust',     label: 'Chest / Bust' },
-    { key: 'waist',          label: 'Waist' },
-    { key: 'hips',           label: 'Hips' },
-    { key: 'shoulder_width', label: 'Shoulder Width' },
-    { key: 'sleeve_length',  label: 'Sleeve Length' },
-];
+/*
+ * THE SIZE LADDER IS NOT HARDCODED AS THE SOURCE OF TRUTH.
+ *
+ * It is fetched once from `GET /api/size-chart` — the same table the backend
+ * sizes from (App\Services\SizeChart). This list is the fallback that mirrors
+ * that ladder; a size added server-side appears here without a second edit.
+ */
+export const SIZE_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
 
-export const VirtualTryOnSection = ({ formData, handleChange }) => (
-  <section className="space-y-4 rounded-2xl border border-hiraya-olive/15 bg-[#121620] p-6 shadow-xl">
-    <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-hiraya-ink">
-      <Sparkles size={16} /> 5 Core Body Measurements
-    </h2>
-    <p className="text-[10px] text-hiraya-ink">
-      All measurements in centimeters. These five fields are the standardized
-      profile used by the AI Virtual Try-On engine.
-    </p>
+const labelFor = (size) =>
+  ({
+    XS: 'Extra Small (XS)',
+    S: 'Small (S)',
+    M: 'Medium (M)',
+    L: 'Large (L)',
+    XL: 'Extra Large (XL)',
+    '2XL': '2X Large (2XL)',
+  }[size] ?? size);
 
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {CORE_MEASUREMENT_FIELDS.map(({ key, label }) => (
-        <Field key={key} label={`${label} (cm)`}>
-          <input
-            type="number"
-            step="0.1"
-            name={key}
-            value={formData[key] ?? ''}
+/**
+ * THE SIZING PROFILE — two size labels.
+ *
+ * This section used to be the "5 Core Body Measurements" form (chest / bust,
+ * waist, hips, shoulder width and sleeve length in centimetres) sitting
+ * alongside a "Top Size" select and a "Waist Size (Inches)" box — three
+ * overlapping representations of one fact, which is exactly why they could
+ * disagree with each other.
+ *
+ * There is now ONE representation: an upper body size and a lower body size.
+ * Every consumer — size suggestions, personalised recommendations, the AI
+ * try-on render — resolves centimetres from the size chart behind these two
+ * values, so they cannot drift apart.
+ */
+export const VirtualTryOnSection = ({ formData, handleChange, sizeLabels = SIZE_OPTIONS }) => {
+  const options = sizeLabels?.length ? sizeLabels : SIZE_OPTIONS;
+
+  return (
+    <section id="account-measurements" className="card-raised scroll-mt-32 space-y-5 rounded-[24px] p-6 sm:p-8" data-tour="account-measurements">
+      <h2 className="flex items-center gap-3 border-b border-hiraya-structure-line pb-4 text-xs font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-900 text-cream-100 shadow-neu-sm"><Sparkles size={16} /></span>
+        Sizing Profile
+      </h2>
+      <p className="text-[10px] text-hiraya-ink-muted">
+        These two sizes are the only body information Hiraya stores for you. They drive your size
+        suggestions, your personalised recommendations, and how garments are fitted in AI Try-On.
+      </p>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Field label="Upper Body Size">
+          <select
+            name="upper_body_size"
+            value={formData.upper_body_size || ''}
             onChange={handleChange}
-            placeholder="0"
-            className="w-full rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-4 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
-          />
+            className="field cursor-pointer"
+          >
+            <option value="">Not set</option>
+            {options.map((size) => (
+              <option key={size} value={size}>
+                {labelFor(size)}
+              </option>
+            ))}
+          </select>
         </Field>
-      ))}
-    </div>
 
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 pt-2 border-t border-hiraya-olive/15">
-      <Field label="Top Size">
-        <select
-          name="topSize"
-          value={formData.topSize}
-          onChange={handleChange}
-          className="w-full rounded-xl border border-hiraya-olive/15 bg-[#181D2A] px-3 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
-        >
-          <option value="XS">Extra Small (XS)</option>
-          <option value="S">Small (S)</option>
-          <option value="M">Medium (M)</option>
-          <option value="L">Large (L)</option>
-          <option value="XL">Extra Large (XL)</option>
-        </select>
-      </Field>
+        <Field label="Lower Body Size">
+          <select
+            name="lower_body_size"
+            value={formData.lower_body_size || ''}
+            onChange={handleChange}
+            className="field cursor-pointer"
+          >
+            <option value="">Not set</option>
+            {options.map((size) => (
+              <option key={size} value={size}>
+                {labelFor(size)}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-      <Field label="Waist Size (Inches)">
-        <input
-          type="number"
-          name="bottomSize"
-          value={formData.bottomSize}
-          onChange={handleChange}
-          className="w-full rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-4 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
-        />
-      </Field>
-
-      <Field label="Fit Style">
-        <select
-          name="preferredFit"
-          value={formData.preferredFit}
-          onChange={handleChange}
-          className="w-full rounded-xl border border-hiraya-olive/15 bg-[#181D2A] px-3 py-2.5 text-xs text-hiraya-ink focus:border-[#CB997E] focus:outline-none transition"
-        >
-          <option value="slim">Slim / Fitted</option>
-          <option value="regular">Regular</option>
-          <option value="oversized">Oversized / Loose</option>
-        </select>
-      </Field>
-    </div>
-  </section>
-);
+        <Field label="Fit Style">
+          <select
+            name="preferredFit"
+            value={formData.preferredFit}
+            onChange={handleChange}
+            className="field cursor-pointer"
+          >
+            <option value="slim">Slim / Fitted</option>
+            <option value="regular">Regular</option>
+            <option value="oversized">Oversized / Loose</option>
+          </select>
+        </Field>
+      </div>
+    </section>
+  );
+};

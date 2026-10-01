@@ -7,14 +7,17 @@
  *   2. CLEANS that cut-out (`cleanCutoutMatte`) so only the garment remains — the
  *      engine's mask can still carry the product-name script, a logo and small
  *      leftover backdrop patches, all of which are erased here,
- *   3. draws it centred on THE SINGLE DEFAULT HIRAYA FRAME,
+ *   3. picks the OCCASION background the AI tagged the garment with and draws
+ *      the cut-out centred on it (one preset per vibe, plus a contrast guard so
+ *      a dark garment never lands on a dark frame),
  *   4. returns the composite as a PNG Blob + object URL.
  *
- * THE FRAME IS THE SAME FOR EVERY GARMENT. It is an obsidian-black canvas with
- * gold ornamental side borders and the HIRAYA wordmark at the foot. There is
- * exactly ONE background — no per-occasion backgrounds. Only two things change
- * per product: the cut-out garment, and (optionally) the product name drawn
- * under it for the admin's preview.
+ * THE BACKGROUND FOLLOWS THE OCCASION. It used to be one obsidian-black canvas
+ * with gold ornamental borders for every product in the shop, which made a linen
+ * summer dress and a midnight barong look like the same shoot. The AI already
+ * tags each garment with an occasion/vibe and the backend already canonicalises
+ * it, so the key is now spent on the background instead of being discarded. The
+ * selection is deterministic: same garment + same occasion => same background.
  *
  * WHY CANVAS AND NOT THE AI: cutting out then compositing keeps the garment
  * pixel-perfect. Asking a generative model to "redraw" the garment risks
@@ -22,7 +25,7 @@
  */
 
 import { removeImageBackground } from './removeBackground';
-import logoImg from '../assets/logo.png';
+import { pickFramePreset, DEFAULT_PRESET_KEY, FRAME_PRESETS } from './framePresets';
 
 /** Output size of the composed catalog image (portrait catalog ratio). */
 const OUTPUT_WIDTH = 1000;
@@ -33,17 +36,39 @@ const OUTPUT_HEIGHT = 1250;
  *
  * RAISED from 0.74. On a real catalog card the cut-out sat noticeably small in
  * the frame, so the garment now fills more of the display area — still inside
- * the gold ornamental border and clear of the HIRAYA wordmark, which is reserved
- * by the 220px foot inset applied at the draw site.
+ * the ornamental border, with a premium margin all round.
  */
 const MAX_GARMENT_SCALE = 0.88;
 
-/** The single shared frame palette — mirrors config/hiraya_backgrounds.php. */
+/**
+ * THE LEGACY PALETTE — kept only so the "obsidian + gold" card can still be
+ * produced on purpose (an explicit `occasion: 'hiraya-legacy'`). Every normal
+ * product now lands on an occasion preset from `framePresets.js`.
+ *
+ * This is the single frame the catalog used to draw for EVERY garment, and it
+ * is the "black with a gold border" look the brief asked to replace.
+ */
 const FRAME = {
   background: '#000',
   vignette: '#161616',
-  gold: '#CB997E',
-  goldSoft: '#FFE8D6',
+  gold: '#FBE8CE',
+  goldSoft: '#F7F1DE',
+};
+
+/**
+ * The preset a product falls back to when nothing at all is known about it.
+ * Chosen to be a light surface so the majority of garments (light, summer and
+ * everyday fabric) read well on it and the contrast guard rarely has to fire.
+ */
+const FALLBACK_FRAME = {
+  key: DEFAULT_PRESET_KEY,
+  label: FRAME_PRESETS[DEFAULT_PRESET_KEY].label,
+  base: FRAME_PRESETS[DEFAULT_PRESET_KEY].base,
+  vignette: FRAME_PRESETS[DEFAULT_PRESET_KEY].vignette,
+  accent: FRAME_PRESETS[DEFAULT_PRESET_KEY].accent,
+  accentSoft: FRAME_PRESETS[DEFAULT_PRESET_KEY].accentSoft,
+  panel: FRAME_PRESETS[DEFAULT_PRESET_KEY].panel,
+  light: FRAME_PRESETS[DEFAULT_PRESET_KEY].light,
 };
 
 /** Load an image element from any URL / data URI / blob URL. */
@@ -344,6 +369,111 @@ const looksLikeText = (group) => {
 };
 
 /**
+ * A BRIDGE IS ONLY A FEW PIXELS WIDE — SO CUT IT AND SEE WHAT FALLS.
+ *
+ * WHY THE SHAPE AND SECTION TESTS STILL MISSED THE ARTWORK
+ * -------------------------------------------------------
+ * A flower sprig staged above a garment is usually NOT floating in clear air — it
+ * rests ON the shoulder, and often a stem trails down onto the bodice. That single
+ * contact point welds artwork and clothing into one 8-connected mass, and no test
+ * that looks at blocks, bounding boxes or empty-row gaps can see a seam that
+ * isn't there.
+ *
+ * It also defeats the section split: the two are joined by pixels, so there are
+ * no empty rows between them and the block never separates. And the merge radius
+ * is WIDER than the detach threshold (8px vs 6px on a 512px scan), so a near
+ * neighbour is absorbed into `largest` before any gate can see it as separate.
+ *
+ * THE FIX — MORPHOLOGICAL OPENING.
+ *
+ * Opening = ERODE, then DILATE. Erosion shrinks every mass by a pixel on each
+ * side, which severs any joint only a few pixels wide. Whatever survives erosion
+ * is genuinely thick — fabric — because a flower's petals and a logo's thin
+ * strokes are exactly what erosion destroys. Dilating the survivors by the same
+ * amount grows them back to their original size, with no seam left.
+ *
+ * This is the one operation that separates objects joined by a thin contact
+ * without guessing from proportions. It is also why it is applied to the GARMENT
+ * and re-validated, not used as a blanket filter: the result is checked below and
+ * discarded if it loses too much, so a thin or lacy garment degrades to the
+ * original rather than to nothing.
+ *
+ * @param {Uint8Array} mask  the 0/1 mask to open, in place-safe copy form.
+ * @param {number} sw @param {number} sh
+ * @param {number} radius      erosion/dilation radius in scan pixels.
+ * @returns {Uint8Array} a NEW mask.
+ */
+const openMask = (mask, sw, sh, radius) => {
+  if (radius < 1) return mask.slice();
+
+  // Erode: a pixel survives only if its whole (2r+1) neighbourhood is set. Done as
+  // a separable min-filter (horizontal then vertical) so it stays O(N) rather
+  // than O(N * r^2) on a 512px scan.
+  const erode = (src) => {
+    const tmp = new Uint8Array(src.length);
+    const out = new Uint8Array(src.length);
+
+    for (let y = 0; y < sh; y++) {
+      const base = y * sw;
+      for (let x = 0; x < sw; x++) {
+        let ok = 1;
+        for (let d = -radius; d <= radius && ok; d++) {
+          const nx = x + d;
+          if (nx < 0 || nx >= sw || !src[base + nx]) ok = 0;
+        }
+        tmp[base + x] = ok;
+      }
+    }
+
+    for (let y = 0; y < sh; y++) {
+      const base = y * sw;
+      for (let x = 0; x < sw; x++) {
+        let any = 0;
+        for (let d = -radius; d <= radius && !any; d++) {
+          const ny = y + d;
+          if (ny >= 0 && ny < sh && tmp[ny * sw + x]) any = 1;
+        }
+        out[base + x] = any;
+      }
+    }
+    return out;
+  };
+
+  // Dilate: the inverse — a pixel is set if ANY neighbour is set.
+  const dilate = (src) => {
+    const tmp = new Uint8Array(src.length);
+    const out = new Uint8Array(src.length);
+
+    for (let y = 0; y < sh; y++) {
+      const base = y * sw;
+      for (let x = 0; x < sw; x++) {
+        let any = 0;
+        for (let d = -radius; d <= radius && !any; d++) {
+          const nx = x + d;
+          if (nx >= 0 && nx < sw && src[base + nx]) any = 1;
+        }
+        tmp[base + x] = any;
+      }
+    }
+
+    for (let y = 0; y < sh; y++) {
+      const base = y * sw;
+      for (let x = 0; x < sw; x++) {
+        let any = 0;
+        for (let d = -radius; d <= radius && !any; d++) {
+          const ny = y + d;
+          if (ny >= 0 && ny < sh && tmp[ny * sw + x]) any = 1;
+        }
+        out[base + x] = any;
+      }
+    }
+    return out;
+  };
+
+  return dilate(erode(mask));
+};
+
+/**
  * Fraction of a group's own columns that actually contain opaque pixels.
  *
  * A real garment piece spans nearly every column of its bounding box. A halo or
@@ -399,6 +529,227 @@ const denoise = (keep, sw, sh) => {
   return next;
 };
 
+/**
+ * THE ROWS THAT REACH BOTH EDGES OF THE BLOCK, GROUPED INTO HORIZONTAL RUNS.
+ *
+ * WHY RUNS AND NOT SINGLE ROWS
+ * ----------------------------
+ * The first attempt tested one row at a time, using that row's own height. A row
+ * is one pixel tall by definition, so the aspect ratio of ANY wide row came out
+ * enormous and almost every row of a real garment was flagged as text — then the
+ * restore-guard undid the whole thing and nothing was ever removed.
+ *
+ * A line of text is only identifiable as a line when its rows are considered
+ * TOGETHER: several consecutive full-width rows stacked up, still much wider than
+ * the stack is tall. A shoulder is also full-width, but the torso below it is not,
+ * so a garment breaks the run long before the stack gets flat.
+ *
+ * @returns {Array<{ startRow:number, endRow:number, width:number, height:number }>}
+ *          one entry per maximal run of full-width rows, in block-relative rows.
+ */
+const findFullWidthRuns = (rows, blockMinX, blockMaxX) => {
+  const blockW = blockMaxX - blockMinX + 1;
+  // A row counts as "full width" when it comes within this fraction of BOTH edges.
+  const SLACK = Math.max(1, Math.round(blockW * 0.12));
+
+  const runs = [];
+  let runStart = -1;
+
+  for (let r = 0; r <= rows.length; r++) {
+    const row = rows[r];
+    const isFull =
+      row &&
+      row.count > 0 &&
+      row.minX - blockMinX <= SLACK &&
+      blockMaxX - row.maxX <= SLACK;
+
+    if (isFull) {
+      if (runStart === -1) runStart = r;
+      continue;
+    }
+
+    // The run ended at r-1 (or never started).
+    if (runStart !== -1) {
+      const endRow = r - 1;
+      let minX = Infinity;
+      let maxX = -Infinity;
+      for (let rr = runStart; rr <= endRow; rr++) {
+        if (rows[rr].minX < minX) minX = rows[rr].minX;
+        if (rows[rr].maxX > maxX) maxX = rows[rr].maxX;
+      }
+      runs.push({
+        startRow: runStart,
+        endRow,
+        width: maxX - minX + 1,
+        // The HEIGHT OF THE STACK, which is the only meaningful denominator.
+        height: endRow - runStart + 1,
+      });
+      runStart = -1;
+    }
+  }
+
+  return runs;
+};
+
+/**
+ * Is a full-width run a LINE OF TEXT rather than part of the garment?
+ *
+ * A garment has no horizontal slice that is both nearly as wide as the whole
+ * garment AND many times wider than it is tall. Shoulders are wide but the torso
+ * below them is not; a sleeve and a bodice are tall and narrow; a skirt is tall.
+ * The shape that is simultaneously very wide and very flat is a row of letters, an
+ * underline, or a horizontal logo lockup.
+ *
+ * The ratio is 4:1 — deliberately strict, because a false positive here erases
+ * real fabric, and a missed word is merely cosmetic.
+ */
+const isTextRun = (run, blockW) => {
+  if (run.width < 8 || run.height < 1) return false;
+  if (run.width / run.height < 4) return false;
+  // The run must actually span the garment, not sit inside it.
+  return run.width >= blockW * 0.75;
+};
+
+/**
+ * ERASE TEXT PRINTED ACROSS THE GARMENT.
+ *
+ * THE CASE THE BLOCK-LEVEL GATES CANNOT CATCH.
+ * --------------------------------------------
+ * A caption or watermark laid ACROSS the garment is 8-connected to it — the
+ * letters touch the fabric, so `labelComponents` returns them as ONE block and
+ * every whole-block test passes. The block is the largest, so it is kept
+ * wholesale, and the product's own name ends up in the display image.
+ *
+ * This walks the accepted block row by row, finds the runs of rows that reach
+ * both edges, and erases the ones that are flat enough to be lettering. Working
+ * per run is what makes it possible to remove a word in the middle of a bodice
+ * without disturbing the fabric above or below it.
+ */
+const removeTextBandsFromBlock = (block, keep, sw, sh) => {
+  const minY = Math.max(0, block.minY);
+  const maxY = Math.min(sh - 1, block.maxY);
+  if (maxY <= minY) return;
+
+  const blockMinX = block.minX;
+  const blockMaxX = block.maxX;
+  const blockW = blockMaxX - blockMinX + 1;
+
+  // Per-row extents of the block's own pixels, as a plain (count, minX, maxX)
+  // triple per row. A plain array is used because the run finder needs to index
+  // past the end (a sentinel row) to know where a run ends.
+  const rowCount = maxY - minY + 1;
+  const rows = new Array(rowCount);
+
+  for (let r = 0; r < rowCount; r++) {
+    rows[r] = { count: 0, minX: blockMaxX + 1, maxX: blockMinX - 1 };
+  }
+
+  for (const p of block.members) {
+    const x = p % sw;
+    const y = (p - x) / sw;
+    if (y < minY || y > maxY) continue;
+    const r = y - minY;
+    rows[r].count++;
+    if (x < rows[r].minX) rows[r].minX = x;
+    if (x > rows[r].maxX) rows[r].maxX = x;
+  }
+
+  for (const run of findFullWidthRuns(rows, blockMinX, blockMaxX)) {
+    if (!isTextRun(run, blockW)) continue;
+
+    for (let r = run.startRow; r <= run.endRow; r++) {
+      const y = minY + r;
+      const rowBase = y * sw;
+      for (let x = blockMinX; x <= blockMaxX; x++) {
+        if (keep[rowBase + x]) keep[rowBase + x] = 0;
+      }
+    }
+  }
+
+  /*
+   * EMPTY ROWS ARE A DEFINITIVE SEPARATOR — AND THE FIX FOR FLOATING ARTWORK.
+   *
+   * A pressed-flower sprig or a brand roundel shot above the garment can be
+   * MERGED INTO the garment block before any shape test runs: `groupBlocks`
+   * bridges near neighbours, so artwork sitting a few pixels off the shoulder
+   * becomes part of `largest` and is kept wholesale.
+   *
+   * But there is one thing the merge cannot fake: the empty band of rows between
+   * the artwork and the collar. A row with ZERO of the block's own pixels is
+   * empty air. A garment is one mass with no gap through it; two objects with
+   * clear air between them are two objects, however close their bounding boxes
+   * came.
+   *
+   * So the block is SPLIT at every empty row, and only the section holding the
+   * bulk of the pixels survives. The garment is always the larger mass — a sprig
+   * or a roundel is a fraction of the clothing it was staged with — and the
+   * discarded section is the decoration. This is the one test that cannot
+   * produce a false positive, because it requires literally zero fabric pixels
+   * in the gap rather than inferring from shape.
+   *
+   * A SINGLE empty row is NOT a split. One blank scan line is a hole in lace or
+   * a gap in a weave, and treating it as separation would amputate part of the
+   * garment. Two or more consecutive empty rows is real air between objects.
+   */
+  const sectionOf = (rows) => {
+    const pixels = [0];
+    for (let r = 0; r < rows.length; r++) {
+      if (rows[r].count === 0) {
+        if (r + 1 < rows.length && rows[r + 1].count === 0) {
+          pixels.push(0);
+          r++; // Skip the pair so a run of N blanks opens exactly one section.
+          while (r + 1 < rows.length && rows[r + 1].count === 0) r++;
+        }
+        continue;
+      }
+      pixels[pixels.length - 1] += rows[r].count;
+    }
+
+    // The garment is the section holding the most pixels.
+    let keepSection = 0;
+    for (let i = 1; i < pixels.length; i++) {
+      if (pixels[i] > pixels[keepSection]) keepSection = i;
+    }
+    return { sections: pixels.length, keepSection };
+  };
+
+  const { sections, keepSection } = sectionOf(rows);
+
+  if (sections > 1) {
+    let section = 0;
+    for (let r = 0; r < rowCount; r++) {
+      if (rows[r].count === 0) {
+        if (r + 1 < rowCount && rows[r + 1].count === 0) {
+          section++;
+          while (r + 1 < rowCount && rows[r + 1].count === 0) r++;
+        }
+        continue;
+      }
+      if (section !== keepSection) {
+        const y = minY + r;
+        const rowBase = y * sw;
+        for (let x = blockMinX; x <= blockMaxX; x++) {
+          if (keep[rowBase + x]) keep[rowBase + x] = 0;
+        }
+      }
+    }
+  }
+
+  /*
+   * IF A BAND REMOVED SOMETHING, THE RESULT MUST STILL BE A GARMENT.
+   *
+   * The edge case this guards: a garment that genuinely IS a wide flat shape —
+   * a folded band of fabric, a very wide sash. If erasing left almost nothing
+   * behind, the "text" was the product, so the pixels are restored and the
+   * garment ships intact. Losing a product is far worse than keeping a word.
+   */
+  let surviving = 0;
+  for (const p of block.members) if (keep[p]) surviving++;
+  if (surviving < block.size * 0.55) {
+    for (const p of block.members) keep[p] = 1;
+  }
+};
+
 const cleanCutoutMatte = (img) => {
   try {
     const w = img.naturalWidth || img.width;
@@ -434,18 +785,55 @@ const cleanCutoutMatte = (img) => {
 
     // 1. Opaque mask — anything with a meaningful alpha is a candidate pixel.
     const ALPHA_MIN = 24;
-    const mask = new Uint8Array(N);
+    const rawMask = new Uint8Array(N);
     for (let p = 0; p < N; p++) {
-      if (data[p * 4 + 3] >= ALPHA_MIN) mask[p] = 1;
+      if (data[p * 4 + 3] >= ALPHA_MIN) rawMask[p] = 1;
     }
 
-    // 2. Label 8-connected components (same neighbourhood as the segmenter, so a
+    /*
+     * 2. SEVER THIN BRIDGES BEFORE SEGMENTING — THE FLOWER-ON-SHOULDER FIX.
+     *
+     * A sprig, a roundel or a corner motif is usually staged RESTING ON the
+     * garment, not floating in clear air. One contact point welds artwork and
+     * clothing into a single 8-connected mass, so every downstream test is blind:
+     * the shape gates see one garment, and the section split never fires because
+     * there are no empty rows to split on. The contact is also wider than the
+     * detach threshold, so the artwork is never even a separate block.
+     *
+     * Erosion by a few pixels cuts that joint — and it is the right cut, because
+     * what survives erosion is genuinely thick fabric while a petal edge, a stem
+     * and a logo's thin strokes are exactly what erosion destroys. Dilating back
+     * by the same amount restores the garment to full size with no seam.
+     *
+     * THE RESULT IS VALIDATED, NOT TRUSTED. A thin strap, a lace panel or a
+     * chiffon sleeve can be a few pixels across too, and opening it would eat
+     * real product. So the opened mask is only adopted if it keeps the bulk of
+     * the garment; otherwise the original mask is used unchanged and the pipeline
+     * continues exactly as before. Degrading to "artwork stays" is recoverable;
+     * degrading to "the product is gone" is not.
+     */
+    const BRIDGE_RADIUS = 2;
+    let mask = rawMask;
+
+    if (N > 0) {
+      const opened = openMask(rawMask, sw, sh, BRIDGE_RADIUS);
+      const keptAfter = opened.reduce((a, v) => a + v, 0);
+      const keptBefore = rawMask.reduce((a, v) => a + v, 0);
+
+      // Anything under a third of the original means erosion ate the subject
+      // rather than a joint — that is a thin garment, not a bridged one.
+      if (keptBefore > 0 && keptAfter >= keptBefore * 0.66) {
+        mask = opened;
+      }
+    }
+
+    // 3. Label 8-connected components (same neighbourhood as the segmenter, so a
     //    thin strap is not split off from its bodice).
     const components = labelComponents(mask, sw, sh);
     if (components.length === 0) return null;
 
     /*
-     * 3. Merge near-neighbour components into logical blocks, so a caption is
+     * 4. Merge near-neighbour components into logical blocks, so a caption is
      *    measured as the one wide line it is rather than as a handful of dots
      *    that each pass a size test on their own.
      */
@@ -484,6 +872,28 @@ const cleanCutoutMatte = (img) => {
     const MIN_RATIO = 0.015;
     const EDGE_GUARD = Math.max(2, Math.round(Math.min(sw, sh) * 0.012));
 
+    /*
+     * HOW FAR APART TWO BLOCKS MUST BE BEFORE "DETACHED" MEANS ANYTHING.
+     *
+     * A garment photographed against a plain wall is usually ONE connected mass,
+     * but a pale fabric breaks up under the alpha threshold, and a sleeve can
+     * separate from a bodice by a pixel or two. Those are still the same garment.
+     *
+     * IT MUST EXCEED THE MERGE RADIUS, OR THIS GATE CAN NEVER FIRE.
+     * -------------------------------------------------------------------
+     * `groupBlocks` (step 4) already absorbed anything within GAP pixels into a
+     * single block, and GAP is 2 % of the frame's short side. A detach threshold
+     * SMALLER than that is measuring a distance that can no longer exist by the
+     * time this runs — the two objects have been declared neighbours and are one
+     * group. That is why artwork sitting a few pixels off a shoulder survived
+     * despite this test existing: the gap it needed to show was already closed.
+     *
+     * So it sits comfortably ABOVE the merge radius (2 % -> 3.5 %), which keeps
+     * it meaningful while leaving the thin-strap case — a one or two pixel
+     * separation, far below both — merging as it always did.
+     */
+    const DETACH_GAP = Math.max(3, Math.round(Math.min(sw, sh) * 0.035));
+
     const coverageCache = new Map();
     const coverageOf = (g) => {
       if (!coverageCache.has(g)) coverageCache.set(g, columnCoverage(g, sw));
@@ -492,8 +902,24 @@ const cleanCutoutMatte = (img) => {
 
     const keep = new Uint8Array(N);
 
-    // The garment itself always survives.
+    /*
+     * THE GARMENT IS THE LARGEST BLOCK — BUT LARGEST ALONE IS NOT ENOUGH.
+     *
+     * A caption printed ACROSS the garment, or a logo sitting on top of it, forms
+     * one 8-connected mass with it: the letters touch the fabric, so the
+     * segmenter never sees them as separate, and `largest` then includes every
+     * word. Keeping `largest` wholesale is what put the product's own name and
+     * watermark into the display image.
+     *
+     * So the garment block is REFINED rather than trusted. Inside it, the rows are
+     * examined and any HORIZONTAL BAND that spans nearly the full width while
+     * being much shorter than it is wide is lettering laid over the garment.
+     * A real garment has no such band: shoulders are wide but tall, a sleeve is
+     * tall and narrow, a skirt is tall. Only a line of text is both very wide and
+     * very flat — see `isFlatFullWidthBand`.
+     */
     for (const p of largest.members) keep[p] = 1;
+    removeTextBandsFromBlock(largest, keep, sw, sh);
 
     for (const g of groups) {
       if (g === largest) continue;
@@ -501,10 +927,44 @@ const cleanCutoutMatte = (img) => {
       // (a) Noise floor.
       if (g.size < largest.size * MIN_RATIO) continue;
 
-      // (b) Lettering / brand mark — rejected by shape, at ANY height.
+      /*
+       * (b) ARTWORK FLOATING ABOVE THE GARMENT — THE FLOWER AND LOGO CASE.
+       *
+       * This is the decoration a product photo is shot with: a pressed-flower
+       * sprig, a brand roundel, a corner motif. It sits in the empty space ABOVE
+       * the shoulders, so it shares columns with the garment but NOT rows — and
+       * gate (d) below only rejects a group that misses on BOTH axes, so a
+       * group that merely misses on one still sailed through.
+       *
+       * THAT IS THE HOLE. (d) requires `!overlapsX || !overlapsY`, which reads
+       * as "reject on either axis", but it is a disjunction over two *overlap*
+       * tests, so anything overlapping in EITHER direction survives. The artwork
+       * above a shirt overlaps in X and misses only in Y — and was kept.
+       *
+       * The rule: a garment is a SINGLE connected mass. A group that is
+       * vertically separated from the body and sits above it, with nothing
+       * bridging the gap, is a photographic accessory, not a garment piece. A
+       * real sleeve shares rows with the bodice; a hem shares rows with the
+       * skirt. Something floating in clear air above the shoulders is not part
+       * of the clothing.
+       *
+       * `gapRows` is the vertical distance between the two blocks, and it must
+       * be non-trivial. Touching or slightly separated (a shoulder seam broken by
+       * a hair) is still the same garment and is NOT rejected here.
+       */
+      const gapBelow = largest.minY - g.maxY;
+      const gapAbove = g.minY - largest.maxY;
+      const isDetachedVertically = gapBelow > 0 || gapAbove > 0;
+      const verticalGap = Math.max(gapBelow, gapAbove);
+
+      if (isDetachedVertically && verticalGap > DETACH_GAP) {
+        continue;
+      }
+
+      // (c) Lettering / brand mark — rejected by shape, at ANY height.
       if (looksLikeText(g)) continue;
 
-      // (c) A strip running along the frame border is leftover backdrop.
+      // (d) A strip running along the frame border is leftover backdrop.
       const hugsEdge =
         g.minX <= EDGE_GUARD ||
         g.minY <= EDGE_GUARD ||
@@ -515,11 +975,11 @@ const cleanCutoutMatte = (img) => {
       const overlapsX = Math.min(g.maxX, largest.maxX) - Math.max(g.minX, largest.minX) >= 0;
       const overlapsY = Math.min(g.maxY, largest.maxY) - Math.max(g.minY, largest.minY) >= 0;
 
-      // (d) A detached island that shares neither axis with the garment is
+      // (e) A detached island that shares neither axis with the garment is
       //     artwork or a backdrop patch — never part of the garment.
       if (!overlapsX || !overlapsY) continue;
 
-      // (e) Bulk check: a group occupying almost none of its own width is a
+      // (f) Bulk check: a group occupying almost none of its own width is a
       //     halo/tendril. Real fabric spans its columns.
       if (coverageOf(g) < 0.25) continue;
 
@@ -567,54 +1027,112 @@ const cleanCutoutMatte = (img) => {
   }
 };
 
-/** Draw an image with `contain` semantics, centred, honouring a max scale. */
-const drawContain = (ctx, img, width, height, maxScale = 1, centerY = height / 2) => {
+/** Where an image lands with `contain` semantics, centred, honouring a max scale. */
+const containRect = (img, width, height, maxScale = 1, centerY = height / 2) => {
   const scale = Math.min(width / img.width, height / img.height) * maxScale;
-  const drawW = img.width * scale;
-  const drawH = img.height * scale;
-  const dx = (width - drawW) / 2;
-  const dy = centerY - drawH / 2;
-  ctx.drawImage(img, dx, dy, drawW, drawH);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  return { x: (width - w) / 2, y: centerY - h / 2, w, h };
 };
 
 /**
- * Paint the ONE shared HIRAYA frame: obsidian base, a soft radial vignette, a
- * double gold hairline border and gold corner ornaments down both sides.
- * Drawn in code so every product is pixel-identical and no asset is needed.
+ * Paint the OCCASION PRESET frame: the flat base, the vibe panel, a soft radial
+ * vignette, a double hairline border and corner ornaments in the preset's
+ * accents. Drawn in code so every product is pixel-consistent and no background
+ * asset is needed.
+ *
+ * NO WORDMARK. The foot of the frame is deliberately left empty. The frame used
+ * to stamp a HIRAYA logo and a "VIRTUAL WARDROBE" line across the bottom of
+ * every catalog image. That is branding, not product, and the brief is explicit:
+ * the display image shows the GARMENT and nothing else — no text, no logo, no
+ * sticker. Text over the image also competes with the product name the
+ * storefront already prints directly beneath it, so the same word appeared
+ * twice.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} width
+ * @param {number} height
+ * @param {Object} [preset] an entry of FRAME_PRESETS. Defaults to the light
+ *                          everyday preset, never the legacy black card.
  */
-const drawFrame = (ctx, width, height) => {
-  // 1. Obsidian base.
-  ctx.fillStyle = FRAME.background;
+const drawFrame = (ctx, width, height, preset = FALLBACK_FRAME) => {
+  const base = preset?.base || FALLBACK_FRAME.base;
+  const vignette = preset?.vignette || FALLBACK_FRAME.vignette;
+  const accent = preset?.accent || FALLBACK_FRAME.accent;
+  const accentSoft = preset?.accentSoft || FALLBACK_FRAME.accentSoft;
+
+  // 1. Flat base.
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Soft radial vignette behind the garment for depth.
-  const vignette = ctx.createRadialGradient(
+  // 2. THE VIBE PANEL — what actually makes one occasion's card read
+  //    differently from another's. Painted UNDER the vignette so it stays a
+  //    soft wash rather than a hard shape competing with the garment.
+  if (preset?.panel === 'arc') {
+    // Summer: a broad warm arc low on the card, like low sun over water.
+    const arc = ctx.createRadialGradient(
+      width / 2, height * 1.02, height * 0.04,
+      width / 2, height * 1.02, height * 0.78,
+    );
+    arc.addColorStop(0, accent);
+    arc.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = arc;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  } else if (preset?.panel === 'keyline') {
+    // Cultural / formal: a set of fine concentric rules, a quiet "atelier"
+    // texture with no motif that could be mistaken for part of the garment.
+    ctx.save();
+    ctx.strokeStyle = accent;
+    ctx.globalAlpha = 0.14;
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i <= 4; i += 1) {
+      const inset = 96 + i * 34;
+      ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    }
+    ctx.restore();
+  } else if (preset?.panel === 'horizon') {
+    // Business / everyday: a single calm band across the lower third.
+    const band = ctx.createLinearGradient(0, height * 0.72, 0, height);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(1, accent);
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = band;
+    ctx.fillRect(0, height * 0.72, width, height * 0.28);
+    ctx.restore();
+  }
+
+  // 3. Soft radial vignette behind the garment for depth.
+  const radial = ctx.createRadialGradient(
     width / 2, height * 0.44, height * 0.05,
     width / 2, height * 0.44, height * 0.72,
   );
-  vignette.addColorStop(0, FRAME.vignette);
-  vignette.addColorStop(1, FRAME.background);
-  ctx.fillStyle = vignette;
+  radial.addColorStop(0, vignette);
+  radial.addColorStop(1, base);
+  ctx.fillStyle = radial;
   ctx.fillRect(0, 0, width, height);
 
-  // 3. Double gold hairline border inset from the edge.
+  // 4. Double hairline border inset from the edge.
   const outerInset = 34;
   const innerInset = 46;
-  ctx.strokeStyle = FRAME.gold;
+  ctx.strokeStyle = accent;
   ctx.lineWidth = 2;
   ctx.globalAlpha = 0.9;
   ctx.strokeRect(outerInset, outerInset, width - outerInset * 2, height - outerInset * 2);
 
-  ctx.strokeStyle = FRAME.goldSoft;
+  ctx.strokeStyle = accentSoft;
   ctx.lineWidth = 1;
   ctx.globalAlpha = 0.45;
   ctx.strokeRect(innerInset, innerInset, width - innerInset * 2, height - innerInset * 2);
   ctx.globalAlpha = 1;
 
-  // 4. Gold ornamental corner flourishes at all four corners.
+  // 5. Corner ornaments at all four corners.
   const corner = (x, y, dirX, dirY) => {
     const armLen = 120;
-    ctx.strokeStyle = FRAME.gold;
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(x, y + dirY * armLen);
@@ -623,7 +1141,7 @@ const drawFrame = (ctx, width, height) => {
     ctx.stroke();
 
     // Small inner tick for a filigree feel.
-    ctx.strokeStyle = FRAME.goldSoft;
+    ctx.strokeStyle = accentSoft;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(x + dirX * 22, y + dirY * 58);
@@ -639,37 +1157,190 @@ const drawFrame = (ctx, width, height) => {
   corner(width - pad, height - pad, -1, -1);
 };
 
-/**
- * Draw the HIRAYA wordmark at the foot of the frame.
- *
- * The logo asset is used when it loads; otherwise a typographic wordmark is
- * rendered so the frame is never left without its brand mark.
+/*
+ * THEME SCENES — loaded once per session and reused for every card, so a save or
+ * a theme-picker change never re-downloads the image. A failed load is not
+ * cached, so a transient error does not stick for the whole session.
  */
-const drawWordmark = async (ctx, width, height) => {
-  const logoSize = 96;
-  const footY = height - 118;
+const sceneCache = new Map();
+const loadScene = (src) => {
+  if (!src || typeof document === 'undefined') return Promise.resolve(null);
+  if (!sceneCache.has(src)) {
+    sceneCache.set(
+      src,
+      loadImage(src).catch(() => {
+        sceneCache.delete(src);
+        return null;
+      })
+    );
+  }
+  return sceneCache.get(src);
+};
 
-  try {
-    const logo = await loadImage(logoImg);
-    const scale = logoSize / Math.max(logo.width, logo.height);
-    const lw = logo.width * scale;
-    const lh = logo.height * scale;
-    ctx.globalAlpha = 0.96;
-    ctx.drawImage(logo, (width - lw) / 2, footY - lh / 2, lw, lh);
-    ctx.globalAlpha = 1;
-    return;
-  } catch {
-    // Fall through to the typographic wordmark.
+/**
+ * Paint a theme scene to COVER the card, softly out of focus.
+ *
+ * The blur is a photographer's shallow depth of field: the room reads as an
+ * office or a beach, but its detail never competes with the garment. It is
+ * drawn a little oversized so the blur's soft edge falls outside the canvas.
+ */
+const drawScene = (ctx, width, height, scene) => {
+  const sw = scene.naturalWidth || scene.width;
+  const sh = scene.naturalHeight || scene.height;
+  const scale = Math.max(width / sw, height / sh) * 1.04;
+  const dw = sw * scale;
+  const dh = sh * scale;
+
+  ctx.save();
+  ctx.filter = 'blur(3px)';
+  ctx.drawImage(scene, (width - dw) / 2, (height - dh) / 2, dw, dh);
+  ctx.restore();
+
+  // Edge vignette — pulls the eye to the centre, where the garment is.
+  const vignette = ctx.createRadialGradient(width / 2, height / 2, width * 0.42, width / 2, height / 2, width * 0.95);
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.26)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+};
+
+/**
+ * The garment's "stage": a soft spotlight behind it and a ground shadow under
+ * it. When the contrast guard fired (a dark garment on a dark scene) the
+ * spotlight becomes a stronger light halo, which restores the garment's edge
+ * WITHOUT swapping the theme's scene for another one.
+ */
+const drawGarmentStage = (ctx, width, height, rect, guarded) => {
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const radius = Math.max(rect.w, rect.h) * 0.62;
+
+  const spot = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+  spot.addColorStop(0, guarded ? 'rgba(255, 250, 240, 0.62)' : 'rgba(255, 255, 255, 0.22)');
+  spot.addColorStop(0.6, guarded ? 'rgba(255, 250, 240, 0.28)' : 'rgba(255, 255, 255, 0.08)');
+  spot.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = spot;
+  ctx.fillRect(0, 0, width, height);
+
+  const groundY = Math.min(height - 20, rect.y + rect.h);
+  const ground = ctx.createRadialGradient(cx, groundY, 0, cx, groundY, rect.w * 0.45);
+  ground.addColorStop(0, 'rgba(0, 0, 0, 0.30)');
+  ground.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.save();
+  ctx.translate(cx, groundY);
+  ctx.scale(1, 0.18);
+  ctx.translate(-cx, -groundY);
+  ctx.fillStyle = ground;
+  ctx.fillRect(cx - rect.w, groundY - rect.w, rect.w * 2, rect.w * 2);
+  ctx.restore();
+};
+
+/** PNG-encode an image or canvas (keeps its alpha). */
+const canvasBlobOf = async (source) => {
+  let canvas = source;
+  if (!(source instanceof HTMLCanvasElement)) {
+    canvas = document.createElement('canvas');
+    canvas.width = source.naturalWidth || source.width;
+    canvas.height = source.naturalHeight || source.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(source, 0, 0);
+  }
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+};
+
+/**
+ * Paint ONE catalog card: the occasion background, then the garment centred on
+ * it. Shared by the first compose and by `reframeCutout`, so a re-themed card is
+ * drawn by exactly the same code as the original.
+ *
+ * @returns {Promise<{ blob: Blob|null, frame: { key: string, preset: Object, guarded: boolean } }>}
+ */
+const paintCard = async (garment, occasion, category, strict = false) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = OUTPUT_WIDTH;
+  canvas.height = OUTPUT_HEIGHT;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D context unavailable');
+
+  /*
+   * PICK THE BACKGROUND, now that the garment's actual pixels are known.
+   *
+   * The occasion decides the vibe, and the garment decides whether that vibe
+   * is SAFE: `pickFramePreset` measures the cut-out's luminance and refuses to
+   * put a dark garment on a dark frame, where the alpha edge is the only
+   * thing separating them. That is the same black-on-black failure documented
+   * in `extractGarment.js`. `strict` (an admin's explicit pick) skips the guard.
+   */
+  const frame = pickFramePreset(occasion, category, garment, strict);
+
+  // Paint the theme's SCENE (an office, a beach…); the flat colour card is only
+  // the fallback when the scene image cannot load.
+  const scene = await loadScene(frame.preset?.scene);
+  if (scene) {
+    drawScene(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT, scene);
+  } else {
+    drawFrame(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT, frame.preset);
   }
 
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = FRAME.gold;
-  ctx.font = '500 40px Cinzel, serif';
-  ctx.fillText('HIRAYA', width / 2, footY);
-  ctx.font = '600 14px "Plus Jakarta Sans", sans-serif';
-  ctx.fillStyle = 'rgba(203, 153, 126, 0.7)';
-  ctx.fillText('V I R T U A L   W A R D R O B E', width / 2, footY + 40);
+  // Where the garment will land (centred, contained, premium margin).
+  const rect = containRect(garment, OUTPUT_WIDTH, OUTPUT_HEIGHT, MAX_GARMENT_SCALE);
+
+  drawGarmentStage(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT, rect, frame.guarded);
+
+  /*
+   * The garment, with a soft drop shadow so it sits IN the scene rather than
+   * pasted on it. No wordmark, no text, no logo — the display image is the
+   * garment alone. See `drawFrame`'s note.
+   */
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.32)';
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetY = 14;
+  ctx.drawImage(garment, rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+
+  // Export as PNG so any transparency at the edges stays clean.
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  return { blob, frame };
+};
+
+/**
+ * RE-THEME AN EXISTING CUT-OUT — swap the background without re-cutting.
+ *
+ * The garment is already transparent (the `cutout` returned by
+ * `composeGarmentOnFrame`, or a product's stored `ghost_mannequin_url`), so the
+ * removal engine is skipped entirely: this is a single canvas paint, fast enough
+ * to run on every save and on every change of the theme picker.
+ *
+ * @param {Object} params
+ * @param {Blob|string} params.cutout       transparent garment (Blob or URL)
+ * @param {string|string[]} [params.occasion] theme / occasion key
+ * @param {string} [params.category]        fallback when the occasion is unusable
+ * @param {boolean} [params.strictOccasion] honour the occasion exactly (admin pick)
+ * @returns {Promise<{ blob: Blob|null, url: string, backgroundKey: string,
+ *                     backgroundLabel: string, backgroundGuarded: boolean }>}
+ */
+export const reframeCutout = async ({ cutout, occasion = null, category = null, strictOccasion = false }) => {
+  if (!cutout) throw new Error('reframeCutout needs a transparent cut-out.');
+
+  const isBlob = typeof cutout !== 'string';
+  const src = isBlob ? URL.createObjectURL(cutout) : cutout;
+  try {
+    const garment = await loadImage(src);
+    const { blob, frame } = await paintCard(garment, occasion, category, strictOccasion);
+    return {
+      blob: blob || null,
+      url: blob ? URL.createObjectURL(blob) : '',
+      backgroundKey: frame.key,
+      backgroundLabel: frame.preset?.label || FRAME_PRESETS[DEFAULT_PRESET_KEY].label,
+      backgroundGuarded: frame.guarded,
+    };
+  } finally {
+    if (isBlob) {
+      try { URL.revokeObjectURL(src); } catch { /* already revoked */ }
+    }
+  }
 };
 
 /**
@@ -698,11 +1369,36 @@ const drawWordmark = async (ctx, width, height) => {
  * @param {Object}  params
  * @param {File|string} params.garmentSource  The admin's uploaded file OR an image URL.
  * @param {Function} [params.onProgress]      (0..1) progress for the cut-out step.
- * @returns {Promise<{ blob: Blob|null, url: string, matte: Blob|null, matteUrl: string, width?: number, height?: number }>}
- */
-export const composeGarmentOnFrame = async ({ garmentSource, onProgress }) => {
+ * @param {boolean} [params.skipCache]        Force a FRESH cut-out, ignoring the
+ *                                            IndexedDB cache. A re-run needs this:
+ *                                            the cache is keyed on the source image,
+ *                                            so without it a re-run would hand back
+ *                                            the identical cut-out from the first
+ *                                            pass and look like a button that did
+ *                                            nothing — which is precisely the moment
+ *                                            somebody reaches for it.
+ * @param {string|string[]} [params.occasion] The AI's occasion/vibe answer. Drives
+ *                                            WHICH background preset is drawn.
+ * @param {string} [params.category]          The AI's garment category, used as a
+ *                                            fallback when the occasion is unusable.
+ * @returns {Promise<{ blob: Blob|null, url: string, matte: Blob|null, matteUrl: string,
+ *                     backgroundKey: string, backgroundLabel: string,
+ *                     backgroundGuarded: boolean, width?: number, height?: number }>}
+ */export const composeGarmentOnFrame = async ({
+  garmentSource,
+  onProgress,
+  skipCache = false,
+  occasion = null,
+  category = null,
+  strictOccasion = false,
+}) => {
   if (!garmentSource) {
-    return { blob: null, url: '', matte: null, matteUrl: '' };
+    return {
+      blob: null, url: '', matte: null, matteUrl: '',
+      backgroundKey: DEFAULT_PRESET_KEY,
+      backgroundLabel: FRAME_PRESETS[DEFAULT_PRESET_KEY].label,
+      backgroundGuarded: false,
+    };
   }
 
   // 1. Resolve the admin's photo into a URL the cut-out engine can read.
@@ -717,7 +1413,7 @@ export const composeGarmentOnFrame = async ({ garmentSource, onProgress }) => {
 
   try {
     // 2. Cut the garment out of its original background.
-    const { url: cutoutUrl, blob: cutoutBlob } = await removeImageBackground(garmentUrl, { onProgress });
+    const { url: cutoutUrl, blob: cutoutBlob } = await removeImageBackground(garmentUrl, { onProgress, skipCache });
 
     /*
      * A cut-out is the WHOLE POINT of this step. If removal failed we must NOT
@@ -757,37 +1453,25 @@ export const composeGarmentOnFrame = async ({ garmentSource, onProgress }) => {
       garmentLayer = null;
     }
 
-    // 3. Build the canvas.
-    const canvas = document.createElement('canvas');
-    canvas.width = OUTPUT_WIDTH;
-    canvas.height = OUTPUT_HEIGHT;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas 2D context unavailable');
-
-    // 4. Paint the SINGLE shared HIRAYA frame (same for every garment).
-    drawFrame(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT);
-
-    // 5. Draw the garment cut-out centred in the frame's display area, sitting
-    //    a little above the wordmark so nothing overlaps.
+    // 3-7. Pick the occasion background and paint the card (see `paintCard`).
     const garment = garmentLayer || await loadImage(garmentLayerUrl);
-    drawContain(
-      ctx,
-      garment,
-      OUTPUT_WIDTH,
-      OUTPUT_HEIGHT - 220, // reserve the foot for the wordmark
-      MAX_GARMENT_SCALE,
-      (OUTPUT_HEIGHT - 220) / 2 + 20,
-    );
-
-    // 6. Brand the foot of the frame.
-    await drawWordmark(ctx, OUTPUT_WIDTH, OUTPUT_HEIGHT);
-
-    // 7. Export as PNG so any transparency at the edges stays clean.
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const { blob, frame } = await paintCard(garment, occasion, category, strictOccasion);
 
     /*
-     * 8. THE TRY-ON MATTE — the bare cut-out, trimmed tight.
-     *
+     * THE CLEANED, UNTRIMMED CUT-OUT — kept so the card can be RE-THEMED later
+     * (`reframeCutout`) without running the ~95 MB removal engine again. It is
+     * untrimmed on purpose: the same margins give the same garment scale, so a
+     * re-themed card matches the first one exactly except for its background.
+     */
+    let cutout = null;
+    try {
+      cutout = await canvasBlobOf(garment);
+    } catch {
+      // Re-theming falls back to the try-on matte; the card itself is fine.
+    }
+
+    // 8. THE TRY-ON MATTE — the bare cut-out, trimmed tight.
+    /*
      * `removeImageBackground` has already produced a transparent PNG; the only
      * thing it needs is a TRIM, because the engine returns the original frame size
      * with the transparent margin left in. A padded matte would make the try-on's
@@ -824,6 +1508,13 @@ export const composeGarmentOnFrame = async ({ garmentSource, onProgress }) => {
       url: blob ? URL.createObjectURL(blob) : garmentUrl,
       matte,
       matteUrl,
+      cutout,
+      // WHICH background was used — the admin console shows it, and the product
+      // row records it in `background_occasion` so the choice stays auditable
+      // and the image can be regenerated later without re-running the AI.
+      backgroundKey: frame.key,
+      backgroundLabel: frame.preset?.label || FRAME_PRESETS[DEFAULT_PRESET_KEY].label,
+      backgroundGuarded: frame.guarded,
       ...(matteSize || {}),
     };
   } finally {

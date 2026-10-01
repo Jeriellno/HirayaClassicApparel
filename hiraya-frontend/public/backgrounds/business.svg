@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1250" viewBox="0 0 1000 1250">
+  <!-- Business / Office: a bright corner office with a city-view window wall. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F3F5F8"/>
+      <stop offset="1" stop-color="#DCE2EA"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BFD6EA"/>
+      <stop offset="0.7" stop-color="#E4EEF6"/>
+      <stop offset="1" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C7CDD6"/>
+      <stop offset="1" stop-color="#9FA8B5"/>
+    </linearGradient>
+    <linearGradient id="desk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9A7757"/>
+      <stop offset="1" stop-color="#6E513A"/>
+    </linearGradient>
+    <radialGradient id="light" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1000" height="1250" fill="url(#wall)"/>
+
+  <!-- ceiling + recessed light strips -->
+  <rect width="1000" height="110" fill="#F7F8FA"/>
+  <rect x="0" y="108" width="1000" height="6" fill="#D5DBE3"/>
+  <rect x="140" y="44" width="220" height="14" rx="7" fill="#FFFFFF"/>
+  <rect x="640" y="44" width="220" height="14" rx="7" fill="#FFFFFF"/>
+  <ellipse cx="250" cy="70" rx="200" ry="60" fill="url(#light)" opacity="0.6"/>
+  <ellipse cx="750" cy="70" rx="200" ry="60" fill="url(#light)" opacity="0.6"/>
+
+  <!-- window wall -->
+  <rect x="50" y="150" width="900" height="640" fill="url(#glass)"/>
+  <!-- city skyline behind the glass -->
+  <g fill="#A9BDD0">
+    <rect x="60" y="430" width="90" height="360"/>
+    <rect x="160" y="360" width="70" height="430"/>
+    <rect x="240" y="470" width="110" height="320"/>
+    <rect x="360" y="300" width="80" height="490"/>
+    <rect x="450" y="420" width="100" height="370"/>
+    <rect x="560" y="340" width="75" height="450"/>
+    <rect x="645" y="450" width="120" height="340"/>
+    <rect x="775" y="380" width="80" height="410"/>
+    <rect x="865" y="470" width="80" height="320"/>
+  </g>
+  <g fill="#94AABF">
+    <rect x="115" y="520" width="60" height="270"/>
+    <rect x="300" y="540" width="70" height="250"/>
+    <rect x="520" y="510" width="60" height="280"/>
+    <rect x="720" y="530" width="70" height="260"/>
+  </g>
+  <g fill="#E8F0F7" opacity="0.7">
+    <rect x="172" y="380" width="10" height="14"/><rect x="200" y="380" width="10" height="14"/>
+    <rect x="172" y="420" width="10" height="14"/><rect x="200" y="420" width="10" height="14"/>
+    <rect x="375" y="330" width="10" height="14"/><rect x="410" y="330" width="10" height="14"/>
+    <rect x="375" y="370" width="10" height="14"/><rect x="410" y="370" width="10" height="14"/>
+    <rect x="575" y="365" width="10" height="14"/><rect x="605" y="365" width="10" height="14"/>
+    <rect x="790" y="400" width="10" height="14"/><rect x="820" y="400" width="10" height="14"/>
+  </g>
+  <!-- mullions -->
+  <g fill="#6F7C8C">
+    <rect x="44" y="144" width="912" height="10"/>
+    <rect x="44" y="784" width="912" height="12"/>
+    <rect x="44" y="144" width="10" height="650"/>
+    <rect x="270" y="144" width="8" height="650"/>
+    <rect x="496" y="144" width="8" height="650"/>
+    <rect x="722" y="144" width="8" height="650"/>
+    <rect x="946" y="144" width="10" height="650"/>
+    <rect x="44" y="460" width="912" height="6"/>
+  </g>
+  <!-- glass sheen -->
+  <polygon points="120,150 220,150 90,790 50,790 50,450" fill="#FFFFFF" opacity="0.18"/>
+  <polygon points="600,150 660,150 560,790 510,790" fill="#FFFFFF" opacity="0.14"/>
+
+  <!-- floor -->
+  <rect x="0" y="880" width="1000" height="370" fill="url(#floor)"/>
+  <rect x="0" y="796" width="1000" height="84" fill="#D9DEE5"/>
+  <g stroke="#B3BBC6" stroke-width="2" opacity="0.6">
+    <line x1="500" y1="880" x2="-200" y2="1250"/>
+    <line x1="500" y1="880" x2="200" y2="1250"/>
+    <line x1="500" y1="880" x2="800" y2="1250"/>
+    <line x1="500" y1="880" x2="1200" y2="1250"/>
+  </g>
+
+  <!-- desk, left -->
+  <rect x="-20" y="930" width="300" height="26" rx="4" fill="url(#desk)"/>
+  <rect x="20" y="956" width="16" height="200" fill="#5A4230"/>
+  <rect x="230" y="956" width="16" height="200" fill="#5A4230"/>
+  <rect x="40" y="860" width="150" height="72" rx="6" fill="#2F3540"/>
+  <rect x="48" y="866" width="134" height="58" rx="3" fill="#6E8BA8"/>
+  <rect x="80" y="922" width="80" height="10" rx="3" fill="#4A515C"/>
+  <rect x="205" y="900" width="36" height="30" rx="4" fill="#F4F1EA"/>
+
+  <!-- potted plant, right -->
+  <path d="M845 1010 h110 l-14 150 h-82 z" fill="#E9E4DA"/>
+  <g fill="#5F8B6B">
+    <path d="M900 1010 C 860 930 820 900 790 860 C 850 880 890 930 900 1010 z"/>
+    <path d="M900 1010 C 930 920 960 880 1000 850 C 980 910 940 960 900 1010 z"/>
+    <path d="M900 1010 C 890 900 900 840 920 790 C 930 860 920 940 900 1010 z"/>
+  </g>
+  <g fill="#4C765A">
+    <path d="M900 1010 C 870 950 850 930 830 920 C 870 930 890 960 900 1010 z"/>
+    <path d="M900 1010 C 920 950 950 930 975 920 C 950 950 925 980 900 1010 z"/>
+  </g>
+</svg>

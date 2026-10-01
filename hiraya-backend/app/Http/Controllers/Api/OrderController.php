@@ -69,17 +69,19 @@ class OrderController extends Controller
             ], 422);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'full_payment_proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'balance_reference_number' => 'required|string|min:4|max:64',
         ]);
 
         try {
-            DB::transaction(function () use ($request, $order) {
+            DB::transaction(function () use ($request, $order, $validated) {
                 $path = $request->file('full_payment_proof_image')
                     ->store('orders/full-payment-proofs', 'public');
 
                 $order->update([
                     'full_payment_proof_image_path' => $path,
+                    'balance_reference_number' => trim($validated['balance_reference_number']),
                     'balance_proof_submitted_at' => now(),
                 ]);
             });
@@ -119,17 +121,19 @@ class OrderController extends Controller
             ], 422);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'dp_proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'dp_reference_number' => 'required|string|min:4|max:64',
         ]);
 
         try {
-            DB::transaction(function () use ($request, $order) {
+            DB::transaction(function () use ($request, $order, $validated) {
                 $path = $request->file('dp_proof_image')
                     ->store('orders/dp-proofs', 'public');
 
                 $order->update([
                     'dp_proof_image_path' => $path,
+                    'dp_reference_number' => trim($validated['dp_reference_number']),
                     'dp_submitted_at'     => now(),
                     'payment_status'      => 'pending',
                     'rejection_reason'    => null,

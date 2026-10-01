@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\WritesAuditTrail;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    use WritesAuditTrail;
+
     /*
      * DEFAULT_SIZE_CHART used to be a private constant here, duplicating the
      * same numbers the stylist, the render job and the pre-processor each held.
@@ -93,6 +96,14 @@ class ProductController extends Controller
 
             $product = Product::create($validated);
 
+            $this->writeAudit(
+                $request,
+                'CREATE_PRODUCT',
+                'PRODUCTS',
+                'New product #' . $product->id . ' (' . $product->name . ') created at '
+                    . $product->price . ' with ' . $product->stock . ' in stock.',
+            );
+
             return response()->json([
                 'success' => true,
                 'data'    => $product
@@ -116,7 +127,37 @@ class ProductController extends Controller
             $validated = $this->prepareAiTags($validated, is_array($product->ai_tags) ? $product->ai_tags : []);
             $validated = $this->processProductInventoryAndMeasurements($validated, $request);
 
+            /*
+             * SNAPSHOT BEFORE THE WRITE. `$product` is a live Eloquent model and
+             * `$product->update()` mutates it in place, so the pre-edit values have
+             * to be captured while they still exist. Diffing afterwards would compare
+             * the product against itself and report that nothing changed, every time.
+             */
+            $before = $product->toArray();
+
             $product->update($validated);
+
+            /*
+             * Record the edit on the security trail.
+             *
+             * The diff is taken against the model as it was loaded at line 109, which
+             * is still the pre-edit state because `$product->update()` mutates in
+             * place — so `$before` has to be snapshotted BEFORE that call, not read
+             * from the model afterwards. Reading it afterwards would compare the
+             * product to itself and always report "no tracked field changed".
+             */
+            $changes = $this->describeChanges($before, $validated, [
+                'name', 'description', 'price', 'category', 'stock',
+                'body_shapes', 'undertone', 'occasions', 'fit_type', 'sku',
+            ]);
+
+            $this->writeAudit(
+                $request,
+                'UPDATE_PRODUCT',
+                'PRODUCTS',
+                'Product #' . $product->id . ' (' . $product->name . ') edited.'
+                    . ($changes ? ' Changed — ' . $changes : ' No tracked field changed.'),
+            );
 
             return response()->json([
                 'success' => true,
@@ -162,6 +203,22 @@ class ProductController extends Controller
 
             $product->update(['ai_tags' => $merged['ai_tags'] ?? $product->ai_tags]);
 
+            /*
+             * The AI tags decide which customers this product is recommended to, so
+             * a change here is a merchandising decision rather than a typo fix and
+             * belongs on the trail under its own action. It is separate from
+             * UPDATE_PRODUCT on purpose: this endpoint touches only the tags, and
+             * reporting it as a general product edit would hide the fact that the
+             * styling rules were what moved.
+             */
+            $this->writeAudit(
+                $request,
+                'UPDATE_AI_TAGS',
+                'PRODUCTS',
+                'AI styling tags for product #' . $product->id . ' (' . $product->name . ') set to '
+                    . (json_encode($product->fresh()->ai_tags) ?: 'none') . '.',
+            );
+
             return response()->json([
                 'success' => true,
                 'data'    => $product->fresh(),
@@ -172,12 +229,26 @@ class ProductController extends Controller
         }
     }
 
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
         $product = Product::find($id);
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
+
+        /*
+         * CAPTURE THE IDENTITY BEFORE THE DELETE.
+         *
+         * Once `$product->delete()` runs, the model is gone and `->name` reads null,
+         * so an audit entry written afterwards could only say "product #12 deleted"
+         * with nothing to identify what was actually removed from the catalog. The
+         * name and price are copied out now, while they still exist, because a
+         * deletion is the one audit entry that can never be reconstructed from the
+         * database later.
+         */
+        $deletedId = $product->id;
+        $deletedName = $product->name;
+        $deletedPrice = $product->price;
 
         /*
          * IMAGE CLEANUP IS BEST-EFFORT AND MUST NEVER BLOCK THE DELETE.
@@ -212,6 +283,14 @@ class ProductController extends Controller
 
         try {
             $product->delete();
+
+            $this->writeAudit(
+                $request,
+                'DELETE_PRODUCT',
+                'PRODUCTS',
+                'Product #' . $deletedId . ' (' . $deletedName . ') deleted from the catalog; it was listed at '
+                    . $deletedPrice . '.',
+            );
         } catch (\Throwable $e) {
             Log::error('Error deleting product: ' . $e->getMessage());
 

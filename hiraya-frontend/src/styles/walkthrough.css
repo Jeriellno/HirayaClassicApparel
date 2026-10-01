@@ -1,201 +1,353 @@
 /* ============================================================================
- * HIRAYA WALKTHROUGH — SPOTLIGHT OVERLAY
+ * HIRAYA WALKTHROUGH — SPOTLIGHT OVERLAY ("Vintage Atelier")
  * ----------------------------------------------------------------------------
- * A dark, semi-transparent layer dims the whole page EXCEPT the element being
- * explained. The "hole" is not a real hole in the DOM: it is drawn with
- * box-shadow, which is the only technique that gives a rounded, soft-edged
- * spotlight AND lets clicks through to the highlighted element itself.
+ * A navy dim covers the whole page EXCEPT the element being explained. The
+ * "hole" is not a real hole in the DOM: it is drawn with box-shadow, the only
+ * technique that gives a rounded, soft-edged cut-out from one element.
  *
  * HOW THE CUTOUT WORKS
- *   The spotlight box sits exactly over the target (position + size set from JS).
- *   Its own background is transparent, so the target shows through untouched.
- *   A huge, opaque box-shadow spread (0 0 0 9999px) paints the dim EVERYWHERE
- *   ELSE, and the border-radius on the box rounds the inside of that shadow —
- *   one element, one rule, no SVG mask, no four-panel fake overlay.
+ *   The spotlight box sits exactly over the target (position, size and corner
+ *   radius are written from JS). Its own background is transparent, so the
+ *   target shows through untouched, and a huge box-shadow spread (0 0 0 200vmax)
+ *   paints the dim EVERYWHERE ELSE.
  *
- * COLOURS come from the Hiraya palette so the tour reads as part of the app.
+ * THE CARD is a cream glass plate with neumorphic depth, in the same palette as
+ * the rest of the app: navy ink, charcoal body copy, a navy primary button.
  * ==========================================================================*/
 
 :root {
-  --wt-overlay: rgba(6, 8, 12, 0.78);   /* the dim over everything else */
-  --wt-spot-ring: #cb997e;              /* brand accent ring around the target */
-  --wt-card-bg: #FFE8D6;
-  --wt-card-border: rgba(255, 255, 255, 0.12);
-  --wt-card-text: #ffe8d6;
-  --wt-card-muted: #a5a58d;
-  --wt-accent: #cb997e;
-  --wt-accent-hover: #b7b7a4;
-  --wt-radius: 12px;
   --wt-z: 9999;
+  --wt-dim: rgba(13, 21, 36, 0.72);            /* navy-950, the page behind */
+  --wt-ring: #f7f2e7;                          /* cream-100 edge on the target */
+  --wt-glow: rgba(247, 242, 231, 0.28);
+  --wt-card: rgba(252, 250, 245, 0.94);        /* cream-50 glass */
+  --wt-card-rule: rgba(21, 32, 54, 0.1);
+  --wt-ink: #152036;                           /* navy-900 */
+  --wt-ink-soft: #43413e;                      /* charcoal-700 */
+  --wt-ink-muted: #6e6b66;                     /* charcoal-500 */
+  --wt-accent: #1d2c45;                        /* navy-800 */
+  --wt-accent-deep: #0d1524;                   /* navy-950 */
+  --wt-track: #e4d6ba;                         /* cream-300 */
+  --wt-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* The click-blocking layer. Clicks land here to close, and it captures the
-   scroll position for the JS repositioning loop. */
+/* The click-catching layer: a click on the dim nudges the card (see JS). */
 .wt-overlay {
   position: fixed;
   inset: 0;
   z-index: var(--wt-z);
-  background: transparent;   /* the dim is drawn by .wt-spotlight's shadow */
+  background: transparent;           /* the dim is drawn by .wt-spotlight */
   cursor: default;
-  animation: wt-fade-in 180ms ease-out;
+  animation: wt-fade-in 220ms ease-out;
 }
 
-/* The spotlight "hole". Position/size are written by the JS as inline styles. */
+/* The spotlight cut-out. Geometry comes from JS as inline styles. */
 .wt-spotlight {
   position: fixed;
-  border-radius: var(--wt-radius);
+  z-index: var(--wt-z);
+  border-radius: 14px;
   box-shadow:
-    0 0 0 9999px var(--wt-overlay),        /* the dim, everywhere else */
-    0 0 0 2px var(--wt-spot-ring),         /* accent ring, ON the target edge */
-    0 0 26px 6px rgba(203, 153, 126, 0.35);/* soft brand glow */
+    0 0 0 200vmax var(--wt-dim),      /* the dim, everywhere else */
+    0 0 0 2px var(--wt-ring),         /* cream edge ON the target */
+    0 0 0 7px rgba(247, 242, 231, 0.12),
+    0 0 42px 10px var(--wt-glow);     /* soft lamp-light halo */
   transition:
-    top 240ms cubic-bezier(0.4, 0, 0.2, 1),
-    left 240ms cubic-bezier(0.4, 0, 0.2, 1),
-    width 240ms cubic-bezier(0.4, 0, 0.2, 1),
-    height 240ms cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;       /* the element underneath stays clickable */
+    top 420ms var(--wt-ease),
+    left 420ms var(--wt-ease),
+    width 420ms var(--wt-ease),
+    height 420ms var(--wt-ease),
+    border-radius 420ms var(--wt-ease);
+  pointer-events: none;
+  animation: wt-fade-in 260ms ease-out;
 }
 
-/* The floating tooltip card. */
+/* A slow breathing ring so the eye finds the highlighted component. */
+.wt-spotlight::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 1px solid rgba(247, 242, 231, 0.55);
+  animation: wt-breathe 2.4s ease-in-out infinite;
+}
+
+/* Element-less step: keep the dim, drop the ring and halo. */
+.wt-spotlight.is-floating {
+  box-shadow: 0 0 0 200vmax var(--wt-dim);
+}
+.wt-spotlight.is-floating::after {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ CARD */
+
 .wt-card {
   position: fixed;
   z-index: calc(var(--wt-z) + 1);
-  width: min(340px, calc(100vw - 32px));
-  padding: 18px 20px;
-  border-radius: 16px;
-  background: var(--wt-card-bg);
-  border: 1px solid var(--wt-card-border);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
-  color: var(--wt-card-text);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  animation: wt-card-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  transition: top 200ms ease-out, left 200ms ease-out;
+  width: min(360px, calc(100vw - 24px));
+  padding: 18px 20px 16px;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.7), transparent 60%),
+    var(--wt-card);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(252, 250, 245, 0.9);
+  box-shadow:
+    0 30px 60px -24px rgba(5, 9, 18, 0.7),
+    0 12px 24px -12px rgba(5, 9, 18, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(21, 32, 54, 0.06);
+  color: var(--wt-ink);
+  font-family: 'Plus Jakarta Sans', system-ui, 'Segoe UI', sans-serif;
+  animation: wt-card-in 320ms var(--wt-ease);
+  transition: top 380ms var(--wt-ease), left 380ms var(--wt-ease);
 }
 
-.wt-card__step {
-  display: block;
-  margin-bottom: 6px;
+.wt-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wt-card__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  min-width: 0;
+}
+
+.wt-card__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--wt-accent);
+  color: var(--wt-ink-muted);
+}
+
+.wt-card__count {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--wt-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Skip tour" — always visible, always in the same corner. */
+.wt-skip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px 6px 12px;
+  background: rgba(21, 32, 54, 0.06);
+  box-shadow: inset 1px 1px 2px rgba(21, 32, 54, 0.12), inset -1px -1px 2px rgba(255, 255, 255, 0.8);
+  color: var(--wt-ink-soft);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 180ms, color 180ms;
+}
+
+.wt-skip:hover {
+  background: var(--wt-accent);
+  color: #f7f2e7;
+  box-shadow: none;
+}
+
+/* Progress: one segment per stop the page ACTUALLY has. */
+.wt-card__progress {
+  display: grid;
+  grid-template-columns: repeat(var(--wt-steps, 4), minmax(0, 1fr));
+  gap: 4px;
+  margin: 14px 0 14px;
+}
+
+.wt-seg {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--wt-track);
+}
+
+.wt-seg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--wt-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 420ms var(--wt-ease);
+}
+
+.wt-seg.is-done::after {
+  transform: scaleX(1);
+}
+
+.wt-seg.is-current::after {
+  background: linear-gradient(90deg, var(--wt-accent), #4a5d7e);
 }
 
 .wt-card__title {
   margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 700;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
   line-height: 1.25;
+  letter-spacing: 0.02em;
+  color: var(--wt-ink);
 }
 
 .wt-card__text {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
-  color: var(--wt-card-muted);
+  color: var(--wt-ink-soft);
 }
 
 .wt-card__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--wt-card-rule);
 }
 
-.wt-card__dots {
-  display: flex;
-  gap: 6px;
+.wt-card__keys {
+  display: inline-flex;
+  gap: 4px;
 }
 
-.wt-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  transition: background 200ms;
+.wt-card__keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(21, 32, 54, 0.05);
+  box-shadow: inset 0 -1px 0 rgba(21, 32, 54, 0.14);
+  color: var(--wt-ink-muted);
+  font: 600 11px/1 system-ui, sans-serif;
 }
 
-.wt-dot.is-active {
-  background: var(--wt-accent);
-  width: 18px;
-}
-
-.wt-card__actions {
-  display: flex;
-  gap: 8px;
+@media (hover: none), (max-width: 480px) {
+  .wt-card__keys {
+    display: none;
+  }
 }
 
 .wt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid transparent;
   border-radius: 999px;
-  padding: 8px 16px;
-  font-size: 10px;
-  font-weight: 800;
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 180ms, color 180ms, border-color 180ms;
+  transition: background 180ms, color 180ms, box-shadow 180ms, opacity 180ms, translate 180ms;
 }
 
 .wt-btn--next {
   background: var(--wt-accent);
-  color: #FFE8D6;
+  color: #f7f2e7;
+  box-shadow: 0 10px 18px -10px rgba(13, 21, 36, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .wt-btn--next:hover {
-  background: var(--wt-accent-hover);
+  background: var(--wt-accent-deep);
+  translate: 0 -1px;
 }
 
-.wt-btn--close {
+.wt-btn--back {
+  padding-left: 10px;
   background: transparent;
-  color: var(--wt-card-muted);
-  border-color: var(--wt-card-border);
+  color: var(--wt-ink-soft);
+  border-color: var(--wt-card-rule);
 }
 
-.wt-btn--close:hover {
-  color: var(--wt-card-text);
+.wt-btn--back:hover:not(:disabled) {
   border-color: var(--wt-accent);
+  color: var(--wt-ink);
 }
 
-/* Arrow that ties the card to the highlighted element. */
+.wt-btn--back:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.wt-btn:focus-visible,
+.wt-skip:focus-visible {
+  outline: 2px solid #364a6a;
+  outline-offset: 3px;
+}
+
+/* ----------------------------------------------------------------- ARROW */
+
+/* The arrow points at the spotlight's centre; JS writes --wt-arrow. */
 .wt-card__arrow {
   position: absolute;
-  width: 12px;
-  height: 12px;
-  background: var(--wt-card-bg);
-  border-left: 1px solid var(--wt-card-border);
-  border-top: 1px solid var(--wt-card-border);
+  width: 14px;
+  height: 14px;
+  background: #fbf8f1;
+  border-left: 1px solid rgba(252, 250, 245, 0.9);
+  border-top: 1px solid rgba(252, 250, 245, 0.9);
   transform: rotate(45deg);
 }
 
 .wt-card[data-placement='bottom'] .wt-card__arrow {
   top: -7px;
-  left: 28px;
+  left: calc(var(--wt-arrow, 28px) - 7px);
 }
 
 .wt-card[data-placement='top'] .wt-card__arrow {
   bottom: -7px;
-  left: 28px;
+  left: calc(var(--wt-arrow, 28px) - 7px);
   transform: rotate(225deg);
 }
 
 .wt-card[data-placement='right'] .wt-card__arrow {
   left: -7px;
-  top: 28px;
+  top: calc(var(--wt-arrow, 28px) - 7px);
   transform: rotate(-45deg);
 }
 
 .wt-card[data-placement='left'] .wt-card__arrow {
   right: -7px;
-  top: 28px;
+  top: calc(var(--wt-arrow, 28px) - 7px);
   transform: rotate(135deg);
 }
 
-/* Locks page scroll while a tour is running. */
-.wt-locked {
-  overflow: hidden;
+/* Docked (no side fits) and floating (no target): no arrow to point with. */
+.wt-card[data-placement='dock'] .wt-card__arrow,
+.wt-card[data-placement='floating'] .wt-card__arrow {
+  display: none;
+}
+
+/* The page's own floating launcher steps aside while a tour is running.
+   `visibility`, not `opacity`: Framer Motion owns the launcher's inline opacity. */
+.wt-running [data-tour='tour-launcher'] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 @keyframes wt-fade-in {
@@ -204,15 +356,26 @@
 }
 
 @keyframes wt-card-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes wt-breathe {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%      { opacity: 0.8; transform: scale(1.012); }
 }
 
 /* Respect a reduced-motion preference: keep the tour, drop the movement. */
 @media (prefers-reduced-motion: reduce) {
+  .wt-overlay,
   .wt-spotlight,
-  .wt-card {
+  .wt-card,
+  .wt-seg::after {
     transition: none;
     animation: none;
+  }
+  .wt-spotlight::after {
+    animation: none;
+    opacity: 0.5;
   }
 }

@@ -3,68 +3,65 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Rules\PasswordStrength;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
     /**
-     * Return the authenticated user's 5 Core Body Measurements.
+     * Return the authenticated user's sizing profile.
      *
-     * The shape of the response is identical to the registration payload
-     * and to the AI Try-On module so the frontend can hydrate any of
-     * the three surfaces (Register, Account Settings, AiTryOn) from the
-     * same object.
+     * The shape is identical to the registration payload and to the AI Try-On
+     * module so the frontend can hydrate any of the three surfaces (Register,
+     * Account Settings, AiTryOn) from the same object.
+     *
+     * These replaced the 5 Core Body Measurements (chest_bust/waist/hips/
+     * shoulder_width/sleeve_length). Centimetres are no longer stored per
+     * customer — they are resolved from the size chart for these labels, so
+     * there is exactly one set of numbers in the system.
      */
-    public function getMeasurements(Request $request)
+    public function getSizes(Request $request)
     {
         $user = $request->user();
 
         /*
          * Defensive: this route is behind `auth:sanctum`, so a resolved user is
-         * expected. Returning empty measurements (rather than throwing on null)
-         * keeps a token that expired mid-session from producing a 500 — the
-         * client renders blank fields and can re-authenticate.
+         * expected. Returning empty sizes (rather than throwing on null) keeps a
+         * token that expired mid-session from producing a 500 — the client
+         * renders the defaults and can re-authenticate.
          */
         if (! $user) {
             return response()->json([
-                'chest_bust'     => null,
-                'waist'          => null,
-                'hips'           => null,
-                'shoulder_width' => null,
-                'sleeve_length'  => null,
+                'upper_body_size' => null,
+                'lower_body_size' => null,
             ]);
         }
 
         return response()->json([
-            'chest_bust'     => $user->chest_bust,
-            'waist'          => $user->waist,
-            'hips'           => $user->hips,
-            'shoulder_width' => $user->shoulder_width,
-            'sleeve_length'  => $user->sleeve_length,
+            'upper_body_size' => $user->upper_body_size,
+            'lower_body_size' => $user->lower_body_size,
         ]);
     }
 
     /**
-     * Overwrite the authenticated user's 5 Core Body Measurements.
+     * Overwrite the authenticated user's sizing profile.
      *
-     * PUT semantics: the request payload fully replaces the existing
-     * record, so any field omitted from the request is nulled out.
-     * This guarantees only the latest measurements remain stored.
+     * PUT semantics: the request payload fully replaces the existing record, so
+     * any field omitted from the request is nulled out. This guarantees only the
+     * latest sizes remain stored.
+     *
+     * `in:` mirrors the size ladder App\Services\SizeChart publishes, so a
+     * saved label is always one the size suggester can resolve.
      */
-    public function updateMeasurements(Request $request)
+    public function updateSizes(Request $request)
     {
         $validated = $request->validate([
-            'chest_bust'     => 'nullable|numeric|min:40|max:200',
-            'waist'          => 'nullable|numeric|min:40|max:200',
-            'hips'           => 'nullable|numeric|min:40|max:200',
-            'shoulder_width' => 'nullable|numeric|min:20|max:100',
-            'sleeve_length'  => 'nullable|numeric|min:30|max:100',
+            'upper_body_size' => ['nullable', 'string', 'max:10', 'in:XS,S,M,L,XL,2XL'],
+            'lower_body_size' => ['nullable', 'string', 'max:10', 'in:XS,S,M,L,XL,2XL'],
         ], [
-            'chest_bust.between' => 'Chest/Bust must be a valid measurement (40-200).',
-            'waist.between'      => 'Waist must be a valid measurement (40-200).',
-            'hips.between'       => 'Hips must be a valid measurement (40-200).',
+            'upper_body_size.in' => 'Please choose a valid upper body size.',
+            'lower_body_size.in' => 'Please choose a valid lower body size.',
         ]);
 
         $user = $request->user();
@@ -73,24 +70,18 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        // Force overwrite — only the 5 standardized fields are persisted.
+        // Force overwrite — only the two sizing fields are persisted.
         $user->update([
-            'chest_bust'     => $validated['chest_bust']     ?? null,
-            'waist'          => $validated['waist']          ?? null,
-            'hips'           => $validated['hips']           ?? null,
-            'shoulder_width' => $validated['shoulder_width'] ?? null,
-            'sleeve_length'  => $validated['sleeve_length']  ?? null,
+            'upper_body_size' => $validated['upper_body_size'] ?? null,
+            'lower_body_size' => $validated['lower_body_size'] ?? null,
         ]);
 
         return response()->json([
-            'message'      => 'Measurements updated successfully.',
-            'user'         => $user->fresh(),
-            'measurements' => [
-                'chest_bust'     => $user->chest_bust,
-                'waist'          => $user->waist,
-                'hips'           => $user->hips,
-                'shoulder_width' => $user->shoulder_width,
-                'sleeve_length'  => $user->sleeve_length,
+            'message' => 'Sizes updated successfully.',
+            'user'    => $user->fresh(),
+            'sizes'   => [
+                'upper_body_size' => $user->upper_body_size,
+                'lower_body_size' => $user->lower_body_size,
             ],
         ]);
     }
@@ -117,12 +108,11 @@ class UserController extends Controller
             'new_password'     => [
                 'required',
                 'string',
-                Password::min(8),
+                new PasswordStrength('new password'),
                 'different:current_password',
             ],
         ], [
             'current_password.required' => 'Your current password is required to change it.',
-            'new_password.min'          => 'New password must be at least 8 characters.',
             'new_password.different'    => 'New password must be different from your current password.',
         ]);
 

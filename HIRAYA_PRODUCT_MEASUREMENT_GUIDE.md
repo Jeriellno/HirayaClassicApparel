@@ -129,13 +129,20 @@ array in `app/Http/Controllers/Api/ProductController.php:45-62`:
 ```
 The existing JSON-decoding loop at lines 73-79 already handles this.
 
-### Step 2: User Records Body Measurements
+### Step 2: User Records Their Sizes
 
 User visits **Account Settings** (`/settings`) → `AccountSettings.jsx` →
-`PUT /user/measurements` → `UserController::updateMeasurements`.
+`VirtualTryOnSection.jsx` → `PUT /user/sizes` → `UserController::updateSizes`.
 
-The 5 fields are stored directly on the `users` table:
-`chest_bust`, `waist`, `hips`, `shoulder_width`, `sleeve_length`
+> **CHANGED (2026-09-29).** The 5 Core Body *Measurements* the customer used to type
+> (`chest_bust`, `waist`, `hips`, `shoulder_width`, `sleeve_length`) are **gone**.
+> The user table now carries two size labels — `upper_body_size` and
+> `lower_body_size` (e.g. both `M`). Centimetres are no longer stored per user:
+> they are resolved on demand from `App\Services\SizeChart`, so there is exactly
+> one set of numbers in the system and it cannot drift from the catalogue.
+>
+> GARMENT measurements (`products.size_measurements`, `garment_sizes.*_min/_max`)
+> are unaffected — those describe the garment, not the person.
 
 ### Step 3: Spotlight Recommendation Cross-Reference
 
@@ -145,11 +152,12 @@ Client: SpotlightSection.jsx
     → api.get('/outfits/recommended?limit=8')
       → OutfitRecommendationController::index
         → OutfitRecommendationService::getRecommendations($user)
-          → Product::whereNotNull('size_measurements')->get()
-            → evaluateProductFit($userMetrics, $sizeChart)
-              [Tolerance: ±2.5cm per measurement]
-              [Threshold: >= 70% match score]
-          → Returns { has_measurements, recommendations[] }
+          → Product::whereNotNull('sizes')->get()
+            → matchedSizeFor(product.sizes, axis, upper, lower)
+              [Axis by category: lower body for pants/skirts/shorts,
+               upper body for everything else]
+              [A product matches when its stock includes the customer's size]
+          → Returns { has_sizes, recommendations[] }
         → SpotlightSection renders ProductCard[] with FitMatchBadge
 ```
 
@@ -157,22 +165,52 @@ Client: SpotlightSection.jsx
 
 | File | Role |
 |---|---|
-| `src/components/product/SpotlightSection.jsx` | Renders the "Your Size Spotlight" / "Curated Spotlight" section |
-| `src/hooks/useOutfitRecommendations.js` | React Query hook; calls `/outfits/recommended`; invalidates on measurement changes |
-| `app/Http/Controllers/Api/OutfitRecommendationController.php` | Controller; returns `{ has_measurements, recommendations }` |
-| `app/Services/OutfitRecommendationService.php` | Service; queries products, evaluates fit per size using ±2.5cm tolerance |
-| `app/Models/User.php:29-33` | The 5 core measurement fields on the user |
-| `app/Models/Product.php:22` | The `size_measurements` JSON column |
+| `src/components/product/SpotlightSection.jsx` | Renders the "Your Slim Fit Spotlight" / "Curated Spotlight" section |
+| `src/hooks/useOutfitRecommendations.js` | React Query hook; calls `/outfits/recommended`; keyed on the two size labels |
+| `app/Http/Controllers/Api/OutfitRecommendationController.php` | Controller; returns `{ has_sizes, fit_style, recommendations }` |
+| `app/Services/OutfitRecommendationService.php` | Service; SIZE is the gate, FIT STYLE is the ranking (see below) |
+| `app/Services/SizeChart.php` | The single size ladder; `normaliseLabel()` guards every stored label |
+| `app/Models/User.php` | `upper_body_size` / `lower_body_size` / `preferred_fit` on the user |
+| `app/Models/Product.php:22` | The `size_measurements` JSON column; `ai_tags->fit_type` holds the cut |
 
-**Alignment fix applied**: `OutfitRecommendationController` now returns `recommendations`
-(previously `outfits`), matching the key expected by `SpotlightSection.jsx:41`.
+### The two gates: size is the gate, fit style is the ranking
+
+A product is RECOMMENDED only if it clears **both**:
+
+1. **SIZE (the gate).** The product is stocked in a size the shopper actually
+   wears. The axis is chosen by category — bottoms use `lower_body_size`,
+   everything else `upper_body_size`. No size match means no recommendation,
+   whatever the cut.
+2. **FIT STYLE (the ranking).** The shopper's `preferred_fit` (lowercase:
+   `slim` / `regular` / `oversized`) is compared with the product's AI-tagged
+   `ai_tags->fit_type` (uppercase: `SLIM` / `REGULAR` / `LOOSE`).
+   `OutfitRecommendationService::FIT_STYLE` is the only place that translates
+   between the two vocabularies.
+
+Scores: same cut **100**, one rung away **80/70**, the far end **60**, and a
+product with **no** `fit_type` **70** — deliberately mid-pack, so an untagged
+garment can never outrank one a stylist explicitly tagged for that shopper.
+With no `preferred_fit` on file every match scores a flat **70**, which restores
+the old size-only behaviour rather than guessing a silhouette.
+
+### A garment with no `fit_type` is invisible to this feed
+
+This is why the add/edit product form requires a fit type to be a real
+decision. `InventoryTab.jsx` offers **"Not set — no fit recommendation"** as a
+first-class option and warns under it, because an untagged garment reads as
+score 70 and will be pushed below every tagged match. The AI auto-fill is the
+intended way to avoid that state: it tags the cut from the photo.
 
 ### Step 4: Frontend Display
 
 `SpotlightSection.jsx` reads:
-- `recPayload.has_measurements` — controls the "Set My Measurements" fallback CTA
-- `recPayload.recommendations` — array of products with `match_score` and `recommended_size`
-- `FitMatchBadge` shows the score and matched size on each `ProductCard`
+- `recPayload.has_sizes` — controls the "Set Your Sizes" fallback CTA
+- `recPayload.fit_style` — the shopper's own fit in catalog vocabulary
+  (SLIM / REGULAR / LOOSE), or null when they have no fit preference on file
+- `recPayload.recommendations` — products with `fit_score`, `recommended_size`,
+  `customer_fit`, `garment_fit` and `fit_reference`
+- `FitMatchBadge` shows "Recommended for slims · Size M" when
+  `customer_fit === garment_fit`, and falls back to score bands otherwise
 
 ---
 

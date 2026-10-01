@@ -148,6 +148,85 @@ return [
         'n_samples' => env('VTON_N_SAMPLES'),
     ],
 
+    /*
+     * FASHN (https://docs.fashn.ai) — THE PRIMARY VTON SLOT.
+     * ---------------------------------------------
+     * `ProcessTryOnJob::callVtonApi()` iterates its engine slots in PRIORITY
+     * ORDER and SKIPS any slot whose token is empty. This block is that slot's
+     * credentials, so the whole priority chain is a .env change and never a code
+     * change:
+     *
+     *   VTON_FASHN_API_TOKEN empty (today)
+     *     -> this slot reports `not_configured` and is skipped
+     *     -> the chain renders through PixelAPI (`services.vton`), unchanged
+     *
+     *   VTON_FASHN_API_TOKEN set (paste a key, then `config:clear && config:cache`)
+     *     -> FASHN becomes PRIMARY automatically, with PixelAPI still behind it
+     *        as the fallback if a FASHN render fails at runtime
+     *
+     * THE TWO SLOTS MUST NEVER SHARE AN ENV PREFIX.
+     * --------------------------------------------
+     * PixelAPI reads `VTON_*`; FASHN reads `VTON_FASHN_*`. Two separate
+     * namespaces, two separate vocabularies. See the note at the top of the
+     * `'vton'` block above for why a shared namespace is a silent 422.
+     *
+     * THE VOCABULARY TRAP APPLIES HERE TOO — READ THIS BEFORE CHANGING A DEFAULT.
+     * --------------------------------------------------------------------------
+     * `env('KEY', $default)` falls back to `$default` whenever the key is ABSENT
+     * **OR EMPTY**. So these category defaults must be FASHN'S OWN vocabulary
+     * (`tops` / `bottoms` / `one-pieces`) and never PixelAPI's
+     * (`upperbody` / `lowerbody` / `dress`). A default borrowed from the other
+     * vendor is not a harmless fallback: it is a value that vendor REJECTS with a
+     * 422, reached silently on any deployment whose .env omits or blanks the key.
+     * `VtonApiRenderer::mapCategory()` keeps its own second copy of these
+     * fallbacks for the same reason — both copies must describe FASHN.
+     */
+    'fashn' => [
+        'endpoint' => env('VTON_FASHN_API_URL', 'https://api.fashn.ai/v1/run'),
+
+        /*
+         * THE PRIORITY SWITCH. Empty = this slot is skipped and the chain renders
+         * through PixelAPI exactly as it does today. Non-empty = FASHN renders
+         * first. No other value in this block decides the order.
+         */
+        'token' => env('VTON_FASHN_API_TOKEN', ''),
+
+        // Wrapper-style model id: FASHN wraps its arguments in `inputs`.
+        // Non-empty is the signal `buildPayload()` uses for the wrapper shape.
+        'model_name' => env('VTON_FASHN_MODEL_NAME', 'tryon-v1.6'),
+
+        // Polling endpoint; `{id}` is replaced with the job id. Empty = sync-only.
+        'status_endpoint' => env('VTON_FASHN_STATUS_URL', 'https://api.fashn.ai/v1/status/{id}'),
+
+        // Request field names (FASHN's contract: `model_image` for the person).
+        'person_field' => env('VTON_FASHN_PERSON_FIELD', 'model_image'),
+        'garment_field' => env('VTON_FASHN_GARMENT_FIELD', 'garment_image'),
+        'category_field' => env('VTON_FASHN_CATEGORY_FIELD', 'category'),
+
+        // Response paths. Empty = walk the documented shapes automatically.
+        'job_id_path' => env('VTON_FASHN_JOB_ID_PATH', 'id'),
+        'image_path' => env('VTON_FASHN_IMAGE_PATH', ''),
+
+        /*
+         * CATEGORY VOCABULARY — FASHN'S OWN ENUM, NOT PIXELAPI'S.
+         *
+         * FASHN accepts `tops | bottoms | one-pieces`. Sending it PixelAPI's
+         * `upperbody` / `lowerbody` / `dress` is a 422, and because these defaults
+         * are the fallback for an absent OR empty key, getting them wrong would
+         * break a deployment that never touched these variables at all.
+         */
+        'category_top' => env('VTON_FASHN_CATEGORY_TOP', 'tops'),
+        'category_bottom' => env('VTON_FASHN_CATEGORY_BOTTOM', 'bottoms'),
+        'category_dress' => env('VTON_FASHN_CATEGORY_DRESS', 'one-pieces'),
+
+        /*
+         * QUALITY KNOBS — optional, omitted from the payload when unset.
+         * FASHN's own field names, sent INSIDE the `inputs` envelope.
+         */
+        'n_steps' => env('VTON_FASHN_N_STEPS'),
+        'n_samples' => env('VTON_FASHN_N_SAMPLES'),
+    ],
+
     // Replicate API for Virtual Try-On (IDM-VTON model)
     'replicate' => [
         'token' => env('REPLICATE_API_TOKEN'),
@@ -395,6 +474,85 @@ return [
     'supabase' => [
         'url' => env('SUPABASE_URL'),
         'service_role_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
+
+        /*
+         * THE LEGACY JWT SECRET — SERVER-SIDE ONLY, NEVER SENT TO A CLIENT.
+         *
+         * Supabase still signs access tokens with this HS256 secret, which is
+         * what lets EnsureSupabaseAAL2 verify a token's signature and read its
+         * `aal` claim without a network round trip to GoTrue.
+         *
+         * The name is kept because it is the value Supabase Dashboard shows
+         * under Settings -> API -> JWT Secret. It is the SAME class of secret
+         * as the service-role key: it can mint a token claiming any aal and
+         * any role, so a leak here defeats the entire control rather than
+         * weakening it.
+         *
+         * Migrating to asymmetric signing keys (rotate-key -> signing-keys) is
+         * the eventual fix and would replace this with a public key that is
+         * safe to ship. Until then this must stay in the server's .env and
+         * must never be prefixed VITE_ (which would compile it into the bundle).
+         */
+        'jwt_secret' => env('SUPABASE_JWT_SECRET'),
+
+        /*
+         * THE JWKS ENDPOINT — WHERE SUPABASE PUBLISHES ITS PUBLIC KEYS.
+         *
+         * This project has MIGRATED to asymmetric signing keys: the live
+         * `.well-known/jwks.json` publishes a single ES256 P-256 key
+         * (kid 6750515a-...), which means every access token Supabase now mints
+         * is signed with ECDSA, NOT with the legacy HS256 shared secret.
+         *
+         * So a correct HS256 secret can no longer verify a correct token, and
+         * EnsureSupabaseAAL2 was answering "Invalid or expired session token"
+         * to every genuine admin request. Verification now goes through the
+         * published public key instead, which is a PUBLIC value by design.
+         *
+         * It is derived from `url` rather than set separately so it can never
+         * drift out of sync with the project it is meant to describe.
+         */
+        'jwks_url' => env('SUPABASE_JWKS_URL') ?: rtrim((string) env('SUPABASE_URL'), '/') . '/auth/v1/.well-known/jwks.json',
+
+        /*
+         * THE GoTrue ADMIN API — the AUTHORITATIVE source for `email_confirmed_at`.
+         *
+         * WHY THIS EXISTS
+         * ---------------
+         * `email_confirmed_at` used to be read straight out of the access token's
+         * payload. Current Supabase access tokens no longer carry that claim, so
+         * `! empty($claims->email_confirmed_at)` was permanently FALSE and every
+         * genuinely MFA-verified admin was answered 401 "This email address is not
+         * confirmed" — a control reading a field that no longer exists.
+         *
+         * The claim is therefore resolved over the network instead:
+         *
+         *   GET {url}/auth/v1/admin/users/{sub}
+         *   Authorization: Bearer <service_role_key>
+         *   apikey:        <service_role_key>
+         *
+         * The response is GoTrue's own user record, which DOES carry
+         * `email_confirmed_at`. That is the authoritative value — the same one the
+         * dashboard shows — rather than a projection of it into a token.
+         *
+         * `service_role_key` is SERVER-ONLY and already required by
+         * App\Support\SupabaseStorage, so this adds no new secret to a
+         * deployment. Like the JWKS url, the base is DERIVED from `url` so it
+         * cannot drift away from the project it describes.
+         */
+        'admin_api_url' => env('SUPABASE_ADMIN_API_URL') ?: rtrim((string) env('SUPABASE_URL'), '/') . '/auth/v1/admin/users',
+
+        /*
+         * HOW LONG A CONFIRMATION VERDICT IS CACHED, in seconds.
+         *
+         * This check runs on EVERY /api/admin/* request, so an uncached lookup
+         * would add a Supabase round trip to each one. The verdict is also
+         * effectively static: an address is confirmed once, by clicking a link
+         * or an admin confirming it, and does not flip back. A short TTL is
+         * therefore about round trips, not about accepting a stale "confirmed"
+         * for long — and a short window is all it takes for a genuinely
+         * unconfirmed address to start being refused.
+         */
+        'email_confirmed_cache_seconds' => (int) env('SUPABASE_EMAIL_CONFIRMED_CACHE_SECONDS', 300),
     ],
 
     /*

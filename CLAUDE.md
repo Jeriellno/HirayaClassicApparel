@@ -7,6 +7,7 @@ Hiraya is an independent, high-end web application acting as an AI-driven smart 
 2. User uploads a high-quality portrait photo which is converted directly into a Base64 string on the frontend.
 3. User interacts with a chat-based AI styling interface, mixing and matching items from their curated catalog or cart using an absolute-positioned layering interface (Outfit Stack).
 4. The backend dispatches these Base64 interactions asynchronously to an external cloud AI model (Gemini Multimodal API / Hugging Face Serverless Inference API) to return a structured fitting response.
+5. Always explain your changes.
 
 ## 2. Technical Stack & State Management
 - **Frontend Architecture:** React.js (Vite), Tailwind CSS, Framer Motion (for luxury glassmorphism aesthetics).

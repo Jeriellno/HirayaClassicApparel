@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -33,7 +33,16 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
         isError: recError,
     } = useOutfitRecommendations(8);
 
-    const hasMeasurements = recPayload?.has_measurements === true;
+    const hasSizes = recPayload?.has_sizes === true;
+
+    /*
+     * The fit style the shopper chose, in the catalog's vocabulary
+     * (SLIM / REGULAR / LOOSE). Null means the account has no fit preference on
+     * file, in which case the feed ranks on the size gate alone and the copy
+     * must not claim a fit-style personalization it did not perform.
+     */
+    const fitStyle = recPayload?.fit_style || null;
+    const fitStyleWord = { SLIM: 'slim', REGULAR: 'regular', LOOSE: 'oversized' }[fitStyle] || null;
 
     // Keep a stable reference so the useMemo below doesn't re-run on
     // every render when the API returns a fresh array each time.
@@ -67,15 +76,32 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
     );
 
     return (
-        <section className="px-8 md:px-20 py-12">
-            {/* Section Header */}
-            <div className="flex justify-between items-end mb-8 border-l-[3px] border-[#CB997E] pl-6">
-                <div>
-                    <span className="text-[10px] text-hiraya-ink uppercase tracking-[0.3em] font-bold block mb-1">
+        <section className="container-page section-y">
+            {/*
+             * Section Header — CENTRED.
+             *
+             * This was a `flex justify-between` row: the kicker/heading block sat
+             * hard LEFT with "View Full Shop" pinned hard RIGHT. On a wide screen
+             * that read as a lopsided header — a big empty gutter on the left of
+             * the title while the section itself is a centred multi-column grid,
+             * so the header did not line up with anything below it.
+             *
+             * It is now a centred stack (kicker + heading + caption + rule),
+             * matching the other section heads on the site, with the "View Full
+             * Shop" link centred beneath it instead of stranded in the corner.
+             * The maroon rule under the head is preserved.
+             */}
+            <div className="section-head mb-12 flex flex-col items-center text-center">
+                <div className="flex flex-col items-center">
+                    <span className="kicker kicker-center text-hiraya-ink-muted">
                         {user ? 'Personalized for You' : 'Featured'}
                     </span>
-                    <h2 className="text-2xl md:text-3xl font-light uppercase tracking-[0.25em] text-hiraya-ink">
-                        {user ? 'Your Size Spotlight' : 'Curated Spotlight'}
+                    <h2 className="display-section mt-3 text-navy-900">
+                        {user
+                            ? fitStyleWord
+                                ? `Your ${fitStyleWord} Fit Spotlight`
+                                : 'Your Size Spotlight'
+                            : 'Curated Spotlight'}
                     </h2>
                     {/*
                      * The copy must describe what is ACTUALLY on screen.
@@ -86,47 +112,60 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                      * personalization that no card in it had. Each count is now
                      * named explicitly.
                      */}
-                    <span className="text-[10px] text-hiraya-sand uppercase tracking-[0.3em] mt-1 block">
+                    <span className="mt-4 block max-w-xl text-[0.85rem] leading-relaxed text-charcoal-600">
                         {!user
                             ? 'Handselected pieces ready for AI virtual try-on'
-                            : !hasMeasurements
-                                ? 'Set your measurements to unlock personalized picks'
+                            : !hasSizes
+                                ? 'Set your sizes to unlock personalized picks'
                                 : recommendations.length > 0
-                                    ? `${recommendations.length} match${recommendations.length !== 1 ? 'es' : ''} for your measurements, with the latest pieces below`
-                                    : 'Latest pieces — we have no size match for your measurements yet'}
+                                    ? fitStyleWord
+                                        ? `${recommendations.length} piece${recommendations.length !== 1 ? 's' : ''} cut for ${fitStyleWord} fits, in your size, with the latest pieces below`
+                                        : `${recommendations.length} match${recommendations.length !== 1 ? 'es' : ''} for your measurements, with the latest pieces below`
+                                    : fitStyleWord
+                                        ? `Latest pieces — we have nothing in your size cut for ${fitStyleWord} fits yet`
+                                        : 'Latest pieces — we have no size match for your measurements yet'}
                     </span>
                 </div>
                 <Link
                     to="/shop"
-                    className="hidden sm:flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-hiraya-sand hover:text-hiraya-ink transition-all group"
+                    className="btn-quiet group mt-5 hidden sm:inline-flex"
                 >
-                    View Full Shop <PlusCircle size={15} className="group-hover:rotate-90 transition-transform" />
+                    View Full Shop <PlusCircle size={15} className="transition-transform group-hover:rotate-90" />
                 </Link>
             </div>
 
-            {/* Fallback CTA — user is signed in but has no measurements */}
-            {user && !hasMeasurements && !recError && (
+            {/* Fallback CTA — user is signed in but has no sizes on file */}
+            {user && !hasSizes && !recError && (
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-[#CB997E]/10 via-[#CB997E]/5 to-transparent border border-[#CB997E]/30 flex flex-col md:flex-row items-center justify-between gap-5"
+                    /*
+                     * A RULED PANEL, NOT A GLOWING GRADIENT SLAB.
+                     *
+                     * This was a 24px-radius panel under a maroon-to-transparent
+                     * gradient with a coloured bloom inside it — the exact "soft
+                     * SaaS" idiom the restyle removed. It is now a cut-cloth card
+                     * with a maroon rule down its left edge and a squared icon
+                     * stamp, which is how every other notice in the system reads.
+                     */
+                    className="card-raised mb-12 flex flex-col items-center justify-between gap-6 p-6 md:flex-row md:p-8"
                 >
-                    <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 shrink-0 rounded-2xl bg-[#CB997E]/15 text-hiraya-ink flex items-center justify-center">
+                    <div className="flex items-start gap-5">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-hiraya-accent text-hiraya-on-accent shadow-neu-sm">
                             <Ruler size={20} />
                         </div>
                         <div>
-                            <h3 className="text-sm md:text-base font-bold uppercase tracking-widest text-hiraya-ink">
+                            <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-hiraya-ink md:text-base">
                                 Unlock Personalized Recommendations
                             </h3>
-                            <p className="text-[11px] md:text-xs text-hiraya-ink mt-1 leading-relaxed max-w-2xl">
-                                Add your 5 Core Body Measurements — chest/bust, waist, hips, shoulder width, and sleeve length — and our engine will surface outfits that fit your exact size in the spotlight feed.
+                            <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-hiraya-ink-soft md:text-xs">
+                                Add your upper and lower body size plus the fit you like — that is all Hiraya needs — and our engine will surface pieces cut for your body in your size at the top of the spotlight feed.
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={() => navigate('/account-settings')}
-                        className="shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-[#CB997E] text-hiraya-ink rounded-full text-[10px] font-extrabold uppercase tracking-[0.25em] hover:bg-hiraya-cream-deep transition"
+                        className="btn-primary shrink-0 rounded-full"
                     >
                         Set My Measurements <ArrowRight size={14} />
                     </button>
@@ -135,7 +174,7 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
 
             {/* Grid */}
             {recLoading || (usingFallback && isFallbackLoading) ? (
-                <div className="py-20 text-center text-hiraya-ink uppercase tracking-[0.4em] text-xs font-semibold">
+                <div className="py-20 text-center text-xs font-semibold uppercase tracking-[0.4em] text-hiraya-ink-muted">
                     Loading Spotlight Pieces...
                 </div>
             ) : visibleProducts.length > 0 ? (
@@ -144,13 +183,12 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                     initial="hidden"
                     whileInView="visible"
                     viewport={{ once: true }}
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+                    className="mx-auto grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-7"
                 >
                     {visibleProducts.map((product) => (
                         <motion.div
                             key={product.id}
                             variants={itemVariants}
-                            whileHover={{ y: -6, transition: { duration: 0.2 } }}
                             className="relative"
                         >
                             <ProductCard
@@ -160,6 +198,8 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                                     <FitMatchBadge
                                         score={product.fit_score}
                                         recommendedSize={product.recommended_size}
+                                        customerFit={product.customer_fit}
+                                        garmentFit={product.garment_fit}
                                     />
                                 ) : null}
                             />
@@ -167,8 +207,8 @@ const SpotlightSection = ({ fallbackProducts = [], isFallbackLoading = false }) 
                     ))}
                 </motion.div>
             ) : (
-                <div className="text-center py-16 text-hiraya-sand uppercase tracking-widest text-xs border border-hiraya-olive/15 rounded-2xl bg-white/[0.02]">
-                    <Sparkles size={18} className="mx-auto mb-2 text-hiraya-olive/70" />
+                <div className="card-raised py-16 text-center text-xs uppercase leading-relaxed tracking-widest text-hiraya-ink-muted">
+                    <Sparkles size={18} className="mx-auto mb-2 text-hiraya-accent" />
                     No spotlight garments currently available for your size.
                     <br />
                     Try browsing the full shop or updating your measurements.

@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Download, BarChart2, PieChart, Sparkles, Activity } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import PropTypes from 'prop-types';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Download, BarChart2, CheckCircle2, Sparkles, Activity, Table2, LineChart } from 'lucide-react';
+import { ConsoleHeader, Panel, Well, StatTile, StatusChip } from '../ConsoleUI';
 
 /**
  * SUPER ADMIN — CANVAS ANALYTICS.
@@ -13,6 +16,13 @@ import { Download, BarChart2, PieChart, Sparkles, Activity } from 'lucide-react'
  * completed count are derived from the rows that ACTUALLY carry the data, and
  * the trend zero-fills empty days so a gap reads as a gap rather than a
  * misleading squashed axis.
+ *
+ * PRESENTATION ("Vintage Atelier" console): neumorphic stat tiles, the range
+ * filter as one row above everything it scopes, and the trend as a navy
+ * column chart in a pressed-in well — columns capped at 24px with a 4px
+ * rounded data-end, hairline gridlines on clean ticks, a per-column tooltip
+ * on hover AND keyboard (← → inside the chart), and a table view so no value
+ * is reachable only by hovering.
  */
 
 const RANGES = [
@@ -27,8 +37,138 @@ const dayKey = (value) => {
   return d.toISOString().slice(0, 10);
 };
 
+const EASE = [0.22, 1, 0.36, 1];
+
+// Display only: "2026-09-30" -> "Sep 30". Parsed as UTC to match the key.
+const fmtDay = (key) =>
+  new Date(`${key}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+// A clean ceiling for the y-axis: 1–5 stay whole, larger values snap to 1/2/5×10ⁿ.
+const niceCeil = (v) => {
+  if (v <= 5) return Math.max(1, Math.ceil(v));
+  const p = 10 ** Math.floor(Math.log10(v));
+  const n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+};
+
+/*
+ * THE DAILY ACTIVITY CHART — a single series, so no legend: the panel title
+ * names it. Presentation only; `trend` arrives already computed.
+ */
+const ActivityChart = ({ trend, maxTrend }) => {
+  const reduce = useReducedMotion();
+  const [active, setActive] = useState(null);
+
+  const yMax = niceCeil(maxTrend);
+  const ticks = yMax <= 5
+    ? Array.from({ length: yMax + 1 }, (_, i) => i)
+    : [0, yMax / 2, yMax];
+  const n = trend.length;
+  const labelIdx = n <= 7 ? trend.map((_, i) => i) : [0, Math.floor((n - 1) / 2), n - 1];
+  const current = active !== null ? trend[active] : null;
+
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const step = e.key === 'ArrowRight' ? 1 : -1;
+      setActive((i) => (i === null ? (step > 0 ? 0 : n - 1) : Math.min(n - 1, Math.max(0, i + step))));
+    } else if (e.key === 'Escape') {
+      setActive(null);
+    }
+  };
+
+  return (
+    <div>
+      <div
+        tabIndex={0}
+        role="group"
+        aria-label="Daily activity chart. Use the left and right arrow keys to read each day."
+        onKeyDown={onKeyDown}
+        onBlur={() => setActive(null)}
+        className="relative h-56 pl-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus focus-visible:ring-offset-4 focus-visible:ring-offset-cream-200 rounded-lg"
+      >
+        {/* Hairline gridlines on clean ticks. */}
+        {ticks.map((t) => (
+          <div
+            key={t}
+            aria-hidden="true"
+            className="absolute left-9 right-0 border-t border-charcoal-200/80"
+            style={{ bottom: `${(t / yMax) * 100}%` }}
+          >
+            <span className="absolute -left-9 w-7 -translate-y-1/2 text-right text-[10px] tabular-nums text-charcoal-500">
+              {t}
+            </span>
+          </div>
+        ))}
+
+        {/* Columns — each slot is the hit target, wider than the bar in it. */}
+        <div className="absolute inset-y-0 left-9 right-0 flex items-end gap-[2px]">
+          {trend.map((t, i) => (
+            <div
+              key={t.key}
+              onPointerEnter={() => setActive(i)}
+              onPointerLeave={() => setActive(null)}
+              className="relative flex h-full min-w-0 flex-1 cursor-default items-end justify-center"
+            >
+              <motion.span
+                aria-hidden="true"
+                initial={reduce ? false : { height: 0 }}
+                animate={{ height: t.count ? `${(t.count / yMax) * 100}%` : 0 }}
+                transition={{ duration: 0.7, ease: EASE, delay: reduce ? 0 : Math.min(i * 0.015, 0.4) }}
+                className={`block w-full max-w-[24px] rounded-t-[4px] transition-colors duration-200 ${
+                  active === i ? 'bg-navy-600' : 'bg-navy-800'
+                } ${t.count ? 'min-h-[3px]' : ''}`}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Tooltip — value leads, the day follows. */}
+        {current && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-xl bg-navy-950 px-3 py-2 text-center shadow-neu-dark"
+            style={{
+              left: `calc(2.25rem + (100% - 2.25rem) * ${(active + 0.5) / n})`,
+              bottom: `calc(${(current.count / yMax) * 100}% + 10px)`,
+            }}
+          >
+            <p className="text-sm font-semibold text-cream-50">{current.count} {current.count === 1 ? 'interaction' : 'interactions'}</p>
+            <p className="text-[10px] uppercase tracking-[0.14em] text-cream-400">{fmtDay(current.key)}</p>
+          </div>
+        )}
+
+        {/* Keyboard readers hear the focused day. */}
+        <p className="sr-only" aria-live="polite">
+          {current ? `${fmtDay(current.key)}: ${current.count} interactions` : ''}
+        </p>
+      </div>
+
+      {/* X-axis: first, middle and last day (every day for a week). */}
+      <div aria-hidden="true" className="relative ml-9 mt-2 h-4">
+        {labelIdx.map((i) => (
+          <span
+            key={trend[i].key}
+            className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] tabular-nums text-charcoal-500"
+            style={{ left: `${((i + 0.5) / n) * 100}%` }}
+          >
+            {fmtDay(trend[i].key)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+ActivityChart.propTypes = {
+  trend: PropTypes.arrayOf(PropTypes.shape({ key: PropTypes.string, count: PropTypes.number })).isRequired,
+  maxTrend: PropTypes.number.isRequired,
+};
+
 const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
   const [range, setRange] = useState('30d');
+  // Chart or table — the same figures, two ways to read them.
+  const [view, setView] = useState('chart');
 
   const activeRange = RANGES.find((r) => r.id === range) || RANGES[1];
 
@@ -96,136 +236,151 @@ const AnalyticsTab = ({ analyticsLogs = [], exportSurveyCSV }) => {
   }, [logs, activeRange.days]);
 
   const maxTrend = Math.max(1, ...trend.map((t) => t.count));
+  const hasActivity = trend.length > 0 && maxTrend > 0 && trend.some((t) => t.count > 0);
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
-        <div>
-          <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
-            Canvas Research Analytics &amp; Data Export
-          </h2>
-          <p className="text-xs text-hiraya-ink mt-1">
-            Quantitative fitting interaction logs and capstone research metrics.
-          </p>
-        </div>
+    <div className="space-y-7 animate-fadeIn">
+      <ConsoleHeader
+        kicker="Research"
+        icon={BarChart2}
+        title="Canvas Research Analytics & Data Export"
+        subtitle="Quantitative fitting interaction logs and capstone research metrics."
+      >
         <button
           onClick={exportSurveyCSV}
-          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-hiraya-ink text-xs font-mono font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="btn-primary cursor-pointer rounded-full px-6 py-3"
         >
           <Download size={15} /> Export Dataset (CSV)
         </button>
-      </div>
+      </ConsoleHeader>
 
-      {/* RANGE FILTER */}
-      <div className="flex flex-wrap gap-2">
+      {/* RANGE FILTER — one row, above everything it scopes. */}
+      <div className="inline-flex rounded-full bg-cream-200/70 p-1 shadow-neu-inset" role="group" aria-label="Date range">
         {RANGES.map((r) => (
           <button
             key={r.id}
             onClick={() => setRange(r.id)}
-            className={`px-4 py-2 rounded-lg text-[10px] font-mono uppercase tracking-widest border transition cursor-pointer ${
-              range === r.id
-                ? 'bg-[#CB997E]/15 text-hiraya-ink border-[#CB997E]/40 font-medium'
-                : 'text-hiraya-ink border-hiraya-olive/15 hover:text-hiraya-ink hover:border-hiraya-olive/30'
+            aria-pressed={range === r.id}
+            className={`relative cursor-pointer rounded-full px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${
+              range === r.id ? 'text-hiraya-on-accent' : 'text-hiraya-ink-soft hover:text-hiraya-ink'
             }`}
           >
-            {r.label}
+            {range === r.id && (
+              <motion.span
+                layoutId="analytics-range-pill"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded-full bg-hiraya-accent shadow-[0_8px_16px_-8px_rgba(21,32,54,0.7)]"
+              />
+            )}
+            <span className="relative">{r.label}</span>
           </button>
         ))}
       </div>
 
-      {/* Visual Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-hiraya-ink">
-            <span className="text-[10px] font-mono uppercase tracking-wider">Total Interactions</span>
-            <Activity size={16} className="text-hiraya-ink" />
-          </div>
-          <p className="text-3xl font-mono font-bold text-hiraya-ink pt-1">{totalLogs}</p>
-        </div>
-
-        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-hiraya-ink">
-            <span className="text-[10px] font-mono uppercase tracking-wider">Completion Rate</span>
-            <Sparkles size={16} className="text-emerald-400" />
-          </div>
-          <p className="text-3xl font-mono font-bold text-emerald-400 pt-1">
-            {completionRate === null ? '—' : `${completionRate}%`}
-          </p>
-          <p className="text-[10px] text-hiraya-sand">
-            {totalLogs > 0
-              ? `${completedCount} of ${totalLogs} finished${failedCount > 0 ? ` · ${failedCount} failed` : ''}`
-              : 'no sessions yet'}
-          </p>
-        </div>
-
-        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-hiraya-ink">
-            <span className="text-[10px] font-mono uppercase tracking-wider">Completed Fittings</span>
-            <PieChart size={16} className="text-purple-400" />
-          </div>
-          <p className="text-3xl font-mono font-bold text-purple-400 pt-1">{completedCount}</p>
-        </div>
+      {/* Stat tiles */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <StatTile index={0} label="Total interactions" value={totalLogs} icon={Activity} note={activeRange.label} />
+        <StatTile
+          index={1}
+          label="Completion rate"
+          value={completionRate === null ? '—' : `${completionRate}%`}
+          icon={Sparkles}
+          meter={completionRate === null ? null : completionRate}
+          note={totalLogs > 0
+            ? `${completedCount} of ${totalLogs} finished${failedCount > 0 ? ` · ${failedCount} failed` : ''}`
+            : 'no sessions yet'}
+        />
+        <StatTile index={2} label="Completed fittings" value={completedCount} icon={CheckCircle2} />
       </div>
 
       {/* ACTIVITY TREND */}
-      <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-3">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
-          <Activity size={16} className="text-hiraya-ink" /> Daily Activity
-          <span className="text-hiraya-sand normal-case tracking-normal">
-            ({activeRange.label})
-          </span>
-        </h3>
-
-        {trend.length > 0 && maxTrend > 0 && trend.some((t) => t.count > 0) ? (
-          <div className="flex items-end gap-1 h-28">
-            {trend.map((t) => (
-              <div
-                key={t.key}
-                className="flex-1 min-w-[3px] bg-[#CB997E]/70 hover:bg-[#CB997E] rounded-t transition"
-                style={{ height: `${Math.max(2, (t.count / maxTrend) * 100)}%` }}
-                title={`${t.key}: ${t.count}`}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="py-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest">
-            No activity in this period
-          </div>
-        )}
-      </div>
-
-      {/* Interaction Table */}
-      <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-2.5">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink mb-3 flex items-center gap-2">
-          <BarChart2 size={16} className="text-hiraya-ink" /> Live Try-On Activity Stream
-        </h3>
-
-        {logs.length > 0 ? (
-          logs.map((log, idx) => (
-            <div key={idx} className="p-3.5 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl flex justify-between items-center text-xs font-mono hover:border-hiraya-olive/15 transition">
-              <div className="flex items-center gap-2.5 text-hiraya-ink">
-                <span className="text-hiraya-sand text-[10px]">#{idx + 1}</span>
-                <span>{log.user_name || 'Customer'} - {log.item_name || 'Garment Item'}</span>
-              </div>
-              <span className={`px-2.5 py-1 rounded text-[10px] border ${
-                log.status === 'completed'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : log.status === 'failed'
-                  ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                  : 'bg-[#CB997E]/10 border-[#CB997E]/30 text-hiraya-ink'
-              }`}>
-                {log.status || 'queued'}
-              </span>
+      <Panel
+        title={<>Daily activity <span className="font-normal normal-case tracking-normal text-charcoal-500">({activeRange.label})</span></>}
+        icon={Activity}
+        action={
+          hasActivity && (
+            <div className="inline-flex rounded-full bg-cream-200/70 p-1 shadow-neu-inset" role="group" aria-label="Show as">
+              {[
+                { id: 'chart', label: 'Chart', Icon: LineChart },
+                { id: 'table', label: 'Table', Icon: Table2 },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setView(id)}
+                  aria-pressed={view === id}
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${
+                    view === id ? 'bg-hiraya-surface text-hiraya-ink shadow-neu-sm' : 'text-charcoal-500 hover:text-hiraya-ink'
+                  }`}
+                >
+                  <Icon size={12} /> {label}
+                </button>
+              ))}
             </div>
-          ))
+          )
+        }
+      >
+        {hasActivity ? (
+          <Well className="px-4 pb-3 pt-6 sm:px-5">
+            {view === 'chart' ? (
+              <ActivityChart trend={trend} maxTrend={maxTrend} />
+            ) : (
+              <div className="max-h-64 overflow-y-auto pr-1">
+                <table className="table-heritage">
+                  <thead>
+                    <tr>
+                      <th scope="col">Day</th>
+                      <th scope="col" className="text-right">Interactions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...trend].reverse().map((t) => (
+                      <tr key={t.key}>
+                        <td>{fmtDay(t.key)}</td>
+                        <td className="text-right tabular-nums">{t.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Well>
         ) : (
-          <div className="py-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest">
-            No research interaction logs captured in this period
-          </div>
+          <Well className="py-10 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-charcoal-500">
+            No activity in this period
+          </Well>
         )}
-      </div>
+      </Panel>
+
+      {/* Interaction stream */}
+      <Panel title="Live try-on activity stream" icon={BarChart2}>
+        {logs.length > 0 ? (
+          <ul className="max-h-[28rem] space-y-2.5 overflow-y-auto pr-1">
+            {logs.map((log, idx) => (
+              <li
+                key={idx}
+                className="flex items-center justify-between gap-3 rounded-xl bg-cream-200/45 px-4 py-3 text-xs shadow-neu-inset"
+              >
+                <div className="flex min-w-0 items-center gap-3 text-hiraya-ink">
+                  <span className="w-8 shrink-0 text-[10px] tabular-nums text-charcoal-500">#{idx + 1}</span>
+                  <span className="truncate">{log.user_name || 'Customer'} - {log.item_name || 'Garment Item'}</span>
+                </div>
+                <StatusChip status={log.status} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Well className="py-10 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-charcoal-500">
+            No research interaction logs captured in this period
+          </Well>
+        )}
+      </Panel>
     </div>
   );
+};
+
+AnalyticsTab.propTypes = {
+  analyticsLogs: PropTypes.array,
+  exportSurveyCSV: PropTypes.func,
 };
 
 export default AnalyticsTab;

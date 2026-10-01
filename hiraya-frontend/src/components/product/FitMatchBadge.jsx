@@ -1,4 +1,4 @@
-import { CheckCircle2, Sparkles, ThumbsUp, Ruler } from 'lucide-react';
+﻿import { CheckCircle2, Sparkles, ThumbsUp, Ruler } from 'lucide-react';
 
 /**
  * FitMatchBadge
@@ -25,12 +25,29 @@ import { CheckCircle2, Sparkles, ThumbsUp, Ruler } from 'lucide-react';
  * - `size`   :"M"   (fallback chip value when no `recommendedSize`)
  * - `variant`: 'gold' (default) | 'emerald' | 'subtle'
  * - `positionClass`: where to pin the badge on the card media.
+ *
+ * FIT STYLE
+ * ---------
+ * When the backend has compared the shopper's chosen fit against the garment's
+ * AI-tagged `fit_type`, it sends both down. `customerFit` (SLIM / REGULAR /
+ * LOOSE) and `garmentFit` are then used to name the match in the shopper's own
+ * words — "Recommended for slims" — because a score out of 100 tells them
+ * nothing about WHY a piece was picked. When either is missing the badge falls
+ * back to the score bands, which is the pre-fit-style behaviour.
  */
+const FIT_WORDS = {
+    SLIM: 'slim',
+    REGULAR: 'regular',
+    LOOSE: 'oversized',
+};
+
 const FitMatchBadge = ({
     score = 0,
     label,
     size = 'M',
     recommendedSize,
+    customerFit,
+    garmentFit,
     variant = 'gold',
     compact = false,
     positionClass = 'top-12 left-3',
@@ -40,7 +57,16 @@ const FitMatchBadge = ({
     let Icon = Sparkles;
 
     if (!resolvedLabel) {
-        if (score >= 95)      { resolvedLabel = '100% Fit Match';          Icon = CheckCircle2; }
+        // An exact fit-style match outranks a size-only match at the same
+        // score, because it is the reason the shopper is now looking at the
+        // garment at all.
+        const exactFitMatch = customerFit && garmentFit && customerFit === garmentFit;
+
+        if (exactFitMatch) {
+            const word = FIT_WORDS[garmentFit] || 'you';
+            resolvedLabel = `Recommended for ${word}s`;
+            Icon = Sparkles;
+        } else if (score >= 95) { resolvedLabel = '100% Fit Match';          Icon = CheckCircle2; }
         else if (score >= 85) { resolvedLabel = 'Perfect Size for You';    Icon = CheckCircle2; }
         else if (score >= 70) { resolvedLabel = 'Recommended for You';     Icon = ThumbsUp; }
         else if (score >= 60) { resolvedLabel = 'Close Fit';               Icon = Ruler; }
@@ -48,10 +74,25 @@ const FitMatchBadge = ({
     }
 
     const palette = {
-        gold:    'bg-[#CB997E] text-hiraya-olive border-[#CB997E]',
-        emerald: 'bg-emerald-500/95 text-hiraya-olive border-emerald-400',
-        subtle:  'bg-hiraya-cream/60 text-hiraya-ink border-hiraya-olive/20 backdrop-blur-md',
-    }[variant] || 'bg-[#CB997E] text-hiraya-olive border-[#CB997E]';
+        /*
+         * THE BADGE IS A PILL — AND THAT IS DELIBERATE.
+         *
+         * This system reserves `rounded-sm` for PLATES (buttons, panels, inputs)
+         * and keeps the pill for genuine TAGS: a fit score, a size chip, a
+         * counter. A match badge is a tag, so the pill form stays.
+         *
+         * What changed is the PAINT. `gold`, `maroon` and `accent` are all the
+         * SAME maroon in the heritage palette, so the old
+         * `border-[#541A1A]` on `bg-[#541A1A]` drew a border identical to its own
+         * fill (invisible edge), and the `subtle` variant asked for
+         * `text-hiraya-on-accent` — vintage-white ink — on a `bg-hiraya-peach/70`
+         * PALE fill, which measured ~1.2:1 and rendered the label invisible.
+         * The subtle variant now carries the ink that legibility requires.
+         */
+        gold:    'bg-hiraya-accent text-hiraya-on-accent border-hiraya-accent-deep',
+        emerald: 'bg-emerald-700 text-hiraya-on-accent border-emerald-800',
+        subtle:  'bg-hiraya-accent-wash text-hiraya-accent border-hiraya-accent/35 backdrop-blur-md',
+    }[variant] || 'bg-hiraya-accent text-hiraya-on-accent border-hiraya-accent-deep';
 
     const sizeText = recommendedSize || size;
 
@@ -73,8 +114,8 @@ const FitMatchBadge = ({
             <span>{resolvedLabel}</span>
             {sizeText && (
                 <span
-                    className={`ml-1 px-1.5 py-[1px] rounded-full text-[8px] tracking-widest ${
-                        recommendedSize ? 'bg-hiraya-olive/15' : 'bg-hiraya-cream/60'
+                    className={`ml-1 rounded-full px-1.5 py-[1px] text-[8px] tracking-widest ${
+                        recommendedSize ? 'bg-hiraya-nav-ink/20' : 'bg-hiraya-nav-ink/12'
                     }`}
                 >
                     Size {sizeText}

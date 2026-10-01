@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { Database, RotateCcw, Loader2, ToggleLeft, ToggleRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Database, RotateCcw, Loader2, ToggleLeft, ToggleRight, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
+import MfaEnrollment from '../../settings/MfaEnrollment';
+import { supabase } from '../../../services/supabase';
+import { roleOf } from '../../../services/supabaseMfa';
 
 /*
  * The global platform toggles, in the order a superadmin reads them. Each
@@ -41,6 +45,50 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
   const [isExporting, setIsExporting] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [togglingKey, setTogglingKey] = useState('');
+  const { user } = useAuth();
+
+  /*
+   * THE ROLE COMES FROM SUPABASE, NOT FROM useAuth().
+   *
+   * Staff sign in through /login, which is a Supabase sign-in. It mints a
+   * Supabase session and NO Sanctum one, so `useAuth().user` is null for every
+   * console user. Reading the role from there — as this tab used to — made
+   * `signedInRole` resolve to '' and the 2FA panel below render its
+   * customer-facing "staff only" copy to the very person operating the console.
+   *
+   * The Supabase session is the authoritative identity for the console, and it
+   * is already the session the API is authorized against.
+   */
+  const [supabaseRole, setSupabaseRole] = useState('');
+  const [consoleEmail, setConsoleEmail] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setSupabaseRole(roleOf(data?.session?.user));
+      setConsoleEmail(data?.session?.user?.email ?? '');
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /*
+   * WHOSE 2FA IS BEING EDITED.
+   *
+   * The console is the one place a privileged operator is signing in from a
+   * machine they control, in front of an audience, to fix a problem. That is the
+   * worst possible moment to be handed a form whose primary action is "Turn On
+   * two-factor" — especially for the superadmin, for whom enrolment is not a
+   * suggestion but the reason the account is safe to own at all.
+   *
+   * So the panel is bound to the SIGNED-IN user, not to a row someone picked in
+   * a list. There is deliberately no target selector here.
+   */
+  const signedInRole = supabaseRole || String(user?.role || '').toLowerCase().replace(/[\s_-]+/g, '');
 
   const handleToggle = async (key) => {
     if (!onToggle) return;
@@ -75,7 +123,7 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
   return (
     <div className="space-y-6 animate-fadeIn max-w-4xl">
       <div>
-        <h2 className="text-xl font-light uppercase tracking-[0.2em] text-hiraya-ink">
+        <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900">
           System Controls &amp; Utilities
         </h2>
         <p className="text-xs text-hiraya-ink mt-1">
@@ -91,7 +139,7 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
           return (
             <div
               key={toggle.key}
-              className="p-4 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl flex items-center justify-between gap-4"
+              className="p-4 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 flex items-center justify-between gap-4"
             >
               <div className="min-w-0">
                 <p className="text-sm text-hiraya-ink font-medium flex items-center gap-2">
@@ -105,7 +153,7 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
                 onClick={() => handleToggle(toggle.key)}
                 disabled={isBusy || !onToggle}
                 title={isOn ? 'Turn off' : 'Turn on'}
-                className="shrink-0 text-hiraya-ink disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="shrink-0 text-hiraya-ink disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
               >
                 {isBusy ? (
                   <Loader2 size={24} className="animate-spin" />
@@ -120,8 +168,22 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
         })}
       </div>
 
+      {/* YOUR OWN ACCOUNT SECURITY */}
+      <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4 pt-6 mt-6">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
+          <ShieldCheck size={16} className="text-hiraya-ink" /> Your Account Security
+        </h3>
+        <p className="text-[11px] text-hiraya-sand normal-case tracking-normal">
+          Two-factor authentication on the account you are signed in with
+          {consoleEmail && <span className="text-hiraya-ink"> ({consoleEmail})</span>}.
+          This is the account that grants everything this console can do.
+        </p>
+
+        <MfaEnrollment userRole={signedInRole} />
+      </div>
+
       {/* Utilities Section */}
-      <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4 pt-6 mt-6">
+      <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4 pt-6 mt-6">
         <h3 className="text-xs font-mono uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
           <Database size={16} className="text-hiraya-ink" /> Capstone Demo Utilities
         </h3>
@@ -135,7 +197,7 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
           <button
             onClick={handleExportBackup}
             disabled={isExporting}
-            className="px-4 py-2 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 border-hiraya-olive/15 text-hiraya-ink text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
+            className="px-4 py-2 bg-cream-200/60 hover:bg-cream-200/60 border-hiraya-structure-line/80 text-hiraya-ink text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
           >
             {isExporting ? <Loader2 size={14} className="animate-spin text-hiraya-ink" /> : <Database size={14} className="text-hiraya-ink" />}
             {isExporting ? 'Generating Backup...' : 'Export Full Backup'}
@@ -144,7 +206,7 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
           <button
             onClick={handleClearDemo}
             disabled={isClearing}
-            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400 text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
+            className="px-4 py-2 bg-red-500/12 hover:bg-red-500/20 border-red-600/40 text-red-700 text-xs font-mono rounded-xl flex items-center gap-2 transition cursor-pointer"
           >
             {isClearing ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
             {isClearing ? 'Resetting...' : 'Reset Demo Interaction Counters'}

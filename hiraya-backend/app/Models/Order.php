@@ -23,6 +23,8 @@ class Order extends Model
         'tracking_booking_details',
         'dp_proof_image_path',
         'full_payment_proof_image_path',
+        'dp_reference_number',
+        'balance_reference_number',
         'dp_submitted_at',
         'balance_proof_submitted_at',
     ];

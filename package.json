@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "predev": "node scripts/free-port-5173.mjs",
         "dev": "vite"
     },
     "devDependencies": {

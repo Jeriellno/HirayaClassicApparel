@@ -40,10 +40,11 @@
  * a typical adult standing figure — the classic fashion-illustration canon
  * (7.5 heads tall).
  *
- * WHY THESE RATIOS, AND WHY THEY ARE HONEST: the 5-core measurement schema has
- * NO height field (see Register.jsx / BodyProfileForm.jsx — only chest_bust,
- * waist, hips, shoulder_width, sleeve_length are collected). So an absolute
- * pixel-per-cm factor cannot be computed from the measurements alone. What CAN
+ * WHY THESE RATIOS, AND WHY THEY ARE HONEST: the sizing profile has
+ * NO height field (see AccountSettings.jsx — only an upper and a lower SIZE
+ * are collected, and the centimetres are derived from the size chart). So an
+ * absolute height must be estimated rather than read, so an absolute
+ * pixel-per-cm factor cannot be computed from the sizing profile alone. What CAN
  * be derived reliably is the RATIO between two body dimensions, because that
  * ratio is independent of how tall the person is. We therefore scale garments
  * to the subject by matching MEASURED PROPORTIONS, not absolute metres, and we

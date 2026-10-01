@@ -1,12 +1,31 @@
-import React from 'react';
+﻿import React from 'react';
 import Currency from './common/Currency';
 
+/*
+ * THE GENERIC GARMENT TILE.
+ *
+ * This is the pre-restyle card, kept because other surfaces still use it. It was
+ * built entirely against the retired dark theme:
+ *
+ *   - `bg-[#121212]` / `bg-[#1a1a1a]` / `bg-[#141414]` — three near-blacks in no
+ *     version of the palette — while the title and price were `text-hiraya-ink`,
+ *     i.e. NAVY. Navy on near-black is ~1.1:1: the garment name and price were
+ *     invisible on every tile.
+ *   - The badge was `bg-hiraya-peach/60 text-hiraya-ink` — a pale chip with navy
+ *     ink, fine on its own, but sitting on the black card it read as a hole.
+ *   - `rounded-2xl` on the card, `rounded-full` on the badge and the two hover
+ *     actions.
+ *
+ * It is now the same tile the shop uses: a light `.card` with the system
+ * hairline, the catalog image on the obsidian well, and squared plates. The
+ * `onTryOn` / `onWishlist` / `onClick` handlers and every prop are unchanged.
+ */
 export default function GarmentCard({
   image,
   title,
   category,
   price,
-  badgeText ="GARMENT",
+  badgeText = "GARMENT",
   onTryOn,
   onWishlist,
   onClick
@@ -14,32 +33,34 @@ export default function GarmentCard({
   return (
     <div
       onClick={onClick}
-      className="group relative bg-[#121212] border border-hiraya-olive/15 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-hiraya-gold/50 hover:shadow-lg hover:shadow-stone-200/10 flex flex-col"
+      className="card group flex cursor-pointer flex-col overflow-hidden transition-all duration-300 hover:border-hiraya-accent/45"
     >
       {/* 1. Image Area & Top Badge */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#1a1a1a]">
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-black">
         <img
-          src={image || '/placeholder.jpg'}
+          src={image || '/images/placeholder.svg'}
           alt={title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/images/placeholder.svg'; }}
+          className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
         />
 
-        {/* Gold Category / Status Badge */}
+        {/* Category / Status Badge — a genuine tag, so it keeps the pill form. */}
         {badgeText && (
-          <span className="absolute top-3 right-3 text-[10px] font-bold tracking-wider uppercase bg-hiraya-cream/50 backdrop-blur-md text-hiraya-ink border border-hiraya-olive/20 px-2.5 py-1 rounded-full">
+          <span className="absolute right-3 top-3 rounded-full border border-hiraya-nav-ink/20 bg-black/60 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-nav-ink backdrop-blur-md">
             {badgeText}
           </span>
         )}
 
         {/* Hover Action Overlay Icons (Center) */}
-        <div className="absolute inset-0 bg-hiraya-cream/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+        <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/55 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           {onTryOn && (
             <button
               onClick={(e) => { e.stopPropagation(); onTryOn(); }}
-              className="p-3 bg-hiraya-cream/60 backdrop-blur-md border border-hiraya-olive/20 rounded-full text-hiraya-ink hover:bg-[#CB997E] hover:border-hiraya-gold transition-colors"
+              className="cursor-pointer rounded-sm border border-hiraya-nav-ink/25 bg-hiraya-nav-ink/10 p-3 text-hiraya-nav-ink backdrop-blur-md transition-colors hover:border-hiraya-accent hover:bg-hiraya-accent hover:text-hiraya-on-accent"
               title="AI Try-On"
+              aria-label="AI Try-On"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
               </svg>
             </button>
@@ -47,10 +68,11 @@ export default function GarmentCard({
           {onWishlist && (
             <button
               onClick={(e) => { e.stopPropagation(); onWishlist(); }}
-              className="p-3 bg-hiraya-cream/60 backdrop-blur-md border border-hiraya-olive/20 rounded-full text-hiraya-ink hover:bg-rose-500 hover:border-rose-500 transition-colors"
+              className="cursor-pointer rounded-sm border border-hiraya-nav-ink/25 bg-hiraya-nav-ink/10 p-3 text-hiraya-nav-ink backdrop-blur-md transition-colors hover:border-hiraya-accent hover:bg-hiraya-accent hover:text-hiraya-on-accent"
               title="Add to Bag"
+              aria-label="Add to Bag"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
               </svg>
             </button>
@@ -59,25 +81,25 @@ export default function GarmentCard({
       </div>
 
       {/* 2. Bottom Label / Details Section */}
-      <div className="p-4 bg-[#141414] border-t border-hiraya-olive/15 flex flex-col justify-between flex-1">
+      <div className="flex flex-1 flex-col justify-between border-t border-hiraya-structure-line bg-hiraya-surface p-4">
         <div>
-          <p className="text-[10px] tracking-widest text-hiraya-ink uppercase font-semibold">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
             {category || 'GARMENT'}
           </p>
-          <h3 className="text-sm font-medium text-hiraya-ink/90 mt-1 line-clamp-1 group-hover:text-hiraya-ink transition-colors">
+          <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-hiraya-ink transition-colors">
             {title}
           </h3>
         </div>
 
         {price !== undefined && (
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-hiraya-olive/70">PRICE</span>
+          <div className="mt-3 flex items-center justify-between border-t border-hiraya-structure-line pt-3">
+            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">PRICE</span>
             {/* Currency pins a font stack that actually contains U+20B1, so the
                 peso sign renders instead of falling back to a "?". */}
             <Currency
               amount={price}
               decimals={false}
-              className="text-sm font-bold tracking-wide text-hiraya-ink"
+              className="text-sm font-semibold tracking-wide text-hiraya-ink"
             />
           </div>
         )}

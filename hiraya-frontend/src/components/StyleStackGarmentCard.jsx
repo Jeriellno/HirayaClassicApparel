@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useTransparentImage } from '../hooks/useTransparentImage';
 import { Loader2 } from 'lucide-react';
 
@@ -11,7 +11,7 @@ export const StyleStackGarmentCard = ({ item, onSelect }) => {
   return (
     <div 
       onClick={() => onSelect && onSelect(item)}
-      className="group relative flex flex-col items-center justify-between p-3 rounded-xl border border-hiraya-sand/30 bg-hiraya-cream-deep/90/50 hover:border-hiraya-gold/50 transition-all cursor-pointer"
+      className="group relative flex flex-col items-center justify-between p-3 rounded-xl border border-hiraya-olive/25 bg-hiraya-cream-deep/90/50 hover:border-hiraya-gold/50 transition-all cursor-pointer"
     >
       {/* Container para sa Transparent Garment Image */}
       <div className="relative w-full h-36 flex items-center justify-center overflow-hidden rounded-lg bg-transparent">
@@ -32,10 +32,10 @@ export const StyleStackGarmentCard = ({ item, onSelect }) => {
 
       {/* Garment Details sa ilalim */}
       <div className="w-full mt-2 text-center">
-        <p className="text-xs font-medium text-neutral-200 truncate">{productName}</p>
+        <p className="text-xs font-medium text-hiraya-ink truncate">{productName}</p>
         {(item?.size || item?.color) && (
           <span className="text-[10px] text-hiraya-sand block">
-            {item?.size} {item?.color ? `• ${item.color}` : ''}
+            {item?.size} {item?.color ? `· ${item.color}` : ''}
           </span>
         )}
       </div>

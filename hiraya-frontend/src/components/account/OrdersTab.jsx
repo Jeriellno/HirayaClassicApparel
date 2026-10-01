@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
     Loader2,
     Package,
@@ -10,10 +11,14 @@ import {
     AlertTriangle,
     Upload,
     RotateCw,
+    Star,
 } from 'lucide-react';
 import api from '../../api/axios';
+import Currency from '../common/Currency';
 import PaymentInstructions from '../common/PaymentInstructions';
+import ReviewProductModal from './ReviewProductModal';
 import { getProductImageUrl } from '../../utils/imageHelper';
+import { themeSurfaceFor } from '../../utils/framePresets';
 
 // Customer-facing labels for each backend payment status.
 const PAYMENT_STEPS = {
@@ -28,13 +33,16 @@ const ORDER_STATUS_LABELS = {
     processing: 'Processing',
     ready_for_shipping: 'Ready for Shipping',
     shipped: 'Shipped',
+    delivered: 'Delivered',
+    rejected: 'Rejected',
 };
 
 const TONE_CLASSES = {
-    cream: 'bg-[#CB997E]/12 text-hiraya-ink border-hiraya-olive/20',
-    blue: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    emerald: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    red: 'bg-red-500/15 text-red-400 border-red-500/30',
+    cream: 'bg-hiraya-accent-wash text-hiraya-accent border-hiraya-accent/35',
+    // "Balance due" — a navy tint of the palette, not an off-palette blue.
+    blue: 'bg-navy-100 text-navy-800 border-navy-300/70',
+    emerald: 'bg-emerald-500/15 text-emerald-700 border-emerald-600/35',
+    red: 'bg-red-500/15 text-red-700 border-red-600/40',
 };
 
 /**
@@ -45,10 +53,35 @@ const TONE_CLASSES = {
  */
 const OrdersTab = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [orders, setOrders] = useState([]);
     const [fetching, setFetching] = useState(true);
     const [busyId, setBusyId] = useState(null);
     const [error, setError] = useState('');
+
+    // Review flow: "All" vs "Delivered" view, the line being reviewed, and the
+    // order opened from a notification (?order=4).
+    const [view, setView] = useState('all');
+    const [reviewLine, setReviewLine] = useState(null);
+    const focusOrderId = Number(searchParams.get('order')) || null;
+    const focusedRef = useRef(null);
+
+    // The customer's own reviews, keyed by order line, decide each button's state.
+    const reviewsQuery = useQuery({
+        queryKey: ['my-reviews'],
+        queryFn: async () => {
+            const res = await api.get('/reviews/mine');
+            return Array.isArray(res.data?.reviews) ? res.data.reviews : [];
+        },
+        staleTime: 60 * 1000,
+    });
+    const reviewByItem = useMemo(
+        () => new Map((reviewsQuery.data || []).map((r) => [r.order_item_id, r])),
+        [reviewsQuery.data]
+    );
+
+    const deliveredCount = orders.filter((o) => o.order_status === 'delivered').length;
+    const visibleOrders = view === 'delivered' ? orders.filter((o) => o.order_status === 'delivered') : orders;
 
     const fetchOrders = useCallback(async () => {
         setFetching(true);
@@ -64,18 +97,62 @@ const OrdersTab = () => {
         }
     }, []);
 
+    // Re-fetches when a notification deep-links a different order, so a status
+    // that just changed to Delivered shows up even if this page was already open.
     useEffect(() => {
         fetchOrders();
-    }, [fetchOrders]);
+    }, [fetchOrders, focusOrderId]);
+
+    // Opened from a notification: bring that exact order into view.
+    useEffect(() => {
+        if (!fetching && focusOrderId && focusedRef.current) {
+            focusedRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [fetching, focusOrderId]);
+
+    // Payment reference numbers typed per order, before the receipt is picked.
+    const [refDrafts, setRefDrafts] = useState({});
+    const refFor = (order) => (refDrafts[order.id] || '').trim();
+
+    // The file picker submits immediately, so the reference must be in first.
+    const requireReference = (order, input) => {
+        if (refFor(order).length >= 4) return true;
+        setError('Enter the reference number from your GCash or bank receipt before uploading it.');
+        if (input) input.value = '';
+        return false;
+    };
+
+    const referenceField = (order) => (
+        <div className="max-w-sm">
+            <label
+                htmlFor={`payment-ref-${order.id}`}
+                className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted"
+            >
+                Payment Reference Number
+            </label>
+            <input
+                id={`payment-ref-${order.id}`}
+                type="text"
+                value={refDrafts[order.id] || ''}
+                onChange={(e) => setRefDrafts((current) => ({ ...current, [order.id]: e.target.value }))}
+                minLength={4}
+                maxLength={64}
+                autoComplete="off"
+                className="field text-xs"
+                placeholder="e.g. GCash Ref. No. 1234 567 890123"
+            />
+        </div>
+    );
 
     // Customer submits proof of the remaining balance.
-    const handlePayBalance = async (order, file) => {
-        if (!file) return;
+    const handlePayBalance = async (order, file, input) => {
+        if (!file || !requireReference(order, input)) return;
         setBusyId(order.id);
         setError('');
         try {
             const payload = new FormData();
             payload.append('full_payment_proof_image', file);
+            payload.append('balance_reference_number', refFor(order));
             const res = await api.post(`/orders/${order.id}/pay-balance`, payload);
             setOrders((current) =>
                 current.map((o) => (o.id === order.id ? res.data.order : o))
@@ -88,13 +165,14 @@ const OrdersTab = () => {
     };
 
     // Recovery path: customer replaces a rejected down payment proof.
-    const handleReuploadDp = async (order, file) => {
-        if (!file) return;
+    const handleReuploadDp = async (order, file, input) => {
+        if (!file || !requireReference(order, input)) return;
         setBusyId(order.id);
         setError('');
         try {
             const payload = new FormData();
             payload.append('dp_proof_image', file);
+            payload.append('dp_reference_number', refFor(order));
             const res = await api.post(`/orders/${order.id}/reupload-dp`, payload);
             setOrders((current) =>
                 current.map((o) => (o.id === order.id ? res.data.order : o))
@@ -108,7 +186,7 @@ const OrdersTab = () => {
 
     if (fetching) {
         return (
-            <div className="py-24 text-center text-hiraya-ink text-xs uppercase tracking-[0.4em] animate-pulse">
+            <div className="animate-pulse py-24 text-center text-xs uppercase tracking-[0.3em] text-hiraya-ink-muted">
                 Fetching Orders...
             </div>
         );
@@ -116,69 +194,120 @@ const OrdersTab = () => {
 
     return (
         <div>
-            <div className="mb-6 flex-wrap items-center justify-between gap-3">
-                <p className="text-[10px] text-hiraya-ink uppercase tracking-widest">
-                    {orders.length} order{orders.length !== 1 ? 's' : ''} · Track delivery & settle your balance
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                    {orders.length} order{orders.length !== 1 ? 's' : ''} · Track delivery &amp; settle your balance
                 </p>
-                <button
-                    onClick={fetchOrders}
-                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-hiraya-ink hover:text-hiraya-ink transition"
-                >
-                    <RotateCw size={12} /> Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* All / Delivered — delivered orders are where reviews live. */}
+                    <div className="inline-flex rounded-full bg-cream-200/70 p-1 shadow-neu-inset" role="tablist" aria-label="Filter orders">
+                        {[
+                            { key: 'all', label: 'All Orders' },
+                            { key: 'delivered', label: `Delivered${deliveredCount ? ` (${deliveredCount})` : ''}` },
+                        ].map((tab) => (
+                            <button
+                                key={tab.key}
+                                role="tab"
+                                aria-selected={view === tab.key}
+                                onClick={() => setView(tab.key)}
+                                className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${
+                                    view === tab.key
+                                        ? 'bg-cream-50 text-hiraya-ink shadow-neu-sm'
+                                        : 'text-hiraya-ink-muted hover:text-hiraya-ink'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                    <button
+                        onClick={fetchOrders}
+                        className="btn-quiet cursor-pointer"
+                    >
+                        <RotateCw size={12} /> Refresh
+                    </button>
+                </div>
             </div>
 
             {error && (
-                <div className="mb-6 text-[11px] text-red-400 bg-red-500/10 border-red-500/30 rounded-lg px-4 py-3">
+                <div className="mb-6 rounded-xl border border-red-600/40 bg-red-500/12 px-4 py-3 text-[11px] text-red-700">
                     {error}
                 </div>
             )}
 
             {orders.length === 0 ? (
-                <div className="text-center py-24 border-hiraya-olive/15 rounded-2xl bg-white/[0.02]">
-                    <ShoppingBag className="w-10 h-10 text-hiraya-sand mx-auto mb-4" />
-                    <p className="text-xs text-hiraya-sand tracking-widest uppercase">No orders placed yet.</p>
+                <div className="card-raised py-24 text-center">
+                    <span className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-cream-100 shadow-neu ring-1 ring-cream-50">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-navy-900 text-cream-100">
+                            <ShoppingBag className="h-5 w-5" />
+                        </span>
+                    </span>
+                    <p className="text-xs uppercase tracking-[0.16em] text-hiraya-ink-muted">No orders placed yet.</p>
                     <button
                         onClick={() => navigate('/shop')}
-                        className="mt-8 px-8 py-3 bg-[#CB997E] text-hiraya-ink text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-hiraya-cream-deep transition"
+                        className="btn-primary mt-8 cursor-pointer rounded-full"
                     >
                         Browse the Shop
                     </button>
                 </div>
+            ) : visibleOrders.length === 0 ? (
+                <div className="card-raised py-16 text-center">
+                    <p className="text-xs uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                        No delivered orders yet.
+                    </p>
+                </div>
             ) : (
                 <div className="space-y-5">
-                    {orders.map((order) => {
+                    {visibleOrders.map((order) => {
                         const step = PAYMENT_STEPS[order.payment_status] || {
                             label: order.payment_status,
                             tone: 'cream',
                         };
+                        const isDelivered = order.order_status === 'delivered';
+                        const isFocused = order.id === focusOrderId;
 
                         return (
-                            <div key={order.id} className="bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-5 md:p-6">
+                            <div
+                                key={order.id}
+                                ref={isFocused ? focusedRef : undefined}
+                                className={`card-raised scroll-mt-28 rounded-[24px] p-5 md:p-7 ${isFocused ? 'ring-2 ring-hiraya-accent/60' : ''}`}
+                            >
                                 {/* Header */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-hiraya-olive/15">
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        <span className="text-xs font-bold uppercase tracking-widest">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hiraya-structure-line pb-4">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
                                             Order #{order.id}
                                         </span>
                                         <span
-                                            className={`px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${TONE_CLASSES[step.tone]}`}
+                                            className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${TONE_CLASSES[step.tone]}`}
                                         >
                                             {step.label}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-hiraya-ink">
-                                        <Truck size={13} className="text-hiraya-ink" />
+                                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                                        <Truck size={13} />
                                         {order.courier}
                                     </div>
                                 </div>
 
                                 {/* Line items (empty for legacy orders) */}
                                 {Array.isArray(order.order_items) && order.order_items.length > 0 && (
-                                    <div className="py-4 border-b border-hiraya-olive/15 space-y-3">
+                                    <div className="space-y-3 border-b border-hiraya-structure-line py-4">
                                         {order.order_items.map((line) => (
-                                            <div key={line.id} className="flex items-center gap-3">
-                                                <div className="w-11 h-14 rounded-lg overflow-hidden bg-hiraya-cream/30 border-hiraya-olive/15 shrink-0">
+                                            <div key={line.id} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+                                                <div
+                                                    className="h-16 w-12 shrink-0 overflow-hidden rounded-xl bg-black shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)]"
+                                                    // Matches the product's background theme (black for legacy cards).
+                                                    style={{ backgroundColor: themeSurfaceFor(line.product) }}
+                                                >
+                                                    {/*
+                                                     * THE PRODUCT TILE IS THE OBSIDIAN FRAME.
+                                                     * The catalog image is a finished card cut
+                                                     * out on black, so `object-cover` inside a
+                                                     * cream well cropped the frame and showed
+                                                     * black bars; `object-contain` on a black
+                                                     * well shows the whole card invisibly.
+                                                     */}
                                                     <img
                                                         src={getProductImageUrl(
                                                             // The AI cut-out on the HIRAYA frame, matching
@@ -188,40 +317,71 @@ const OrdersTab = () => {
                                                             || line.product?.image
                                                         )}
                                                         alt={line.product_name_snapshot || 'Item'}
-                                                        className="w-full h-full object-cover"
+                                                        className="h-full w-full object-contain"
                                                     />
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-[11px] text-hiraya-ink truncate">
+                                                    <p className="truncate text-[11px] text-hiraya-ink">
                                                         {line.product_name_snapshot || `Product #${line.product_id}`}
                                                     </p>
-                                                    <p className="text-[9px] uppercase tracking-widest text-hiraya-sand mt-0.5">
+                                                    <p className="mt-0.5 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                                                         {line.selected_size} · {line.selected_color} · ×{line.quantity}
                                                     </p>
                                                 </div>
-                                                <span className="text-[11px] text-hiraya-ink shrink-0">
-                                                    ₱{Number(line.line_total).toFixed(2)}
-                                                </span>
+                                                {/*
+                                                 * THE PESO GOES THROUGH <Currency>.
+                                                 * This line (and three more below) hard-coded
+                                                 * `` as a literal that the file had stored as a
+                                                 * mojibake pair, so every order total, DP and
+                                                 * balance in My Orders printed two junk glyphs
+                                                 * where the sign belongs.
+                                                 */}
+                                                <Currency
+                                                    amount={line.line_total}
+                                                    className="shrink-0 text-[11px] text-hiraya-ink"
+                                                />
+
+                                                {/* One review per delivered line; never shown before delivery. */}
+                                                {isDelivered && line.product_id && (
+                                                    reviewByItem.has(line.id) ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setReviewLine(line)}
+                                                            className="btn-quiet ml-auto shrink-0 cursor-pointer sm:ml-0"
+                                                        >
+                                                            <CheckCircle2 size={12} className="text-emerald-700" /> View Review
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setReviewLine(line)}
+                                                            disabled={reviewsQuery.isLoading}
+                                                            className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent transition-colors hover:bg-hiraya-accent-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus disabled:cursor-wait disabled:opacity-60 sm:ml-0"
+                                                        >
+                                                            <Star size={11} /> Review Product
+                                                        </button>
+                                                    )
+                                                )}
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
                                 {/* Details */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-5 text-[11px]">
-                                    <div className="md:col-span-2 space-y-3">
+                                <div className="grid grid-cols-1 gap-6 py-5 text-[11px] md:grid-cols-3">
+                                    <div className="space-y-3 md:col-span-2">
                                         <div>
-                                            <p className="text-[9px] uppercase tracking-widest text-hiraya-sand mb-1">
+                                            <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                                                 Delivering To
                                             </p>
-                                            <p className="text-hiraya-ink leading-relaxed">
+                                            <p className="leading-relaxed text-hiraya-ink">
                                                 {order.customer_name} · {order.contact_number}
                                                 <br />
                                                 {order.delivery_address}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-[9px] uppercase tracking-widest text-hiraya-sand mb-1">
+                                            <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                                                 Order Status
                                             </p>
                                             <p className="text-hiraya-ink">
@@ -230,7 +390,7 @@ const OrdersTab = () => {
                                         </div>
                                         {order.tracking_booking_details && (
                                             <div>
-                                                <p className="text-[9px] uppercase tracking-widest text-hiraya-sand mb-1">
+                                                <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                                                     Tracking / Booking
                                                 </p>
                                                 <p className="text-hiraya-ink">{order.tracking_booking_details}</p>
@@ -240,39 +400,40 @@ const OrdersTab = () => {
 
                                     <div className="space-y-2">
                                         <div className="flex justify-between">
-                                            <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">Total</span>
-                                            <span>₱{Number(order.total_amount).toFixed(2)}</span>
+                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">Total</span>
+                                            <Currency amount={order.total_amount} />
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">
+                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                                                 Down Payment
                                             </span>
-                                            <span className="text-hiraya-ink">₱{Number(order.dp_amount).toFixed(2)}</span>
+                                            <Currency amount={order.dp_amount} className="text-hiraya-ink" />
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">Balance</span>
-                                            <span>
-                                                {order.payment_status === 'fully_paid'
-                                                    ? '—'
-                                                    : `₱${Number(order.balance_amount).toFixed(2)}`}
-                                            </span>
+                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">Balance</span>
+                                            {order.payment_status === 'fully_paid' ? (
+                                                <span>—</span>
+                                            ) : (
+                                                <Currency amount={order.balance_amount} />
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Status-specific action / message */}
-                                <div className="pt-4 border-t border-hiraya-olive/15">
+                                <div className="border-t border-hiraya-structure-line pt-4">
                                     {order.payment_status === 'pending' && (
-                                        <p className="flex items-center gap-2 text-[11px] text-hiraya-ink/90">
-                                            <Clock size={13} />
-                                            We are verifying your 50% down payment. Orders placed before 3:00 PM are
-                                            processed the same day.
+                                        <p className="flex items-center gap-2 text-[11px] text-hiraya-ink-soft">
+                                            <Clock size={13} className="shrink-0 text-hiraya-accent" />
+                                            We are verifying your 50% down payment
+                                            {order.dp_reference_number && ` (ref. ${order.dp_reference_number})`}. Orders
+                                            placed before 3:00 PM are processed the same day.
                                         </p>
                                     )}
 
                                     {order.payment_status === 'rejected' && (
                                         <div className="space-y-3">
-                                            <div className="flex items-start gap-2 text-[11px] text-red-400 bg-red-500/10 border-red-500/30 rounded-lg px-4 py-3">
+                                            <div className="flex items-start gap-2 rounded-xl border border-red-600/40 bg-red-500/12 px-4 py-3 text-[11px] text-red-700">
                                                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                                                 <span>
                                                     We could not verify your down payment.
@@ -280,7 +441,7 @@ const OrdersTab = () => {
                                                         <>
                                                             {' '}
                                                             Reason:{' '}
-                                                            <strong className="text-red-300">{order.rejection_reason}</strong>
+                                                            <strong className="text-red-700">{order.rejection_reason}</strong>
                                                         </>
                                                     )}{' '}
                                                     Please re-upload a clear photo of your receipt below.
@@ -289,7 +450,18 @@ const OrdersTab = () => {
 
                                             <PaymentInstructions amount={order.dp_amount} amountLabel="Down payment" />
 
-                                            <label className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-hiraya-olive bg-[#CB997E] hover:bg-hiraya-cream-deep px-4 py-2 rounded-lg transition cursor-pointer">
+                                            {referenceField(order)}
+
+                                            {/*
+                                             * THE RE-UPLOAD CONTROL IS A STYLED FILE LABEL.
+                                             *
+                                             * It has to stay a `<label>` wrapping a visually
+                                             * hidden `<input type="file">` — replacing it with
+                                             * a button plus a ref would change how the control
+                                             * is picked up by assistive tech and by the mobile
+                                             * picker. Only the paint moved onto tokens.
+                                             */}
+                                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent shadow-[0_10px_20px_-12px_rgba(21,32,54,0.8)] transition-colors hover:bg-hiraya-accent-deep has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-hiraya-focus has-[:focus-visible]:ring-offset-2">
                                                 {busyId === order.id ? (
                                                     <Loader2 size={13} className="animate-spin" />
                                                 ) : (
@@ -300,7 +472,7 @@ const OrdersTab = () => {
                                                     type="file"
                                                     accept="image/*"
                                                     className="hidden"
-                                                    onChange={(e) => handleReuploadDp(order, e.target.files?.[0])}
+                                                    onChange={(e) => handleReuploadDp(order, e.target.files?.[0], e.target)}
                                                 />
                                             </label>
                                         </div>
@@ -308,15 +480,29 @@ const OrdersTab = () => {
 
                                     {order.payment_status === '50_paid' && (
                                         <div className="space-y-3">
-                                            <div className="flex flex-wrap items-center gap-3">
-                                                <p className="text-[11px] text-hiraya-ink mr-auto">
-                                                    Your down payment is confirmed. Settle the{' '}
-                                                    <span className="text-hiraya-ink font-bold">
-                                                        ₱{Number(order.balance_amount).toFixed(2)}
-                                                    </span>{' '}
-                                                    balance to proceed with shipping.
+                                            <p className="text-[11px] text-hiraya-ink-soft">
+                                                Your down payment is confirmed. Settle the{' '}
+                                                <Currency amount={order.balance_amount} className="font-semibold text-hiraya-ink" />{' '}
+                                                balance to proceed with shipping.
+                                            </p>
+
+                                            {order.balance_proof_submitted_at ? (
+                                                <p className="flex items-center gap-2 text-[11px] text-hiraya-ink-soft">
+                                                    <Clock size={13} className="shrink-0 text-hiraya-accent" />
+                                                    Balance proof submitted
+                                                    {order.balance_reference_number && ` (ref. ${order.balance_reference_number})`}. We
+                                                    are verifying it — you can re-upload if you sent the wrong file.
                                                 </p>
-                                                <label className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-hiraya-olive bg-[#CB997E] hover:bg-hiraya-cream-deep px-4 py-2 rounded-lg transition cursor-pointer">
+                                            ) : (
+                                                <PaymentInstructions
+                                                    amount={order.balance_amount}
+                                                    amountLabel="Balance due"
+                                                />
+                                            )}
+
+                                            <div className="flex flex-wrap items-end gap-3">
+                                                {referenceField(order)}
+                                                <label className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent shadow-[0_10px_20px_-12px_rgba(21,32,54,0.8)] transition-colors hover:bg-hiraya-accent-deep has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-hiraya-focus has-[:focus-visible]:ring-offset-2">
                                                     {busyId === order.id ? (
                                                         <Loader2 size={13} className="animate-spin" />
                                                     ) : (
@@ -327,48 +513,57 @@ const OrdersTab = () => {
                                                         type="file"
                                                         accept="image/*"
                                                         className="hidden"
-                                                        onChange={(e) => handlePayBalance(order, e.target.files?.[0])}
+                                                        onChange={(e) => handlePayBalance(order, e.target.files?.[0], e.target)}
                                                     />
                                                 </label>
                                             </div>
-
-                                            {order.balance_proof_submitted_at ? (
-                                                <p className="flex items-center gap-2 text-[11px] text-hiraya-ink/90">
-                                                    <Clock size={13} />
-                                                    Balance proof submitted. We are verifying it — you can re-upload if
-                                                    you sent the wrong file.
-                                                </p>
-                                            ) : (
-                                                <PaymentInstructions
-                                                    amount={order.balance_amount}
-                                                    amountLabel="Balance due"
-                                                />
-                                            )}
                                         </div>
                                     )}
 
-                                    {order.payment_status === 'fully_paid' && order.order_status !== 'shipped' && (
-                                        <p className="flex items-center gap-2 text-[11px] text-blue-400">
-                                            <Package size={13} />
+                                    {order.payment_status === 'fully_paid' && !['shipped', 'delivered', 'rejected'].includes(order.order_status) && (
+                                        <p className="flex items-center gap-2 text-[11px] text-navy-700">
+                                            <Package size={13} className="shrink-0" />
                                             Payment complete. Your order is being prepared for shipment.
                                         </p>
                                     )}
 
                                     {order.order_status === 'shipped' && (
-                                        <p className="flex items-center gap-2 text-[11px] text-emerald-400">
-                                            <CheckCircle2 size={13} />
+                                        <p className="flex items-center gap-2 text-[11px] text-emerald-700">
+                                            <CheckCircle2 size={13} className="shrink-0" />
                                             Your order has been shipped.
+                                        </p>
+                                    )}
+
+                                    {order.order_status === 'delivered' && (
+                                        <p className="flex items-center gap-2 text-[11px] text-emerald-700">
+                                            <CheckCircle2 size={13} className="shrink-0" />
+                                            Your order has been delivered. You can now review the products you received.
+                                        </p>
+                                    )}
+
+                                    {order.order_status === 'rejected' && (
+                                        <p className="flex items-center gap-2 text-[11px] text-red-700">
+                                            <AlertTriangle size={13} className="shrink-0" />
+                                            This order was rejected. Please contact Hiraya support for help.
                                         </p>
                                     )}
                                 </div>
 
-                                <p className="text-[9px] text-hiraya-sand mt-3">
+                                <p className="mt-3 text-[9px] text-hiraya-ink-muted">
                                     Placed {new Date(order.created_at).toLocaleString()}
                                 </p>
                             </div>
                         );
                     })}
                 </div>
+            )}
+
+            {reviewLine && (
+                <ReviewProductModal
+                    line={reviewLine}
+                    existingReview={reviewByItem.get(reviewLine.id) || null}
+                    onClose={() => setReviewLine(null)}
+                />
             )}
         </div>
     );

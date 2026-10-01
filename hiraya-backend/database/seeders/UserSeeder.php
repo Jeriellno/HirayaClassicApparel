@@ -25,12 +25,11 @@ class UserSeeder extends Seeder
                 'full_name'      => 'Aya',
                 'password'       => bcrypt('password123'),
                 'role'           => 'user',
-                // 5 Core standardized body measurements (cm)
-                'chest_bust'     => 92.50,
-                'waist'          => 70.00,
-                'hips'           => 90.00,
-                'shoulder_width' => 39.00,
-                'sleeve_length'  => 64.00,
+                // Sizing profile — the two size labels that replaced the 5 Core
+                // Body Measurements. These old cm values (chest 92.5, waist 70)
+                // landed in the M band on both axes.
+                'upper_body_size' => 'M',
+                'lower_body_size' => 'M',
             ]
         );
 

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { PlusCircle } from 'lucide-react';
 import ProductCard from '../product/ProductCard';
 
@@ -54,19 +54,25 @@ const CategoryRow = ({
 
   return (
     <div className="mb-20">
-      <div className="flex justify-between items-center mb-8 border-l-[3px] border-[#CB997E] pl-6">
-        <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.25em] text-hiraya-ink">
-            {title}
-          </h2>
-          <span className="text-[10px] text-hiraya-sand uppercase tracking-widest mt-1 block">
-            Showing {filtered.length} piece(s)
+      <div className="mb-8 flex items-end justify-between gap-6">
+        <div className="flex items-center gap-4">
+          {/* A navy stamp carrying the row's piece count. */}
+          <span className="flex h-12 min-w-12 items-center justify-center rounded-2xl bg-navy-900 px-3 font-serif text-lg text-cream-100 shadow-neu-sm">
+            {String(filtered.length).padStart(2, '0')}
           </span>
+          <div>
+            <h2 className="font-serif text-[1.6rem] uppercase leading-none tracking-[0.06em] text-navy-900">
+              {title}
+            </h2>
+            <span className="mt-2 block text-[10px] uppercase tracking-[0.2em] text-hiraya-ink-muted">
+              Showing {filtered.length} piece(s)
+            </span>
+          </div>
         </div>
         <button
           type="button"
           onClick={handleExplore}
-          className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-hiraya-sand hover:text-hiraya-ink transition-all group"
+          className="btn-quiet group shrink-0"
         >
           Explore More <PlusCircle size={15} className="group-hover:rotate-90 transition-transform" />
         </button>
@@ -76,10 +82,10 @@ const CategoryRow = ({
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
+        className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7 xl:grid-cols-4"
       >
         {filtered.map((product) => (
-          <motion.div key={product.id} variants={cardVariants} whileHover={{ y: -6, transition: { duration: 0.2 } }}>
+          <motion.div key={product.id} variants={cardVariants}>
             <ProductCard
               product={product}
               isSaved={Array.isArray(bagIds) && bagIds.includes(Number(product.id))}

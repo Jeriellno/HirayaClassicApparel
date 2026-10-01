@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Star, Send, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Star, Send, Loader2, CheckCircle2, ArrowLeft, Lock } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,8 +9,12 @@ import { useAuth } from '../context/AuthContext';
  *
  * This is the CLIENT-side writer that the Super Admin console's "User Feedback"
  * tab was missing: it POSTs to /api/feedback, which stores into the `feedbacks`
- * table the console now reads. A guest may submit too (name is optional), so it
- * is a public route.
+ * table the console now reads.
+ *
+ * SIGNED-IN ACCOUNTS ONLY. A guest used to be able to type any name, so the
+ * console filled with unverifiable "Anonymous Visitor" messages. Now only an
+ * account with an email can send: guests get a sign-in prompt, and the sender's
+ * name + email come from their account (the API enforces the same rule).
  */
 const Feedback = () => {
   const navigate = useNavigate();
@@ -19,23 +23,22 @@ const Feedback = () => {
   const [rating, setRating] = useState(5);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState('');
-  const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const canSend = Boolean(user?.email);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!comment.trim() || submitting) return;
+    if (!canSend || !comment.trim() || submitting) return;
 
     setSubmitting(true);
     setError('');
     try {
+      // The sender is identified by the account token — no name is sent.
       await api.post('/feedback', {
         rating,
         comment: comment.trim(),
-        // Only send a name for guests; a signed-in user is identified by token.
-        ...(user ? {} : { name: name.trim() || undefined }),
       });
       setDone(true);
     } catch (err) {
@@ -49,60 +52,77 @@ const Feedback = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-hiraya-ink">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-24 md:pt-28 pb-16">
+    <div className="min-h-screen text-hiraya-ink">
+      <div className="mx-auto max-w-2xl px-4 pb-16 pt-24 sm:px-6 md:pt-28">
         <button
           onClick={() => navigate(-1)}
-          className="group inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-sand hover:text-hiraya-ink transition mb-6"
+          className="btn-quiet group mb-6 cursor-pointer"
         >
-          <ArrowLeft size={13} className="group-hover:-translate-x-0.5 transition-transform" />
+          <ArrowLeft size={13} className="transition-transform group-hover:-translate-x-0.5" />
           Back
         </button>
 
-        <div className="flex items-center gap-2 mb-1">
-          <MessageSquare size={18} className="text-hiraya-ink" />
-          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-hiraya-ink">
-            Share your experience
+        <div className="section-head mb-8">
+          <span className="kicker text-hiraya-structure">
+            <MessageSquare size={13} /> Share your experience
           </span>
+          <h1 className="display-lg mt-2 text-hiraya-ink">Send Feedback</h1>
+          <p className="mt-2 text-sm text-hiraya-ink-muted">
+            Let us know how we did. Your response helps improve the Hiraya fitting experience.
+          </p>
         </div>
-        <h1 className="text-2xl font-light uppercase tracking-[0.15em] text-hiraya-ink mb-2">
-          Send Feedback
-        </h1>
-        <p className="text-sm text-hiraya-sand mb-8">
-          Let us know how we did. Your response helps improve the Hiraya fitting experience.
-        </p>
 
-        {done ? (
-          <div className="rounded-2xl border-emerald-500/30 bg-emerald-500/10 p-8 text-center">
-            <CheckCircle2 size={36} className="mx-auto text-emerald-400 mb-3" />
+        {!canSend ? (
+          /* GUESTS: sign in first — feedback is tied to an account email. */
+          <div className="card-raised p-8 text-center">
+            <Lock size={30} className="mx-auto mb-3 text-hiraya-ink-muted" />
+            <p className="text-lg text-hiraya-ink">Sign in to send feedback</p>
+            <p className="mt-1 text-sm text-hiraya-ink-muted">
+              Only customers with an account email can send feedback, so we can follow up with you.
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button onClick={() => navigate('/register')} className="btn-secondary cursor-pointer">
+                Create account
+              </button>
+              <button
+                onClick={() => navigate('/login', { state: { from: '/feedback' } })}
+                className="btn-primary cursor-pointer"
+              >
+                Sign in
+              </button>
+            </div>
+          </div>
+        ) : done ? (
+          <div className="card-raised border-emerald-600/40 p-8 text-center">
+            <CheckCircle2 size={36} className="mx-auto mb-3 text-emerald-700" />
             <p className="text-lg text-hiraya-ink">Thank you for your feedback!</p>
-            <p className="text-sm text-hiraya-olive/70 mt-1">Your response has been recorded.</p>
+            <p className="mt-1 text-sm text-hiraya-ink-muted">Your response has been recorded.</p>
             <div className="mt-6 flex justify-center gap-3">
               <button
                 onClick={() => { setDone(false); setComment(''); setRating(5); }}
-                className="px-4 py-2 rounded-xl border-hiraya-olive/15 text-sm text-hiraya-ink hover:text-hiraya-ink transition"
+                className="btn-secondary cursor-pointer"
               >
                 Send another
               </button>
               <button
                 onClick={() => navigate('/shop')}
-                className="px-4 py-2 rounded-xl bg-[#CB997E] text-hiraya-olive font-semibold text-sm hover:bg-[#d8b257] transition"
+                className="btn-primary cursor-pointer"
               >
                 Back to shop
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border-hiraya-olive/15 bg-hiraya-cream/60 p-6">
+          <form onSubmit={handleSubmit} className="card-raised space-y-6 p-6">
             {error && (
-              <div className="rounded-xl border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              <div className="rounded-sm border border-red-600/40 bg-red-500/12 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
 
             {/* Rating */}
             <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-hiraya-sand mb-2">
+              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                 Your rating
               </label>
               <div className="flex items-center gap-1.5">
@@ -113,40 +133,44 @@ const Feedback = () => {
                     onClick={() => setRating(n)}
                     onMouseEnter={() => setHovered(n)}
                     onMouseLeave={() => setHovered(0)}
-                    className="transition-transform hover:scale-110"
+                    className="cursor-pointer transition-transform hover:scale-110"
                     aria-label={`${n} star${n > 1 ? 's' : ''}`}
                   >
+                    {/*
+                     * THE STARS USE A SEMANTIC AMBER.
+                     *
+                     * They were drawn with `fill="#541A1A"` — the maroon brand
+                     * accent — because the old palette had no dedicated rating
+                     * colour. Marquee stars are a UNIVERSAL signal, not a brand
+                     * mark, so they now use the standard amber rating pair; the
+                     * surrounding panel carries the identity instead.
+                     */}
                     <Star
                       size={26}
-                      className={(hovered || rating) >= n ? 'text-hiraya-ink' : 'text-hiraya-sand'}
-                      fill={(hovered || rating) >= n ? '#CB997E' : 'none'}
+                      className={(hovered || rating) >= n ? 'text-amber-500' : 'text-hiraya-structure-line'}
+                      fill={(hovered || rating) >= n ? 'currentColor' : 'none'}
                     />
                   </button>
                 ))}
-                <span className="ml-2 text-sm text-hiraya-sand">{hovered || rating} / 5</span>
+                <span className="ml-2 text-sm text-hiraya-ink-muted">{hovered || rating} / 5</span>
               </div>
             </div>
 
-            {/* Guest name */}
-            {!user && (
-              <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-hiraya-sand mb-1">
-                  Name (optional)
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Anonymous Visitor"
-                  className="w-full rounded-xl border-hiraya-olive/15 bg-hiraya-cream/30 px-3 py-2.5 text-sm text-hiraya-ink placeholder-zinc-600 focus:outline-none focus:border-[#CB997E]"
-                />
-              </div>
-            )}
+            {/* SENDER — read from the account, not typed. */}
+            <div>
+              <p className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                Sending as
+              </p>
+              <p className="text-sm text-hiraya-ink">
+                <span className="font-semibold">{user.full_name || user.name || user.email}</span>
+                <span className="text-hiraya-ink-muted"> · {user.email}</span>
+              </p>
+            </div>
 
             {/* Comment */}
             <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-hiraya-sand mb-1">
-                Your feedback <span className="text-red-500">*</span>
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                Your feedback <span className="text-red-600">*</span>
               </label>
               <textarea
                 required
@@ -154,7 +178,7 @@ const Feedback = () => {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Tell us what worked well and what could be better..."
-                className="w-full resize-none rounded-xl border-hiraya-olive/15 bg-hiraya-cream/30 px-3 py-2.5 text-sm text-hiraya-ink placeholder-zinc-600 focus:outline-none focus:border-[#CB997E]"
+                className="field resize-none text-sm"
               />
             </div>
 
@@ -162,7 +186,7 @@ const Feedback = () => {
               <button
                 type="submit"
                 disabled={submitting || !comment.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#CB997E] px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-hiraya-olive transition hover:bg-[#d8b257] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary cursor-pointer"
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                 {submitting ? 'Sending...' : 'Submit feedback'}

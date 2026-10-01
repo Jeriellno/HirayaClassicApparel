@@ -50,129 +50,175 @@ class ProductImageAnalysisController extends Controller
             ], 503);
         }
 
+        /*
+         * REMOVE THE PHP TIME LIMIT FOR THIS REQUEST.
+         *
+         * The model chain below can legitimately spend up to ~184s in HTTP
+         * (2 models x 3 attempts x 30s, plus backoff) before it gives up and
+         * reports a real reason. A stock `max_execution_time` of 30-60s would
+         * kill that mid-flight and surface as an unexplained 500 — the very
+         * "it just times out" symptom this chain was added to fix.
+         *
+         * Safe to unbind for the same reason `TryOnController` does it: the
+         * request carries its OWN finite ceiling. Every model has a 30s HTTP
+         * timeout, the chain is finite, and the whole walk is bounded well under
+         * the 300s the browser is willing to wait. Unbounded PHP time can only
+         * stop the interpreter from aborting a call that is about to answer.
+         */
+        @set_time_limit(0);
+
         try {
             /*
-             * RETRY ONCE on a transient failure.
+             * WALK THE MODEL CHAIN, RETRYING EACH ONE.
              *
-             * The first request after the dev server boots (or after the machine
-             * wakes from sleep) frequently loses the connection and dies with
-             * `cURL error 28`, which surfaced as a bogus "took too long" 504 for
-             * a call that had barely started. One silent retry absorbs that.
+             * This used to post to a single hardcoded model, which meant a 404
+             * (retired ID), a 429 (that model's 20/day free bucket drained) or a
+             * 30s stall on `gemini-3.5-flash-lite` ended the whole request — even
+             * though `config('services.gemini.models')` already listed a working
+             * sibling (`gemini-3.5-flash`) and `PersonVerificationController` had
+             * been walking that chain all along. The catalog auto-fill was the one
+             * Gemini surface NOT using the fallback list.
              *
-             * A TLS trust failure (`cURL error 60`) is NOT retried: it can never
-             * succeed on a second attempt, so retrying only delays the accurate
-             * error the admin needs to see.
+             * The explicit `model` is always tried first so a deliberate override
+             * in .env still wins; the chain's only job is to survive a bad one.
+             *
+             * `asked` accumulates the attempts so the final failure can say WHAT
+             * went wrong per model, instead of the useless "took too long".
              */
-            $response = Http::timeout(30)
-                ->connectTimeout(10)
-                /*
-                 * RETRY TRANSIENT FAILURES — BOTH SOCKET AND HTTP.
-                 *
-                 * The predicate below retries when EITHER:
-                 *   (a) the request threw a connection/timeout exception, or
-                 *   (b) Gemini answered with a TRANSIENT status.
-                 *
-                 * (b) is the fix for the reported 502. Google returns 503
-                 * ("The model is overloaded") and 429 under load, and a bare
-                 * 503 RESPONSE is not an exception — so the previous predicate,
-                 * which only ever saw throwables, let it pass straight through
-                 * to the `failed()` branch and out as a generic error. The user
-                 * hit a momentary Google hiccup and was told the analysis had
-                 * "failed", with no hint that trying again would work.
-                 *
-                 * `throw: false` keeps a final failure as a RESPONSE so the
-                 * status-specific messaging below still runs after the retries.
-                 */
-                ->retry(
-                    3,
-                    800,
-                    function ($exception) {
-                        // $exception is the Throwable, or a Response on an HTTP-level retry.
-                        if ($exception instanceof \Illuminate\Http\Client\ConnectionException) {
-                            return ! $this->looksLikeTlsFailure($exception->getMessage());
-                        }
+            $asked = [];
+            $response = null;
+            $connectionError = null;
 
-                        if ($exception instanceof \Illuminate\Http\Client\Response) {
-                            return in_array($exception->status(), [429, 500, 502, 503, 504], true);
-                        }
+            foreach ($this->geminiModels() as $model) {
+                $asked[] = $model;
 
-                        return false;
-                    },
-                    throw: false,
-                )
-                ->acceptJson()
-                ->post($this->endpoint($apiKey), [
-                    'contents' => [[
-                        'parts' => [
-                            ['text' => <<<'PROMPT'
-Analyze this garment catalog image and return ONLY valid JSON with these keys: name, description, category, material, gender, colors, undertone, fit_type, body_shapes, occasions.
-category must be TOPS, BOTTOMS, DRESSES, OUTERWEAR, FORMAL_MEN, FORMAL_WOMEN, or FULL_BODY. gender must be Men, Women, or Unisex. colors, body_shapes, and occasions must be arrays. undertone must be WARM, COOL, or NEUTRAL. fit_type must be SLIM, REGULAR, or LOOSE. Never invent exact body measurements; those are entered separately.
-PROMPT],
-                            ['inline_data' => [
-                                'mime_type' => $this->mimeType($validated['image']),
-                                'data' => $this->base64Data($validated['image']),
-                            ]],
+                try {
+                    $response = $this->askGemini($apiKey, $model, $this->prompt(), [
+                        /*
+                         * `inlineData` / `mimeType` — THE API'S OWN JSON NAMES.
+                         *
+                         * This payload used to say `inline_data` / `mime_type`,
+                         * which look like PHP-serialised protobuf field names.
+                         * Google's v1beta endpoint is strict protobuf-JSON and
+                         * rejects unknown names, so every garment image was
+                         * refused before it was ever read:
+                         *   400 Invalid JSON payload received.
+                         *       Unknown name "inline_data" at
+                         *       'contents[0].parts[1].inline_data': Cannot find field.
+                         *
+                         * The model chain cannot rescue this: a malformed request
+                         * fails identically on every model, so the walk stopped on
+                         * the first entry and the admin was told to "check the
+                         * Gemini API configuration" — with a perfectly valid key
+                         * and a live model.
+                         */
+                        'inlineData' => [
+                            'mimeType' => $this->mimeType($validated['image']),
+                            'data' => $this->base64Data($validated['image']),
                         ],
-                    ]],
-                    'generationConfig' => [
-                        'temperature' => 0.2,
-                        'responseMimeType' => 'application/json',
-                    ],
-                ]);
-        } catch (\Illuminate\Http\Client\ConnectionException $exception) {
-            /*
-             * A timeout, DNS/socket failure OR TLS failure to Gemini throws here.
-             * Without this catch it would bubble up as a 500 HTML error page,
-             * which the frontend cannot parse into a useful message.
-             *
-             * The message must reflect WHAT actually failed. Reporting every
-             * connection error as "took too long" (504) sent us chasing a
-             * timeout when the real cause was `cURL error 60: unable to get
-             * local issuer certificate` — a TLS trust problem on the host PHP
-             * cURL, which no amount of retrying will fix and which the admin
-             * can actually act on.
-             */
-            $error = $exception->getMessage();
-            $isTls = $this->looksLikeTlsFailure($error);
+                    ], 3, 800);
 
-            Log::warning('Gemini garment analysis connection failed', [
-                'model' => config('services.gemini.model'),
-                'tls' => $isTls,
-                'error' => $error,
-            ]);
-
-            if ($isTls) {
-                return response()->json([
-                    'message' => 'The Hiraya server could not establish a secure connection to the image ' .
-                        'analysis service (TLS certificate verification failed). Fix the PHP cURL CA bundle ' .
-                        'on the server (php.ini `curl.cainfo` / `openssl.cafile`), then try again.',
-                ], 502);
+                    /*
+                     * A chain that already produced a usable answer stops here.
+                     * A 4xx that is not quota/model-shaped (a malformed request,
+                     * a bad key) will fail identically on every sibling, so
+                     * walking the rest of the list would only burn ~30s more
+                     * before reporting the same thing.
+                     */
+                    if ($response->successful() || ! $this->isTransient($response->status())) {
+                        break;
+                    }
+                } catch (\Illuminate\Http\Client\ConnectionException $exception) {
+                    /*
+                     * ONE MODEL'S CONNECTION FAILED — KEEP WALKING.
+                     *
+                     * This used to abort the whole request and report "took too
+                     * long" regardless of what actually happened. Now a socket
+                     * error on one model just moves us to the next one, and only
+                     * if EVERY model failed on the socket do we report it — with
+                     * the real reason, so a TLS problem is never mis-sold as a
+                     * slow service.
+                     */
+                    $connectionError = $exception;
+                    continue;
+                }
             }
 
+            if ($response === null) {
+                /*
+                 * EVERY MODEL FAILED ON THE CONNECTION. Report what the last
+                 * failure actually WAS: a TLS trust problem can never succeed on
+                 * a retry and needs the CA bundle fixed, while a genuine stall
+                 * is worth another press of the button.
+                 */
+                $error = $connectionError?->getMessage() ?? 'unknown connection failure';
+                $isTls = $this->looksLikeTlsFailure($error);
+
+                Log::warning('Gemini garment analysis could not reach the API', [
+                    'models' => $asked,
+                    'tls' => $isTls,
+                    'error' => $error,
+                ]);
+
+                if ($isTls) {
+                    return response()->json([
+                        'message' => 'The Hiraya server could not establish a secure connection to the image ' .
+                            'analysis service (TLS certificate verification failed). Fix the PHP cURL CA bundle ' .
+                            'on the server (php.ini `curl.cainfo` / `openssl.cafile`), then try again.',
+                    ], 502);
+                }
+
+                return response()->json([
+                    'message' => 'The image analysis service could not be reached' .
+                        ($asked ? ' (tried: ' . implode(', ', $asked) . ')' : '') .
+                        '. Please try again.',
+                ], 504);
+            }
+        } catch (\Throwable $exception) {
+            /*
+             * ANYTHING ELSE — a malformed response, a bug in this controller, a
+             * cURL error that is not a ConnectionException. Without this the
+             * admin gets a 500 HTML page, which the frontend cannot turn into a
+             * message. The log carries the detail; the user gets a retry prompt.
+             */
+            Log::warning('Gemini garment analysis crashed', [
+                'models' => $asked,
+                'error' => $exception->getMessage(),
+            ]);
+
             return response()->json([
-                'message' => 'The image analysis service took too long to respond. Please try again.',
-            ], 504);
+                'message' => 'The image analysis service could not be reached. Please try again.',
+            ], 502);
         }
 
         if ($response->failed()) {
             $upstreamMessage = (string) data_get($response->json(), 'error.message', 'Unknown Gemini error');
             Log::warning('Gemini garment analysis failed', [
                 'status' => $response->status(),
-                'model' => config('services.gemini.model'),
+                'models_tried' => $asked,
+                // The upstream text is what actually names the fault (a retired
+                // model, a bad key, a malformed part). Without it in the log the
+                // only evidence available is a bare status, which is why this
+                // failure read as an unexplained 400 for days.
+                'upstream' => $upstreamMessage,
             ]);
 
             $lower = strtolower($upstreamMessage);
+            $lastModel = $asked[count($asked) - 1] ?? config('services.gemini.model');
 
-            if ($response->status() === 404 || str_contains($lower, 'no longer available') || str_contains($lower, 'not found')) {
+            if ($response->status() === 404 || str_contains($lower, 'not found') || str_contains($lower, 'not supported') || str_contains($lower, 'no longer available')) {
                 /*
                  * Google RETIRES models and answers them with 404. This is
                  * exactly how the "Add New Garment" auto-fill broke silently
-                 * once `gemini-2.0-flash` was withdrawn — name the model so the
-                 * fix is a one-line .env change.
+                 * once `gemini-2.0-flash` was withdrawn.
+                 *
+                 * This is now the WORST-CASE report: the chain above already
+                 * walked every configured model, so all of them are unusable.
                  */
-                $message = 'The configured Gemini vision model "' . config('services.gemini.model') . '" is not '
-                    . 'available. Set GEMINI_VISION_MODEL to a current model (e.g. gemini-2.5-flash) in the backend .env.';
-            } elseif (str_contains($lower, 'suspended') || str_contains($lower, 'permission denied')) {
+                $message = 'None of the configured Gemini vision models (' . implode(', ', $asked) . ') are '
+                    . 'available. Set GEMINI_VISION_MODELS in the backend .env to a current model list '
+                    . '(e.g. gemini-3.5-flash-lite).';
+            } elseif (str_contains($lower, 'suspended') || str_contains($lower, 'permission denied') || str_contains($lower, 'api key not valid')) {
                 /* A dead key must never answer again today — report it so the
                  * pool rotates past it on the next request. */
                 GeminiKeyPool::markInvalid($apiKey);
@@ -186,22 +232,17 @@ PROMPT],
                 /*
                  * GOOGLE-SIDE OVERLOAD — NOT A CONFIG FAULT.
                  *
-                 * This was the reported 502: the log recorded
-                 * `Gemini garment analysis failed {"status":503}` while the key
-                 * and model were perfectly valid. 503 means "the model is
-                 * overloaded, try again" — a momentary Google condition that
-                 * clears on its own.
-                 *
-                 * The retries above now absorb most of these. If one STILL
-                 * surfaces it is because the overload outlasted all three
-                 * attempts, so the message must say the fault is upstream and
-                 * temporary rather than implying something is misconfigured.
+                 * 503 means "the model is overloaded, try again" — a momentary
+                 * Google condition that clears on its own. The chain retries
+                 * above have already absorbed most of these; one that still
+                 * surfaces outlasted every configured model, so the message says
+                 * the fault is upstream and temporary.
                  */
                 $message = 'The Gemini image analysis service is temporarily overloaded. This is a brief '
                     . 'condition on Google\'s side, not a configuration problem — please try again in '
                     . 'a few moments.';
             } else {
-                $message = 'Garment image analysis failed. Check the Gemini API configuration.';
+                $message = 'Garment image analysis failed on ' . $lastModel . '. Check the Gemini API configuration.';
             }
 
             return response()->json(['message' => $message], 502);
@@ -328,15 +369,128 @@ PROMPT],
     }
 
     /**
-     * Full Gemini generateContent URL for the configured vision model.
+     * The ordered, de-duplicated Gemini model list: the explicitly chosen
+     * `model` FIRST, then the configured fallbacks. Read straight from config so
+     * a .env edit (plus `config:cache`) is all it takes to change the order.
      *
-     * Extracted so the endpoint is defined in one place and the API key is
-     * always URL-encoded into the query string.
+     * Identical in shape to `PersonVerificationController::geminiModels()` — the
+     * two surfaces must not drift, or a model retired for one keeps breaking the
+     * other.
+     *
+     * @return array<int, string>
      */
-    private function endpoint(string $apiKey): string
+    private function geminiModels(): array
+    {
+        $list = array_merge(
+            [(string) config('services.gemini.model')],
+            (array) config('services.gemini.models', [])
+        );
+
+        return array_values(array_unique(array_filter(array_map('trim', $list))));
+    }
+
+    /**
+     * A status worth trying ANOTHER model for.
+     *
+     * 429 (this model's daily free bucket drained), 5xx (overloaded / transient)
+     * and 404 (the ID was retired) are all conditions of the MODEL, not of the
+     * request: a sibling with a fresh bucket answers the identical payload. A
+     * 400/401/403 is a fault of the request or the key and would fail the same
+     * way on every entry, so we stop and report it.
+     */
+    private function isTransient(int $status): bool
+    {
+        return in_array($status, [404, 429, 500, 502, 503, 504], true);
+    }
+
+    /**
+     * ONE attempt against ONE model, with the transient-failure retries applied
+     * to that model alone.
+     *
+     * The per-attempt HTTP timeout is set HERE, inside the retry closure's
+     * reach, rather than on the outer chain. Previously `Http::timeout(30)` sat
+     * outside `->retry(3, ...)`, so the three attempts shared a single 30s
+     * ceiling: the first slow model consumed the whole budget and the remaining
+     * two never got to run at all.
+     *
+     * A TLS trust failure is never retried — it cannot succeed on a second
+     * attempt, and retrying only delays the accurate error the admin needs.
+     *
+     * @throws \Illuminate\Http\Client\ConnectionException
+     */
+    private function askGemini(string $apiKey, string $model, array $parts, array $inlineImage, int $attempts, int $backoffMs)
+    {
+        return Http::acceptJson()
+            ->retry(
+                $attempts,
+                $backoffMs,
+                function ($exception) {
+                    // $exception is the Throwable, or a Response on an HTTP-level retry.
+                    if ($exception instanceof \Illuminate\Http\Client\ConnectionException) {
+                        return ! $this->looksLikeTlsFailure($exception->getMessage());
+                    }
+
+                    if ($exception instanceof \Illuminate\Http\Client\Response) {
+                        return $this->isTransient($exception->status());
+                    }
+
+                    return false;
+                },
+                // Keep a final failure as a RESPONSE so the caller can inspect the
+                // status and decide whether the next MODEL is worth trying.
+                throw: false,
+            )
+            ->timeout(30)
+            ->connectTimeout(10)
+            ->post($this->endpoint($apiKey, $model), [
+                'contents' => [[
+                    'parts' => [
+                        ['text' => $parts['prompt']],
+                        /*
+                         * The part VALUE is `$inlineImage` — the call site already
+                         * hands over `{ mimeType, data }`. Wrapping it a second
+                         * time nests the whole blob one level too deep and Google
+                         * answers "Unknown name \"mimeType\" at
+                         * 'contents[0].parts[1].inlineData'".
+                         */
+                        $inlineImage,
+                    ],
+                ]],
+                'generationConfig' => [
+                    'temperature' => 0.2,
+                    'responseMimeType' => 'application/json',
+                ],
+            ]);
+    }
+
+    /**
+     * The catalog-analysis prompt, kept as its own method so `askGemini` stays a
+     * pure transport and the text is not rebuilt inside the model loop.
+     *
+     * @return array{prompt: string}
+     */
+    private function prompt(): array
+    {
+        return ['prompt' => <<<'PROMPT'
+Analyze this garment catalog image and return ONLY valid JSON with these keys: name, description, category, material, gender, colors, undertone, fit_type, body_shapes, occasions.
+category must be TOPS, BOTTOMS, DRESSES, OUTERWEAR, FORMAL_MEN, FORMAL_WOMEN, or FULL_BODY. gender must be Men, Women, or Unisex. colors, body_shapes, and occasions must be arrays. undertone must be WARM, COOL, or NEUTRAL. fit_type must be SLIM, REGULAR, or LOOSE. Never invent exact body measurements; those are entered separately.
+Judge fit_type from the CUT of the garment as it actually hangs on the body, not from the model wearing it: a shirt that tapers at the waist with little ease through the chest is SLIM, one that falls straight from the shoulder with ordinary room is REGULAR, and one visibly wider than the wearer with dropped shoulders or extra drape is LOOSE. This value drives the storefront's "recommended for you" feed, so an inaccurate answer sends a shopper the wrong silhouette. When you genuinely cannot tell, return REGULAR.
+description must be one short shopper-facing sentence about fabric, cut and feel — no measurements, no size chart, no marketing superlatives.
+PROMPT];
+    }
+
+    /**
+     * Full Gemini generateContent URL for a SPECIFIC model, with the API key
+     * always URL-encoded into the query string.
+     *
+     * Takes the model as a parameter because the caller walks a chain: a single
+     * hardcoded endpoint is what made one retired model take the whole feature
+     * down with it.
+     */
+    private function endpoint(string $apiKey, ?string $model = null): string
     {
         return 'https://generativelanguage.googleapis.com/v1beta/models/'
-            . config('services.gemini.model')
+            . ($model ?: config('services.gemini.model'))
             . ':generateContent?key=' . urlencode($apiKey);
     }
 

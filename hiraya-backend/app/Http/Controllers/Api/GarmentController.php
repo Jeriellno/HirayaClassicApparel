@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\WritesAuditTrail;
 use App\Http\Controllers\Controller;
 use App\Models\Garment;
 use App\Models\Product;
+use App\Services\SizeChart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class GarmentController extends Controller
 {
+    use WritesAuditTrail;
     public function index(Request $request)
     {
         $garments = Garment::with('sizes')
@@ -31,6 +34,25 @@ class GarmentController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
+        /*
+         * A GARMENT IS BEING CREATED OR EDITED — capture the before-image first.
+         *
+         * The read happens BEFORE `updateOrCreate` so the diff below can report what
+         * actually moved, and it is deliberately scoped to `$id`: a create has no
+         * prior state, and a null lookup there would silently "find" nothing and make
+         * every new garment look like an edit of an empty record.
+         *
+         * `with('sizes')` is what makes the size/measurement changes visible. The
+         * garment's own columns are only a fraction of what this endpoint writes —
+         * the size chart (stock per size, and the fit ranges that decide who the
+         * garment is recommended to) lives in a related table, so auditing only the
+         * parent would report "name updated" for an admin who had really just rebuilt
+         * an entire size chart.
+         */
+        $before = $id
+            ? Garment::with('sizes')->find($id)
+            : null;
+
         $validated = $request->validate([
             'name'                        => 'required|string|max:255',
             'description'                 => 'nullable|string',
@@ -51,7 +73,7 @@ class GarmentController extends Controller
             'sizes.*.sleeve_length_max'   => 'nullable|numeric|gte:sizes.*.sleeve_length_min',
         ]);
 
-        return DB::transaction(function () use ($validated, $id) {
+        return DB::transaction(function () use ($request, $validated, $id, $before) {
             $garment = Garment::updateOrCreate(
                 ['id' => $id],
                 [
@@ -85,22 +107,65 @@ class GarmentController extends Controller
                 );
             }
 
+            $garment->refresh()->load('sizes');
+
+            /*
+             * WRITE THE TRAIL ENTRY, INSIDE THE TRANSACTION.
+             *
+             * The audit write is the LAST thing in the transaction so that a failing
+             * insert rolls the whole edit back, rather than committing a change to
+             * the catalog that the Super Admin's audit tab has no record of. The
+             * opposite trade — commit the edit, then try to log it — is what produces
+             * the silent gaps this trail is supposed to eliminate, because a failed
+             * write there is swallowed and the row is simply gone.
+             *
+             * An EDIT is reported as a diff ("price: 1200 -> 1450") so the entry is
+             * useful months later. A CREATE has no before-image, so it is reported
+             * with the record's identity and its starting values instead.
+             */
+            $watched = ['name', 'description', 'price', 'category', 'size_chart', 'stock'];
+            $after = [
+                'name' => $garment->name,
+                'description' => $garment->description,
+                'price' => $garment->price,
+                'category' => $garment->category,
+                'size_chart' => $garment->sizes->map(fn($s) => $s->size_label . '=' . $s->stock)->implode(', '),
+                'stock' => $garment->sizes->sum('stock'),
+            ];
+
+            $changes = $before ? $this->describeChanges($before->toArray() + ['size_chart' => null, 'stock' => null], $after, $watched) : null;
+
+            $this->writeAudit(
+                $request,
+                $before ? 'UPDATE_GARMENT' : 'CREATE_GARMENT',
+                'GARMENTS',
+                $before
+                    ? 'Garment #' . $garment->id . ' (' . $garment->name . ') edited.'
+                        . ($changes ? ' Changed — ' . $changes : ' No tracked field changed.')
+                    : 'New garment #' . $garment->id . ' (' . $garment->name . ') created at '
+                        . $garment->price . ' in ' . $garment->category . '. Sizes: ' . $after['size_chart'] . '.',
+            );
+
             return response()->json([
                 'message' => 'Product and measurements saved successfully.',
-                'data'    => $garment->load('sizes')
+                'data'    => $garment
             ], 200);
         });
     }
 
     /**
-     * Get Spotlight Recommendations matching logged-in user body measurements
+     * Get Spotlight Recommendations matching the logged-in user's sizes.
+     *
+     * The five body measurements are gone. This now matches on the SIZE the
+     * customer wears (upper for torso garments, lower for bottoms), which is
+     * the only signal the profile carries.
      */
     public function getSpotlightRecommendations(Request $request)
     {
         $user = $request->user();
 
         /*
-         * Measurements live as COLUMNS ON `users` — there is no
+         * The customer's sizing profile lives as COLUMNS ON `users` — there is no
          * `bodyMeasurement`/`bodyMeasurements` relation on the User model.
          * The previous code dereferenced one of those phantom relations with
          * `$user->bodyMeasurement?->chest_bust`, which null-safes the RELATION
@@ -110,75 +175,55 @@ class GarmentController extends Controller
          *   Attempt to read property "bodyMeasurement" on null
          *
          * A guest now gets the same non-personalized fallback as a user who
-         * simply has not filled their profile in yet.
+         * simply has not set their sizes yet.
          */
         if (! $user) {
             return response()->json([
-                'has_measurements' => false,
-                'recommendations'  => $this->catalogGarments(),
+                'has_sizes' => false,
+                'recommendations' => $this->catalogGarments(),
             ]);
         }
 
-        $chest    = $user->chest_bust;
-        $waist    = $user->waist;
-        $hips     = $user->hips;
-        $shoulder = $user->shoulder_width;
-        $sleeve   = $user->sleeve_length;
+        $upper = SizeChart::normaliseLabel($user->upper_body_size);
+        $lower = SizeChart::normaliseLabel($user->lower_body_size);
 
-        $hasMeasurements = ($chest || $waist || $hips || $shoulder || $sleeve);
-
-        if (!$hasMeasurements) {
+        if ($upper === null && $lower === null) {
             return response()->json([
-                'has_measurements' => false,
-                'recommendations'  => $this->catalogGarments(),
+                'has_sizes' => false,
+                'recommendations' => $this->catalogGarments(),
             ]);
         }
 
-        // Query Garments where size min-max fits user measurements
-        $recommendedGarments = $this->catalogGarments(function ($query) use ($chest, $waist, $hips, $shoulder, $sleeve) {
-            $query->whereHas('sizes', function ($q) use ($chest, $waist, $hips, $shoulder, $sleeve) {
-                $q->where(function ($inner) use ($chest, $waist, $hips, $shoulder, $sleeve) {
-                    if ($chest) {
-                        $inner->where('chest_bust_min', '<=', $chest)
-                              ->where('chest_bust_max', '>=', $chest);
-                    }
-                    if ($waist) {
-                        $inner->where('waist_min', '<=', $waist)
-                              ->where('waist_max', '>=', $waist);
-                    }
-                    if ($hips) {
-                        $inner->where('hips_min', '<=', $hips)
-                              ->where('hips_max', '>=', $hips);
-                    }
-                    if ($shoulder) {
-                        $inner->where('shoulder_width_min', '<=', $shoulder)
-                              ->where('shoulder_width_max', '>=', $shoulder);
-                    }
-                    if ($sleeve) {
-                        $inner->where('sleeve_length_min', '<=', $sleeve)
-                              ->where('sleeve_length_max', '>=', $sleeve);
-                    }
-                });
+        /*
+         * A garment is a candidate when it is stocked in EITHER of the
+         * customer's sizes. Constraining to one axis would hide every top from
+         * someone whose upper and lower sizes differ (a common M-top / L-trouser
+         * combination), and the garment's own category decides which size
+         * actually governs the cut anyway.
+         */
+        $wantedSizes = array_values(array_unique(array_filter([$upper, $lower])));
+
+        $recommendedGarments = $this->catalogGarments(function ($query) use ($wantedSizes) {
+            $query->whereHas('sizes', function ($q) use ($wantedSizes) {
+                $q->whereIn('size_label', $wantedSizes)
+                  ->where('stock', '>', 0);
             });
         });
 
         /*
          * When the garment catalog has no size-matching entry, fall back to the
          * main `products` feed so the Spotlight is never empty for a user who
-         * HAS saved measurements — an empty grid reads as a broken feature.
+         * HAS set their sizes — an empty grid reads as a broken feature.
          */
         if ($recommendedGarments->isEmpty()) {
             $recommendedGarments = Product::latest()->take(8)->get();
         }
 
         return response()->json([
-            'has_measurements' => true,
-            'user_measurements' => [
-                'chest_bust'     => $chest,
-                'waist'          => $waist,
-                'hips'           => $hips,
-                'shoulder_width' => $shoulder,
-                'sleeve_length'  => $sleeve
+            'has_sizes' => true,
+            'user_sizes' => [
+                'upper_body_size' => $upper,
+                'lower_body_size' => $lower,
             ],
             'recommendations' => $recommendedGarments,
         ]);

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Check, Loader2 } from 'lucide-react';
+import { Bell, Check, Loader2, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -12,8 +12,7 @@ import api from '../../api/axios';
  * always-on 60-second polling loop.
  */
 
-const NotificationBell = () => {
-    const { user } = useAuth();
+const NotificationBell = () => {    const { user } = useAuth();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -64,13 +63,15 @@ const NotificationBell = () => {
     };
 
   /*
-   * Selecting a notification marks it read and routes the customer to orders.
+   * Notification rows are read-only (not tappable). The only action is the
+   * "Review" button on an ORDER DELIVERED notification: it opens that exact
+   * order in My Orders, where each delivered line has its own Review Product
+   * button.
    */
-  const handleSelect = (notification) => {
+  const handleReview = (notification) => {
     if (!notification.read_at) markReadMutation.mutate(notification.id);
     setOpen(false);
-    const orderId = notification.data?.order_id;
-    navigate(orderId ? `/orders?order=${orderId}` : '/orders');
+    navigate(`/orders?order=${notification.data?.order_id}`);
   };
 
   const handleMarkAll = () => markAllMutation.mutate();
@@ -96,29 +97,33 @@ const NotificationBell = () => {
         onClick={handleOpen}
         aria-expanded={open}
         aria-controls="notification-panel"
-        className="relative flex items-center justify-center w-10 h-10 rounded-full border border-transparent text-hiraya-ink hover:bg-hiraya-cream/60 hover:text-hiraya-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CB997E]/70 transition"
+        className={`relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-sm border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-nav-ink/60 ${
+          open
+            ? 'border-hiraya-nav-ink/55 bg-hiraya-nav-ink/12 text-hiraya-nav-ink'
+            : 'border-hiraya-nav-ink/20 text-hiraya-nav-muted hover:border-hiraya-nav-ink/45 hover:text-hiraya-nav-ink'
+        }`}
         title="Notifications"
         aria-label="Notifications"
       >
-        <Bell size={20} />
+        <Bell size={17} strokeWidth={1.6} />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1.5 bg-[#CB997E] text-hiraya-olive font-extrabold text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-hiraya-maroon text-[9px] font-extrabold text-hiraya-on-accent ring-2 ring-hiraya-nav">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div id="notification-panel" className="absolute right-0 mt-3 w-[min(20rem,calc(100vw-2rem))] max-h-96 overflow-y-auto bg-hiraya-cream-deep/95 backdrop-blur-xl border border-[#CB997E]/25 rounded-2xl shadow-2xl z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-hiraya-olive/15 sticky top-0 bg-hiraya-cream-deep/95">
-            <span className="text-[10px] uppercase tracking-widest text-hiraya-ink font-black">
+        <div id="notification-panel" className="glass absolute right-0 z-50 mt-3 max-h-96 w-[min(20rem,calc(100vw-2rem))] overflow-y-auto text-hiraya-ink">
+          <div className="sticky top-0 flex items-center justify-between border-b border-hiraya-structure-line bg-hiraya-surface/95 px-4 py-3 backdrop-blur-xl">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
               Notifications
             </span>
             {unread > 0 && (
               <button
                 onClick={handleMarkAll}
                 disabled={isLoading || markAllMutation.isPending}
-                className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-hiraya-ink hover:text-hiraya-ink transition disabled:opacity-50"
+                className="flex cursor-pointer items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted transition-colors hover:text-hiraya-accent disabled:cursor-not-allowed"
               >
                 <Check size={11} />
                 Mark all read
@@ -128,43 +133,65 @@ const NotificationBell = () => {
 
           {error ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-[11px] text-red-300">Unable to load notifications.</p>
-              <button onClick={() => notificationsQuery.refetch()} className="mt-3 text-[10px] uppercase tracking-widest text-hiraya-ink hover:text-hiraya-ink">
+              <p className="text-[11px] text-red-700">Unable to load notifications.</p>
+              <button onClick={() => notificationsQuery.refetch()} className="btn-quiet mt-3 cursor-pointer">
                 Try again
               </button>
             </div>
           ) : isLoading && items.length === 0 ? (
-            <div className="px-4 py-10 flex items-center justify-center gap-2 text-[11px] text-hiraya-sand">
-              <Loader2 size={13} className="animate-spin" /> Loading notifications...
+            <div className="flex items-center justify-center gap-2 px-4 py-10 text-[11px] text-hiraya-ink-muted">
+              <Loader2 size={13} className="animate-spin text-hiraya-accent" /> Loading notifications...
             </div>
           ) : items.length === 0 ? (
-            <p className="px-4 py-10 text-center text-[11px] text-hiraya-sand">
+            <p className="px-4 py-10 text-center text-[11px] text-hiraya-ink-muted">
               No notifications yet.
             </p>
           ) : (
-            items.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => handleSelect(n)}
-                className={`w-full text-left px-4 py-3 border-b border-hiraya-olive/15 hover:bg-hiraya-cream/60 transition ${n.read_at ? 'opacity-60' : ''
-                  }`}
-              >
-                <div className="flex items-start gap-2">
-                  {!n.read_at && <span className="w-1.5 h-1.5 rounded-full bg-[#CB997E] mt-1.5 shrink-0" />}
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold text-hiraya-ink uppercase tracking-wide">
-                      {n.data?.title || 'Order Update'}
-                    </p>
-                    <p className="text-[11px] text-hiraya-ink leading-relaxed mt-0.5">
-                      {n.data?.body}
-                    </p>
-                    <p className="text-[9px] text-hiraya-olive/70 mt-1">
-                      {new Date(n.created_at).toLocaleString()}
-                    </p>
+            items.map((n) => {
+              /*
+               * Review only on DELIVERED notifications. `order_status` also
+               * covers delivered notifications sent before the `action` flag
+               * existed.
+               */
+              const canReview = !!n.data?.order_id
+                && (n.data?.action === 'review_products' || n.data?.order_status === 'delivered');
+
+              // Plain, non-tappable row: the message is informational only.
+              return (
+                <div
+                  key={n.id}
+                  className={`border-b border-hiraya-structure-line px-4 py-3 last:border-b-0 ${n.read_at ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-start gap-2">
+                    {!n.read_at && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-hiraya-accent" />}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-hiraya-ink">
+                        {n.data?.title || 'Order Update'}
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-hiraya-ink-soft">
+                        {n.data?.body}
+                      </p>
+
+                      {/* Timestamp on the left, Review button bottom-right. */}
+                      <div className="mt-1.5 flex items-end justify-between gap-3">
+                        <p className="text-[9px] text-hiraya-ink-muted">
+                          {new Date(n.created_at).toLocaleString()}
+                        </p>
+                        {canReview && (
+                          <button
+                            type="button"
+                            onClick={() => handleReview(n)}
+                            className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-3.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent transition-colors hover:bg-hiraya-accent-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus"
+                          >
+                            <Star size={11} /> Review
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </button>
-            ))
+              );
+            })
           )}
         </div>
       )}

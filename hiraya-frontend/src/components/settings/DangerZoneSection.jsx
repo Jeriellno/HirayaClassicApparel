@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { AlertTriangle, Trash2, Loader2 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -65,14 +65,15 @@ export const DangerZoneSection = ({ onDeleted }) => {
 
   return (
     <>
-      <section className="space-y-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-6 shadow-xl">
-        <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-400">
-          <AlertTriangle size={16} /> Danger Zone
+      <section id="account-danger" className="card-raised scroll-mt-32 space-y-5 rounded-[24px] border-red-600/30 p-6 sm:p-8">
+        <h2 className="flex items-center gap-3 border-b border-red-600/20 pb-4 text-xs font-semibold uppercase tracking-[0.16em] text-red-700">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500/10 text-red-700"><AlertTriangle size={16} /></span>
+          Danger Zone
         </h2>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-bold text-hiraya-ink">Delete this account permanently</p>
-            <p className="mt-1 text-[10px] text-hiraya-ink">
+            <p className="text-xs font-semibold text-hiraya-ink">Delete this account permanently</p>
+            <p className="mt-1 text-[10px] text-hiraya-ink-muted">
               Your profile, saved body measurements, and session will be removed. This action
               cannot be undone.
             </p>
@@ -80,7 +81,7 @@ export const DangerZoneSection = ({ onDeleted }) => {
           <button
             type="button"
             onClick={openModal}
-            className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-2.5 text-xs font-extrabold uppercase tracking-widest text-red-400 transition hover:bg-red-500/20"
+            className="btn-danger shrink-0 cursor-pointer rounded-full"
           >
             <Trash2 size={14} /> Delete Account
           </button>
@@ -89,24 +90,33 @@ export const DangerZoneSection = ({ onDeleted }) => {
 
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-olive/60 p-4 backdrop-blur-sm"
+          /*
+           * THE SCRIM IS A DARK VEIL, NOT THE PAGE COLOUR.
+           *
+           * It was `bg-hiraya-peach` — the light canvas colour — so the modal
+           * "backdrop" was a solid pale sheet over the page. It read as a second
+           * page rather than as an overlay, and it gave the white dialog nothing
+           * to separate from. It is now a navy veil with a blur, which is what
+           * every other overlay in the system uses.
+           */
+          className="fixed inset-0 z-50 flex items-center justify-center bg-hiraya-ink/60 p-4 backdrop-blur-sm"
           onClick={closeModal}
         >
           <div
-            className="w-full max-w-md space-y-4 rounded-2xl border border-red-500/30 bg-[#121620] p-6 shadow-2xl"
+            className="card-raised w-full max-w-md space-y-4 rounded-[24px] border-red-600/40 p-6 sm:p-7"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-red-400">
+            <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-red-700">
               <AlertTriangle size={18} /> Delete Account
             </h3>
-            <p className="text-xs text-hiraya-ink">
-              This will <span className="font-bold text-red-400">permanently delete</span> your
+            <p className="text-xs text-hiraya-ink-soft">
+              This will <span className="font-semibold text-red-700">permanently delete</span> your
               Hiraya account, including your profile and saved body measurements. This action
               cannot be undone.
             </p>
 
             <label className="block space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-hiraya-ink">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                 Current Password
               </span>
               <input
@@ -114,25 +124,25 @@ export const DangerZoneSection = ({ onDeleted }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-4 py-2.5 text-xs text-hiraya-ink focus:border-red-400 focus:outline-none transition"
+                className="field"
               />
             </label>
 
             <label className="block space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-hiraya-ink">
-                Type <span className="text-red-400">DELETE</span> to confirm
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                Type <span className="text-red-700">DELETE</span> to confirm
               </span>
               <input
                 type="text"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder="DELETE"
-                className="w-full rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-4 py-2.5 text-xs text-hiraya-ink focus:border-red-400 focus:outline-none transition"
+                className="field"
               />
             </label>
 
             {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/15 p-3 text-xs text-red-400">
+              <div className="rounded-xl border border-red-600/40 bg-red-500/12 p-3 text-xs text-red-700">
                 {error}
               </div>
             )}
@@ -142,7 +152,7 @@ export const DangerZoneSection = ({ onDeleted }) => {
                 type="button"
                 onClick={closeModal}
                 disabled={loading}
-                className="rounded-xl border border-hiraya-olive/15 bg-hiraya-cream/60 px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-hiraya-ink transition hover:bg-hiraya-cream/60 disabled:opacity-50"
+                className="btn-secondary cursor-pointer"
               >
                 Cancel
               </button>
@@ -150,7 +160,7 @@ export const DangerZoneSection = ({ onDeleted }) => {
                 type="button"
                 onClick={handleDelete}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-xl bg-red-500 px-5 py-2.5 text-xs font-extrabold uppercase tracking-widest text-hiraya-ink transition hover:bg-red-600 disabled:opacity-50"
+                className="btn-danger cursor-pointer"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
                 Permanently Delete

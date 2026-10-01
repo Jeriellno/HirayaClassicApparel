@@ -1,4 +1,4 @@
-import { Component } from 'react';
+﻿import { Component } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { isKnownStartTimeError } from '../../utils/runtimeGuards';
 
@@ -45,21 +45,35 @@ class ErrorBoundary extends Component {
     if (!this.state.hasError) return this.props.children;
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black px-6">
-        <div className="max-w-md w-full text-center rounded-3xl border-hiraya-olive/20 bg-hiraya-olive p-10 shadow-2xl">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#CB997E]/10 border-hiraya-olive/20 text-hiraya-ink">
+      /*
+       * THE CRASH SCREEN HAD NO READABLE TEXT AT ALL.
+       *
+       * The panel was `rounded-3xl border-hiraya-olive/20 bg-hiraya-olive` — an
+       * INDIGO slab — while its heading was `text-hiraya-ink` (NAVY) and its body
+       * copy `text-hiraya-sand` (ALSO INDIGO). So on the one screen a user only
+       * ever sees when something has already gone wrong, the title was
+       * navy-on-indigo and the explanation and the body text were literally
+       * indigo-on-indigo: measured 1.00:1. There was no message, only a button.
+       *
+       * It is now the shared raised card on the light canvas, where both inks sit
+       * at their designed contrast, and the action is the standard primary plate.
+       * The copy and the reload behaviour are unchanged.
+       */
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="card-raised w-full max-w-md p-10 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-sm border border-hiraya-accent/30 bg-hiraya-accent-wash text-hiraya-accent">
             <AlertTriangle size={24} />
           </div>
-          <h1 className="text-lg font-light uppercase tracking-[0.25em] text-hiraya-ink">
+          <h1 className="display-md text-hiraya-ink">
             Something slipped
           </h1>
-          <p className="mt-3 text-xs leading-relaxed text-hiraya-sand">
+          <p className="mt-3 text-xs leading-relaxed text-hiraya-ink-soft">
             The Hiraya studio hit an unexpected error. Your bag and profile are safe —
             reload to continue where you left off.
           </p>
           <button
             onClick={this.handleReload}
-            className="mt-8 w-full rounded-xl bg-[#CB997E] px-6 py-3 text-[10px] font-black uppercase tracking-[0.25em] text-hiraya-olive transition hover:bg-hiraya-cream-deep"
+            className="btn-primary mt-8 w-full cursor-pointer"
           >
             Reload Hiraya
           </button>

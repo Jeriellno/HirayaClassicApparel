@@ -23,6 +23,9 @@ class OrderStatusChanged extends Notification
         public Order $order,
         public string $title,
         public string $body,
+        // Optional call-to-action the bell renders as a button. Currently only
+        // 'review_products', sent when an order is marked delivered.
+        public ?string $action = null,
     ) {
     }
 
@@ -48,16 +51,23 @@ class OrderStatusChanged extends Notification
             'payment_status' => $this->order->payment_status,
             'order_status' => $this->order->order_status,
             'total_amount' => $this->order->total_amount,
+            'action' => $this->action,
         ];
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject($this->title . ' — Hiraya Order #' . $this->order->id)
             ->greeting('Hiraya Order Update')
             ->line($this->body)
-            ->line('Order #' . $this->order->id . ' · Total ₱' . number_format((float) $this->order->total_amount, 2))
+            ->line('Order #' . $this->order->id . ' · Total ₱' . number_format((float) $this->order->total_amount, 2));
+
+        if ($this->action === 'review_products') {
+            return $mail->action('Review Products', url('/orders?order=' . $this->order->id));
+        }
+
+        return $mail
             ->line('Balance due before shipping: ₱' . number_format((float) $this->order->balance_amount, 2))
             ->action('Track My Order', url('/orders'));
     }

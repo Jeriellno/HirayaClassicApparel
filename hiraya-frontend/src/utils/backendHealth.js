@@ -55,6 +55,25 @@ const isConnectivityFailure = (error) => {
   if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
     return false;
   }
+  /*
+   * A CANCELED REQUEST IS NOT AN OUTAGE. IT IS THE APP CANCELLING ITSELF.
+   * ---------------------------------------------------------------
+   * React Query aborts an in-flight query the moment its component unmounts or
+   * its key changes, and axios surfaces that as `ERR_CANCELED` with NO `.response`
+   * — indistinguishable, to the two checks above, from a connection rejection.
+   *
+   * So a normal navigation (leaving Shop, opening the console, switching a tab)
+   * cancelled every request it had in flight, each one latched the shared state to
+   * UNREACHABLE, and the console then painted "BACKEND UNREACHABLE" against a
+   * server that was answering 200 the whole time. That is exactly the reported
+   * symptom: 200 in the Network tab, "cannot reach Hiraya" on screen.
+   *
+   * A cancel says the CLIENT walked away. It carries no information at all about
+   * whether the server is alive, so it must never touch this state.
+   */
+  if (code === 'ERR_CANCELED' || error?.name === 'CanceledError' || error?.name === 'AbortError') {
+    return false;
+  }
   // No response object at all means the request never completed a round trip —
   // a DNS, proxy or connection rejection rather than an HTTP status.
   if (!error?.response) return true;

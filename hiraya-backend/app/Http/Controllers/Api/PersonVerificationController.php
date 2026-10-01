@@ -362,8 +362,16 @@ PROMPT;
                     'contents' => [[
                         'parts' => [
                             ['text' => self::PROMPT],
-                            ['inline_data' => [
-                                'mime_type' => $this->mimeType($image),
+                            /*
+                             * `inlineData` / `mimeType` — the API's own JSON
+                             * names. `inline_data` / `mime_type` are protobuf
+                             * FIELD names, which strict v1beta rejects with
+                             *   400 Invalid JSON payload received.
+                             *       Unknown name "inline_data" ...
+                             * i.e. the photo was never even read.
+                             */
+                            ['inlineData' => [
+                                'mimeType' => $this->mimeType($image),
                                 'data' => $this->base64Data($image),
                             ]],
                         ],

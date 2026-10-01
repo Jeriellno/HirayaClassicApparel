@@ -53,14 +53,38 @@ class AiTryOnController extends Controller
         }
     }
 
-    // Dagdag ka rin ng method para sa measurements
+    /*
+     * Save the customer's sizing profile.
+     *
+     * This used to write `height` / `waist` / `chest` — columns that were
+     * dropped when the 5 Core Body Measurements were replaced by two size
+     * labels, so the call would have thrown on an unknown column. It now
+     * persists the two sizes and validates them against the same ladder the
+     * registration and Account Settings endpoints use.
+     */
     public function saveMeasurements(Request $request) {
         $user = Auth::user();
-        $user->update([
-            'height' => $request->height,
-            'waist' => $request->waist,
-            'chest' => $request->chest,
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'upper_body_size' => ['nullable', 'string', 'max:10', 'in:XS,S,M,L,XL,2XL'],
+            'lower_body_size' => ['nullable', 'string', 'max:10', 'in:XS,S,M,L,XL,2XL'],
+        ], [
+            'upper_body_size.in' => 'Please choose a valid upper body size.',
+            'lower_body_size.in' => 'Please choose a valid lower body size.',
         ]);
-        return response()->json(['message' => 'Profile synced!']);
+
+        $user->update($validated);
+
+        return response()->json([
+            'message' => 'Profile synced!',
+            'sizes'   => [
+                'upper_body_size' => $user->upper_body_size,
+                'lower_body_size' => $user->lower_body_size,
+            ],
+        ]);
     }
 }

@@ -24,16 +24,29 @@ use App\Support\LocalAsset;
  * FLAT-LAY / GHOST-MANNEQUIN garment image, which is exactly what this catalog
  * stores in `ghost_mannequin_url`.
  *
- * PROVIDER-NEUTRAL BY DESIGN
- * --------------------------
+ * PROVIDER-NEUTRAL BY DESIGN — AND SLOT-AWARE
+ * --------------------------------------------
  * Multiple vendors expose the same shape (person image + garment image in,
  * image out) with only small differences in field names and auth. Instead of
  * writing one class per vendor, this renderer takes the endpoint, the field
  * names and the response path from CONFIG, so switching vendor is a .env change
- * and not a code change. The defaults match the documented contracts of:
+ * and not a code change. The documented contracts are:
  *
  *   - FASHN       : POST https://api.fashn.ai/v1/run      { model_name, inputs }
  *   - PixelAPI    : POST https://api.pixelapi.dev/v1/virtual-tryon { person_image, garment_image, category }
+ *
+ * A "SLOT" is one vendor's configuration block under `config/services.php`.
+ * `render()` takes the slot NAME (`'vton'` = PixelAPI, `'fashn'` = FASHN) and
+ * every vendor read in this class is funnelled through `config($slot)`, so ONE
+ * instance can render through either vendor. Which vendor actually runs is
+ * decided by the CALLER's priority chain (`ProcessTryOnJob::callVtonApi()`),
+ * not here.
+ *
+ * THE DEFAULT SLOT IS `'vton'` (PixelAPI), AND THAT IS LOAD-BEARING.
+ * A caller that passes no slot — the historical 6-argument call — gets exactly
+ * the behaviour this class had before the slot parameter existed: `services.vton.*`
+ * for every read and PixelAPI's category vocabulary. Adding the parameter is
+ * therefore purely additive.
  *
  * It deliberately does NOT hard-code a vendor key: the operator supplies one
  * and the renderer becomes live. With no key configured, `render()` returns a
@@ -51,6 +64,28 @@ use App\Support\LocalAsset;
  */
 class VtonApiRenderer
 {
+    /**
+     * The DEFAULT configuration slot — PixelAPI.
+     *
+     * `render()`'s `$slot` parameter defaults to this, so every historical
+     * caller (and every call site that predates FASHN) resolves the same config
+     * keys, the same payload shape and the same category vocabulary it always
+     * did. Nothing about the no-slot path changed; only callers that NAME a slot
+     * can reach a different vendor.
+     */
+    private const DEFAULT_SLOT = 'vton';
+
+    /**
+     * The FASHN slot name — the one slot whose category fallbacks are FASHN's.
+     *
+     * Compared by NAME rather than by inspecting the resolved values, because
+     * the vocabulary is a property of the VENDOR, not of whatever an operator
+     * happens to have typed into the env. A deployment that blanks
+     * `VTON_FASHN_CATEGORY_TOP` must still get `tops`, not PixelAPI's
+     * `upperbody`.
+     */
+    private const FASHN_SLOT = 'fashn';
+
     /** VTON inference is slower than a text call; allow a generous window. */
     private const TIMEOUT_SECONDS = 180;
 
@@ -222,6 +257,11 @@ class VtonApiRenderer
      * @param  string|null  $recommendedSize  Size label (unused upstream; kept for parity).
      * @param  array|null  $renderPlan  Plan from TryOnPreProcessor (unused upstream).
      * @param  array<int, string|null>  $categories  Style Stack category per garment.
+     * @param  string  $slot  Which config slot (vendor) to render through:
+     *                        `'vton'` = PixelAPI (the DEFAULT, so an unqualified
+     *                        call behaves exactly as it did before this parameter
+     *                        existed), `'fashn'` = FASHN. Read as
+     *                        `config("services.{$slot}.*")`.
      * @return array{success: bool, image_base64?: string, feedback?: string, error?: string, code?: string, placed?: array<int, string>}
      */
     public function render(
@@ -230,9 +270,11 @@ class VtonApiRenderer
         array $measurements = [],
         ?string $recommendedSize = null,
         ?array $renderPlan = null,
-        array $categories = []
+        array $categories = [],
+        string $slot = self::DEFAULT_SLOT
     ): array {
-        $config = $this->config();
+        $slot = $this->normaliseSlot($slot);
+        $config = $this->config($slot);
 
         if ($config['endpoint'] === '' || $config['token'] === '') {
             /*
@@ -240,11 +282,14 @@ class VtonApiRenderer
              *
              * `not_configured` is in the job's non-retryable code set, so the
              * chain moves straight on to the next provider without burning
-             * retries on a request we know cannot succeed.
+             * retries on a request we know cannot succeed. It is ALSO how the
+             * priority chain SKIPS a slot whose token is empty: an absent key is
+             * a known configuration, not a failure, so the chain simply reaches
+             * the next engine.
              */
             return [
                 'success' => false,
-                'error' => 'No VTON API endpoint/token is configured. Set VTON_API_URL and VTON_API_TOKEN to enable this tier.',
+                'error' => $this->notConfiguredMessage($slot),
                 'code' => 'not_configured',
             ];
         }
@@ -289,7 +334,7 @@ class VtonApiRenderer
             ];
         }
 
-        $payload = $this->buildPayload($config, $personPart, $garmentPart, $category);
+        $payload = $this->buildPayload($config, $personPart, $garmentPart, $category, $slot);
 
         /*
          * PAYLOAD SIZE GUARD.
@@ -339,13 +384,13 @@ class VtonApiRenderer
                 'code' => 'renderer_unreachable',
             ];
 
-            \App\Support\ProviderHealth::recordRenderFailure($failure);
+            \App\Support\ProviderHealth::recordRenderFailure($failure, $slot);
 
             return $failure;
         }
 
         if ($response->failed()) {
-            $failure = $this->describeHttpFailure($config, $response->status(), $response->json());
+            $failure = $this->describeHttpFailure($config, $response->status(), $response->json(), $slot);
 
             /*
              * REMEMBER A PROVIDER FAULT, AND ONLY A PROVIDER FAULT.
@@ -359,8 +404,11 @@ class VtonApiRenderer
              * Whether a code counts as a provider fault is decided in ONE place
              * (ProviderHealth::PROVIDER_FAULT_CODES), and the write is best-effort —
              * health bookkeeping must never be able to fail a render.
+             *
+             * The SLOT is passed through so the row names the vendor that actually
+             * faulted (FASHN vs PixelAPI) instead of always blaming PixelAPI.
              */
-            \App\Support\ProviderHealth::recordRenderFailure($failure);
+            \App\Support\ProviderHealth::recordRenderFailure($failure, $slot);
 
             return $failure;
         }
@@ -375,7 +423,7 @@ class VtonApiRenderer
          * check for an image FIRST, then fall back to treating the response as
          * a job handle, so one code path serves both shapes.
          */
-        $image = $this->extractImage($body);
+        $image = $this->extractImage($body, $slot);
 
         /*
          * COALESCED SUBMIT — THE PROVIDER MERGED OUR REQUEST INTO ANOTHER JOB.
@@ -414,10 +462,10 @@ class VtonApiRenderer
         $timedOut = false;
 
         if ($image === null) {
-            $jobId = $this->extractJobId($body);
+            $jobId = $this->extractJobId($body, $slot);
 
             if ($jobId !== null) {
-                [$image, $timedOut] = $this->pollForImage($config, $jobId);
+                [$image, $timedOut] = $this->pollForImage($config, $jobId, $slot);
             }
         }
 
@@ -441,12 +489,14 @@ class VtonApiRenderer
                      * "try again in a moment" understated a one-to-two-minute render
                      * and invited a retry that collides with the in-flight job.
                      */
-                    'error' => 'The try-on service (PixelAPI) is still rendering another fitting — it processes one at a time, and a full render takes a minute or two. Please wait a moment before retrying.',
+                    'error' => $this->isFashn($slot)
+                        ? 'The try-on service is still rendering — a full render takes a minute or two. Please wait a moment before retrying.'
+                        : 'The try-on service (PixelAPI) is still rendering another fitting — it processes one at a time, and a full render takes a minute or two. Please wait a moment before retrying.',
                     'code' => 'renderer_busy',
                 ];
 
                 // The provider is serialised, not broken — recorded as `degraded`.
-                \App\Support\ProviderHealth::recordRenderFailure($failure);
+                \App\Support\ProviderHealth::recordRenderFailure($failure, $slot);
 
                 return $failure;
             }
@@ -458,7 +508,7 @@ class VtonApiRenderer
             ];
 
             // A provider hiccup: accepted the work and produced nothing.
-            \App\Support\ProviderHealth::recordRenderFailure($failure);
+            \App\Support\ProviderHealth::recordRenderFailure($failure, $slot);
 
             return $failure;
         }
@@ -472,35 +522,78 @@ class VtonApiRenderer
     }
 
     /**
-     * Resolve the endpoint/field configuration, with defaults matching the two
-     * documented vendor contracts.
+     * Coerce a slot name to a non-empty string, defaulting to PixelAPI's slot.
      *
+     * A blank name (`render(..., slot: '')`) is treated as "no slot given"
+     * rather than as a distinct vendor, because an empty string cannot address a
+     * config block — `config('services..token')` resolves to null and every read
+     * would fall to this class's own fallbacks. Falling back to the default slot
+     * keeps that degenerate case on the well-tested PixelAPI path.
+     */
+    private function normaliseSlot(string $slot): string
+    {
+        $slot = trim($slot);
+
+        return $slot === '' ? self::DEFAULT_SLOT : $slot;
+    }
+
+    /** Is this slot FASHN's? Used only for vendor-specific wording and vocabulary. */
+    private function isFashn(string $slot): bool
+    {
+        return $slot === self::FASHN_SLOT;
+    }
+
+    /**
+     * The `not_configured` message for a slot.
+     *
+     * Names the slot's OWN env variables, so an operator reading a log or a
+     * failed session is told which keys would enable the tier that was skipped
+     * instead of being pointed at PixelAPI's variables for a FASHN slot.
+     */
+    private function notConfiguredMessage(string $slot): string
+    {
+        $keys = $this->isFashn($slot)
+            ? 'VTON_FASHN_API_URL and VTON_FASHN_API_TOKEN'
+            : 'VTON_API_URL and VTON_API_TOKEN';
+
+        return "No VTON API endpoint/token is configured for the '{$slot}' slot. Set {$keys} to enable this tier.";
+    }
+
+    /**
+     * Resolve the endpoint/field configuration for a slot, with defaults matching
+     * the documented vendor contract of THAT slot.
+     *
+     * @param  string  $slot  `'vton'` (PixelAPI, the default) or `'fashn'`.
      * @return array<string, mixed>
      */
-    private function config(): array
+    private function config(string $slot = self::DEFAULT_SLOT): array
     {
+        $slot = $this->normaliseSlot($slot);
+
         return [
-            'endpoint' => trim((string) config('services.vton.endpoint', '')),
-            'token' => trim((string) config('services.vton.token', '')),
-            'model_name' => trim((string) config('services.vton.model_name', 'tryon-v1.6')),
-            'person_field' => trim((string) config('services.vton.person_field', 'model_image')),
-            'garment_field' => trim((string) config('services.vton.garment_field', 'garment_image')),
-            'category_field' => trim((string) config('services.vton.category_field', 'category')),
-            'job_id_path' => trim((string) config('services.vton.job_id_path', 'id')),
+            'endpoint' => trim((string) config("services.{$slot}.endpoint", '')),
+            'token' => trim((string) config("services.{$slot}.token", '')),
+            'model_name' => trim((string) config("services.{$slot}.model_name", 'tryon-v1.6')),
+            'person_field' => trim((string) config("services.{$slot}.person_field", 'model_image')),
+            'garment_field' => trim((string) config("services.{$slot}.garment_field", 'garment_image')),
+            'category_field' => trim((string) config("services.{$slot}.category_field", 'category')),
+            'job_id_path' => trim((string) config("services.{$slot}.job_id_path", 'id')),
             // Kept for parity; polling reads `status_endpoint` directly (below).
-            'status_path' => trim((string) config('services.vton.status_endpoint', '')),
-            'image_path' => trim((string) config('services.vton.image_path', '')),
+            'status_path' => trim((string) config("services.{$slot}.status_endpoint", '')),
+            'image_path' => trim((string) config("services.{$slot}.image_path", '')),
             /*
-             * QUALITY KNOBS (documented by the vendor, previously unused).
+             * QUALITY KNOBS (documented by the vendors, previously unused).
              *
              * Both are optional on the wire; `null` means "do not send the field"
              * so a vendor that does not define it is never sent an unknown
              * parameter. PixelAPI documents:
              *   n_steps   — diffusion steps, default 20, higher = better quality
              *   n_samples — images to generate (default 1, max 4)
+             * FASHN exposes its own equivalents, sent inside the `inputs`
+             * envelope; the SLOT decides which key is read.
              */
-            'n_steps' => $this->optionalInt(config('services.vton.n_steps')),
-            'n_samples' => $this->optionalInt(config('services.vton.n_samples')),
+            'n_steps' => $this->optionalInt(config("services.{$slot}.n_steps")),
+            'n_samples' => $this->optionalInt(config("services.{$slot}.n_samples")),
         ];
     }
 
@@ -525,15 +618,22 @@ class VtonApiRenderer
     /**
      * Assemble the request body for the configured vendor shape.
      *
+     * The SHAPE is decided by the slot's own `model_name`, not by the slot name:
+     * a non-empty `model_name` means a wrapper-style vendor (FASHN) whose
+     * arguments go inside `inputs`; an empty one means a flat vendor (PixelAPI).
+     * That keeps the shape a CONFIG property, so pointing either slot at a vendor
+     * with the other shape is still a .env change.
+     *
      * @param  array<string, mixed>  $config
+     * @param  string  $slot  passed through to `mapCategory()` for the vocabulary.
      * @return array<string, mixed>
      */
-    private function buildPayload(array $config, string $person, string $garment, string $category): array
+    private function buildPayload(array $config, string $person, string $garment, string $category, string $slot = self::DEFAULT_SLOT): array
     {
         $inputs = [
             $config['person_field'] => $person,
             $config['garment_field'] => $garment,
-            $config['category_field'] => $this->mapCategory($category),
+            $config['category_field'] => $this->mapCategory($category, $slot),
         ];
 
         /*
@@ -570,12 +670,13 @@ class VtonApiRenderer
      * Map an incoming garment category onto the vocabulary the configured VTON
      * API accepts.
      *
-     * The value sent here must be one of the vendor's OWN enum values. PixelAPI
-     * (the active vendor) accepts ONLY `upperbody` | `lowerbody` | `dress` — it has
-     * no `auto`, so an unresolved label is rejected with a 422 and the customer
-     * sees a dead canvas. FASHN accepts `tops|bottoms|one-pieces` and does
-     * tolerate `auto`, but relying on that would break the deployment
-     * PixelAPI is configured for.
+     * The value sent here must be one of the SLOT'S OWN vendor enum values.
+     * PixelAPI (the `'vton'` slot, and the default) accepts ONLY `upperbody` |
+     * `lowerbody` | `dress` — it has no `auto`, so an unresolved label is rejected
+     * with a 422 and the customer sees a dead canvas. FASHN (the `'fashn'` slot)
+     * accepts `tops|bottoms|one-pieces`. The slot is read HERE rather than inferred
+     * from the resolved config, so the two vocabularies can never be swapped by an
+     * .env edit: whichever slot renders, only its own words are ever emitted.
      *
      * A FOOTWEAR piece has no vendor equivalent: VTON APIs dress the upper or
      * lower BODY, and shoes are neither. Sending a shoe as `upperbody` is how the
@@ -587,8 +688,9 @@ class VtonApiRenderer
      * NOTE: with PixelAPI the caller never actually renders footwear (see
      * `preferGarment`), so this branch exists for the FASHN configuration.
      *
-     * THE SECOND ARGUMENT OF `config()` MATTERS AS MUCH AS THE FIRST.
-     * --------------------------------------------------------------
+     * THE SECOND ARGUMENT OF `config()` MATTERS AS MUCH AS THE FIRST — AND SO
+     * DOES THE SLOT.
+     * -----------------------------------------------------------------------
      * These fallbacks were `'one-pieces'` / `'tops'` / `'bottoms'` — FASHN's
      * vocabulary — while the active vendor is PixelAPI, whose accepted set is
      * `upperbody | lowerbody | dress | saree | lehenga | kurti | sherwani`.
@@ -599,9 +701,35 @@ class VtonApiRenderer
      * left this method still able to emit `tops` at PixelAPI. Both copies are
      * now PixelAPI's, so there is no path left that sends FASHN a word PixelAPI
      * rejects with a 422.
+     *
+     * WITH TWO SLOTS THERE ARE NOW TWO CORRECT ANSWERS, so the fallback depends
+     * on which vendor is being addressed:
+     *
+     *   slot `'vton'` (PixelAPI, the default) -> `upperbody` / `lowerbody` / `dress`
+     *   slot `'fashn'`                        -> `tops` / `bottoms` / `one-pieces`
+     *
+     * Each slot's second argument matches its OWN config block's default, so the
+     * two copies of a slot's vocabulary always agree. A FASHN slot must never fall
+     * back to PixelAPI's words (and vice versa) — that is the 422 this whole
+     * section exists to prevent.
      */
-    private function mapCategory(?string $category): string
+    private function mapCategory(?string $category, string $slot = self::DEFAULT_SLOT): string
     {
+        $slot = $this->normaliseSlot($slot);
+
+        if ($this->isFashn($slot)) {
+            return match ($this->resolveFamily($category)) {
+                'dress' => (string) config("services.{$slot}.category_dress", 'one-pieces'),
+                'top' => (string) config("services.{$slot}.category_top", 'tops'),
+                'bottom', 'footwear' => (string) config("services.{$slot}.category_bottom", 'bottoms'),
+                // OUTERWEAR IS DRESSED ON THE UPPER BODY (FASHN: `tops`).
+                'outerwear' => (string) config("services.{$slot}.category_top", 'tops'),
+                // Unresolved label — FASHN's safest guess is `tops`, for the same
+                // reasons PixelAPI's is `upperbody` (see the default branch below).
+                default => (string) config("services.{$slot}.category_top", 'tops'),
+            };
+        }
+
         return match ($this->resolveFamily($category)) {
             'dress' => (string) config('services.vton.category_dress', 'dress'),
             'top' => (string) config('services.vton.category_top', 'upperbody'),
@@ -768,10 +896,12 @@ class VtonApiRenderer
      * first and then a small set of documented shapes.
      *
      * @param  array<string, mixed>  $body
+     * @param  string  $slot  which vendor's config supplies the pinned path.
      */
-    private function extractImage(array $body): ?string
+    private function extractImage(array $body, string $slot = self::DEFAULT_SLOT): ?string
     {
-        $path = (string) config('services.vton.image_path', '');
+        $slot = $this->normaliseSlot($slot);
+        $path = (string) config("services.{$slot}.image_path", '');
 
         $candidates = [];
         if ($path !== '') {
@@ -864,10 +994,12 @@ class VtonApiRenderer
      * Read a job id out of an async submit response, if there is one.
      *
      * @param  array<string, mixed>  $body
+     * @param  string  $slot  which vendor's config supplies the pinned path.
      */
-    private function extractJobId(array $body): ?string
+    private function extractJobId(array $body, string $slot = self::DEFAULT_SLOT): ?string
     {
-        $path = (string) config('services.vton.job_id_path', 'id');
+        $slot = $this->normaliseSlot($slot);
+        $path = (string) config("services.{$slot}.job_id_path", 'id');
 
         foreach ([$path, 'id', 'job_id', 'prediction_id', 'data.id'] as $candidate) {
             if ($candidate === '') {
@@ -903,11 +1035,15 @@ class VtonApiRenderer
      * `renderer_no_image`; conflating them is what made a slow render permanent.
      *
      * @param  array<string, mixed>  $config
+     * @param  string  $slot  which vendor's config supplies the status endpoint;
+     *                        the polled response is also walked with that slot's
+     *                        image path.
      * @return array{0: string|null, 1: bool}
      */
-    private function pollForImage(array $config, string $jobId): array
+    private function pollForImage(array $config, string $jobId, string $slot = self::DEFAULT_SLOT): array
     {
-        $template = (string) config('services.vton.status_endpoint', '');
+        $slot = $this->normaliseSlot($slot);
+        $template = (string) config("services.{$slot}.status_endpoint", '');
         if ($template === '') {
             // No polling endpoint configured: a real failure, not a running job.
             return [null, false];
@@ -944,7 +1080,7 @@ class VtonApiRenderer
 
             $body = $res->json() ?? [];
 
-            $image = $this->extractImage($body);
+            $image = $this->extractImage($body, $slot);
             if ($image !== null) {
                 return [$image, false];
             }
@@ -988,10 +1124,13 @@ class VtonApiRenderer
      *
      * @param  array<string, mixed>  $config
      * @param  array<string, mixed>|null  $body
+     * @param  string  $slot  used ONLY to name the right vendor in the copy the
+     *                        customer reads; the code taxonomy is shared.
      * @return array{success: bool, error: string, code: string}
      */
-    private function describeHttpFailure(array $config, int $status, ?array $body): array
+    private function describeHttpFailure(array $config, int $status, ?array $body, string $slot = self::DEFAULT_SLOT): array
     {
+        $slot = $this->normaliseSlot($slot);
         $upstream = $this->upstreamReason($body);
 
         Log::warning('VTON API render failed', ['status' => $status, 'error' => $upstream]);
@@ -1110,9 +1249,15 @@ class VtonApiRenderer
              * and the retry budget is spent on a condition the hasty retry caused.
              * The copy now states the real timing so the customer waits.
              */
-            $status === 503 => 'The try-on service (PixelAPI) is still rendering another fitting — it processes one at a time, and a full render takes a minute or two. Please wait a moment before retrying so this fitting is not refused again.',
-            $status >= 520 && $status <= 527 => 'The try-on service (PixelAPI) is temporarily unavailable — its servers are not responding (HTTP ' . $status . '). This is on the provider side; please retry in a few minutes.',
-            $status >= 500 => 'The try-on service (PixelAPI) returned a server error (HTTP ' . $status . '). This is on the provider side; please retry in a few minutes.',
+            $status === 503 => $this->isFashn($slot)
+                ? 'The try-on service is still rendering — a full render takes a minute or two. Please wait a moment before retrying so this fitting is not refused again.'
+                : 'The try-on service (PixelAPI) is still rendering another fitting — it processes one at a time, and a full render takes a minute or two. Please wait a moment before retrying so this fitting is not refused again.',
+            $status >= 520 && $status <= 527 => $this->isFashn($slot)
+                ? 'The try-on service is temporarily unavailable — its servers are not responding (HTTP ' . $status . '). This is on the provider side; please retry in a few minutes.'
+                : 'The try-on service (PixelAPI) is temporarily unavailable — its servers are not responding (HTTP ' . $status . '). This is on the provider side; please retry in a few minutes.',
+            $status >= 500 => $this->isFashn($slot)
+                ? 'The try-on service returned a server error (HTTP ' . $status . '). This is on the provider side; please retry in a few minutes.'
+                : 'The try-on service (PixelAPI) returned a server error (HTTP ' . $status . '). This is on the provider side; please retry in a few minutes.',
             default => 'The try-on service could not produce a fitting. ' . $upstream,
         };
 

@@ -163,6 +163,32 @@ class SizeChart
     }
 
     /**
+     * Canonicalise a stored size label, or null when it is not one we stock.
+     *
+     * Now that a CUSTOMER's sizing profile is just two labels, every read of
+     * `users.upper_body_size` / `users.lower_body_size` has to survive a stray
+     * space, a lowercase letter or a legacy value. This is the one place that
+     * decides what a label means, so a product's `sizes` list and a user's
+     * profile are compared in the same vocabulary.
+     *
+     * @param  mixed  $label
+     */
+    public static function normaliseLabel($label): ?string
+    {
+        if (! is_string($label) && ! is_numeric($label)) {
+            return null;
+        }
+
+        $candidate = strtoupper(trim((string) $label));
+
+        // Return the LABEL itself. `self::SIZES[$candidate]` is the size's
+        // band/measurements entry (an array), which broke the `?string` return
+        // type with a TypeError for every customer who had a size on file —
+        // a 500 from /outfits/recommended and the other callers.
+        return array_key_exists($candidate, self::SIZES) ? $candidate : null;
+    }
+
+    /**
      * Every size label, smallest first.
      *
      * @return array<int, string>

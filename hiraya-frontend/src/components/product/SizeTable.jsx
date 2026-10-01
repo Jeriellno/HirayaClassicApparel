@@ -27,28 +27,41 @@ const SizeTable = ({ category }) => {
     const activeData = isTop ? topSizes : bottomSizes;
 
     return (
-        <div className="mt-10 animate-fade-in">
-            <div className="flex justify-between items-center mb-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-hiraya-ink">
+        <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink">
                     Size Guide (cm)
                 </p>
-                <span className="text-[9px] text-hiraya-sand italic">*Measured flat-lay</span>
+                {/* `italic` was doing nothing except adding a slant to a caption;
+                    it is now a plain muted note. */}
+                <span className="text-[9px] text-hiraya-ink-muted">*Measured flat-lay</span>
             </div>
 
+            {/*
+             * THE TABLE USES THE SYSTEM HAIRLINE, NOT `sand`.
+             *
+             * Every rule in this table was `border-hiraya-sand`. `sand` is now
+             * INDIGO, so the header rule, the row dividers and the outer edge were
+             * all being struck in full-strength dark ink — the table read as a
+             * set of gate bars rather than as ruled stock. The dividers are the
+             * `structure-line` parchment, and the row hover is the accent wash
+             * (it was `hover:bg-hiraya-olive` — an indigo flood under dark text,
+             * measured 1.00:1, so a hovered row became unreadable).
+             */}
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px] uppercase tracking-wider border-t border-hiraya-sand">
+                <table className="w-full border-t border-hiraya-structure-line text-left text-[11px] tracking-wider">
                     <thead>
-                        <tr className="text-hiraya-sand">
+                        <tr className="text-hiraya-ink-muted">
                             {headers.map((header) => (
-                                <th key={header} className="py-3 font-medium border-b border-hiraya-sand">
+                                <th key={header} className="border-b border-hiraya-structure-line py-3 font-semibold uppercase">
                                     {header}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="text-hiraya-sand">
+                    <tbody className="text-hiraya-ink-soft">
                         {activeData.map((row) => (
-                            <tr key={row.size} className="border-b border-hiraya-sand hover:bg-hiraya-olive transition-colors">
+                            <tr key={row.size} className="border-b border-hiraya-structure-line transition-colors hover:bg-hiraya-accent-wash">
                                 <td className="py-3 font-semibold text-hiraya-ink">{row.size}</td>
                                 <td className="py-3 font-normal">{row.col1}</td>
                                 <td className="py-3 font-normal">{row.col2}</td>
@@ -59,8 +72,8 @@ const SizeTable = ({ category }) => {
                 </table>
             </div>
 
-            <p className="mt-3 text-[10px] text-hiraya-sand leading-relaxed">
-                Tip: If you're between sizes, we recommend sizing up for a more relaxed, Hiraya-style fit.
+            <p className="mt-3 text-[10px] leading-relaxed text-hiraya-ink-muted">
+                Tip: If you&apos;re between sizes, we recommend sizing up for a more relaxed, Hiraya-style fit.
             </p>
         </div>
     );

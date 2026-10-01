@@ -41,6 +41,8 @@ class CheckoutController extends Controller
                 'contact_number'   => 'required|string|max:30',
                 'delivery_address' => 'required|string',
                 'dp_proof_image'   => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+                // The GCash / bank transaction reference the admin checks against.
+                'dp_reference_number' => 'required|string|min:4|max:64',
 
                 // Accepted for backwards-compatibility, but never used for pricing.
                 'total_amount'     => 'nullable|numeric',
@@ -160,6 +162,7 @@ class CheckoutController extends Controller
                         'delivery_address'         => $validated['delivery_address'],
                         'tracking_booking_details' => null,
                         'dp_proof_image_path'      => $dpProofPath,
+                        'dp_reference_number'      => trim($validated['dp_reference_number']),
                         'dp_submitted_at'          => now(),
                     ]);
 

@@ -9,40 +9,94 @@ use Illuminate\Support\Facades\Cache;
 
 class OutfitRecommendationService
 {
-    /** Maximum distance from a garment measurement that still counts as a close match. */
-    private const TOLERANCE_CM = 8.0;
-
-    protected MeasurementNormalizer $normalizer;
-
     public function __construct(MeasurementNormalizer $normalizer)
     {
-        $this->normalizer = $normalizer;
+        // Kept for DI compatibility with callers that still resolve this
+        // service through the container. The recommendation path below is now
+        // a size-LABEL match, so it no longer normalises garment measurement
+        // text; SizeChart::measurementsFor() supplies the reference numbers.
     }
 
-    public function getRecommendations(User $user, int $limit = 6): Collection
-    {
+/**
+ * FIT STYLES — the bridge between what the customer chose and what the
+ * catalog says a garment is.
+ *
+ * The customer picks a fit in lowercase (`users.preferred_fit`:
+ * slim / regular / oversized). The AI styling pass tags each product in
+ * UPPERCASE (`products.ai_tags->fit_type`: SLIM / REGULAR / LOOSE). The
+ * two vocabularies are the same three silhouettes wearing different
+ * clothes, so the customer's "oversized" is the catalog's "LOOSE" — this
+ * map is where that translation lives, rather than being sprinkled through
+ * the comparison below.
+ *
+ * @var array<string, string>
+ */
+private const FIT_STYLE = [
+    'slim'     => 'SLIM',
+    'fitted'   => 'SLIM',
+    'regular'  => 'REGULAR',
+    'true'     => 'REGULAR',
+    'oversized' => 'LOOSE',
+    'loose'    => 'LOOSE',
+    'relaxed'  => 'LOOSE',
+];
+
+/**
+ * The three cuts, ordered on the slim -> loose ladder.
+ *
+ * The ORDER is meaningful: `fitScore()` measures how far apart a garment's
+ * cut and the customer's are, so this doubles as the ladder it walks.
+ * The SCORES are only the neighbour fallback, kept as a map so the ladder
+ * and the values it produces can never drift apart.
+ *
+ * @var array<string, int>
+ */
+private const FIT_NEIGHBOUR_SCORE = [
+    'SLIM'    => 80,
+    'REGULAR' => 70,
+    'LOOSE'   => 60,
+];
+
+/**
+ * Garments whose stock INCLUDES a size the customer actually wears, ranked
+ * by FIT STYLE.
+ *
+ * This used to score each product by comparing five centimetre bands
+ * against the customer's five typed measurements. Measurements are gone:
+ * the customer now records an upper and a lower SIZE, and there is no
+ * per-user cm profile left to compare. The honest equivalent is a label
+ * match — does this garment come in their size — so the recommendation
+ * engine compares `upper_body_size` / `lower_body_size` against the sizes
+ * each product is stocked in, choosing the axis by the garment's category.
+ *
+ * On top of that GATE, the customer's `preferred_fit` is now compared
+ * against the garment's AI `fit_type`: a slim shopper is shown the pieces
+ * the stylists tagged SLIM, and the FIT-MATCH badge says why. The size
+ * answers "will it fit"; the fit style answers "is this me".
+ *
+ * `SizeChart::measurementsFor()` still resolves the centimetre numbers for the
+ * matched size; those are attached as `fit_reference` so the UI can explain
+ * the recommendation, but they are never compared to a customer.
+ */
+public function getRecommendations(User $user, int $limit = 6): Collection
+{
+    $upper = SizeChart::normaliseLabel($user->upper_body_size);
+    $lower = SizeChart::normaliseLabel($user->lower_body_size);
+    $fit = $this->customerFitStyle($user->preferred_fit);
+
+        // No sizing profile on file: recommend nothing rather than pretend a
+        // match exists. The Home Spotlight shows the "set your sizes" CTA.
+        if ($upper === null && $lower === null) {
+            return collect([]);
+        }
+
         // Cache per user, invalidated automatically when user model updates
         $productsVersion = Product::max('updated_at') ?? 'none';
-        $cacheKey = "user_recommendations_v2_{$user->id}_" . md5($user->updated_at . '|' . $productsVersion . '|' . $limit);
+        // v5: garment fit tags are now actually read (see garmentFitStyle), so
+        // results cached under v4 carry a wrong `garment_fit` / `fit_score`.
+        $cacheKey = "user_recommendations_v5_{$user->id}_" . md5($user->updated_at . '|' . $productsVersion . '|' . $limit . '|' . $upper . '|' . $lower . '|' . ($fit ?? 'any'));
 
-        return Cache::remember($cacheKey, now()->addHours(6), function () use ($user, $limit) {
-            $userMetrics = array_filter([
-                'chest_bust'     => $user->chest_bust,
-                'waist'          => $user->waist,
-                'hips'           => $user->hips,
-                'shoulder_width' => $user->shoulder_width,
-                'sleeve_length'  => $user->sleeve_length,
-            ]);
-
-            if (empty($userMetrics)) {
-                return collect([]);
-            }
-
-            // Products are active by presence in the catalog; the current products
-            // schema does not contain an is_active column.
-            // Personalized Spotlight must only use garments with real saved
-            // measurements. Generic size-chart fallbacks are for other flows,
-            // not for claiming a garment matches this user's body.
+        return Cache::remember($cacheKey, now()->addHours(6), function () use ($limit, $upper, $lower, $fit) {
             /*
              * `display_image_url` MUST be selected.
              *
@@ -55,117 +109,239 @@ class OutfitRecommendationService
              *
              * `background_occasion` rides along for the "why this was picked"
              * caption, and must stay in sync with any column the card reads.
+             *
+             * RETURNED, not assigned: the chain used to be stored in a local
+             * `$products` that nothing returned, so the closure yielded null and
+             * the method's `Collection` return type threw a TypeError (a 500).
              */
-            $products = Product::query()
+            return Product::query()
                 ->select([
                     'id', 'name', 'price', 'category', 'gender',
-                    'sizes', 'size_measurements',
+                    'sizes', 'size_measurements', 'ai_tags',
                     'image_url', 'display_image_url', 'background_occasion',
                 ])
-                ->whereNotNull('size_measurements')
+                ->whereNotNull('sizes')
+                // Newest first, so that within a single fit style (where every
+                // garment scores identically) the shopper sees the pieces the
+                // store added most recently. Without this the order is whatever
+                // the database happened to return, which varies between engines.
+                ->orderByDesc('id')
                 ->get()
-                ->filter(fn ($product) => $this->hasSavedMeasurements($product->size_measurements));
+                ->map(function ($product) use ($upper, $lower, $fit) {
+                    // THE GATE — the garment must be stocked in a size the
+                    // customer wears. Without this there is no recommendation
+                    // to make at all, whatever its cut.
+                    $matched = $this->matchedSizeFor(
+                        $product->sizes,
+                        $this->sizeAxisFor($product->category ?? ''),
+                        $upper,
+                        $lower,
+                    );
 
-            return $products->map(function ($product) use ($userMetrics) {
-                // Normalize size measurements: parse free-form text, fall back to standard charts
-                $normalizedSizeChart = $this->normalizer->normalize(
-                    $product->size_measurements,
-                    $product->category ?? '',
-                    $product->gender ?? 'Unisex',
-                    $product->sizes ?? []
-                );
+                    if ($matched === null) {
+                        return null;
+                    }
 
-                $fitData = $this->evaluateProductFit($userMetrics, $normalizedSizeChart);
-                $product->fit_score = $fitData['score'];
-                $product->recommended_size = $fitData['size'];
-                return $product;
-            })
-            ->filter(fn ($product) => $product->fit_score >= 60) // Include exact and close matches
-            ->sortByDesc('fit_score')
-            ->take($limit)
-            ->values();
+                    // THE RANKING — how this garment's cut answers the fit
+                    // style the customer chose.
+                    $garmentFit = $this->garmentFitStyle($product->ai_tags);
+                    $score = $this->fitScore($garmentFit, $fit);
+
+                    $product->fit_score = $score;
+                    $product->recommended_size = $matched;
+                    // The customer's fit and the garment's, so the UI can say
+                    // "Recommended for slims" instead of a bare 100%.
+                    $product->customer_fit = $fit;
+                    $product->garment_fit = $garmentFit;
+                    // The centimetres behind the matched size, for the UI to
+                    // show as the reference the recommendation was drawn from.
+                    $product->fit_reference = SizeChart::measurementsFor($matched);
+
+                    return $product;
+                })
+                ->filter()
+                // Best fit style first. Within one fit style every surviving
+                // garment is an equal-quality match — they all come in the
+                // shopper's own size — so the order falls back to the query's
+                // (newest first), which is stable and deterministic.
+                ->sortByDesc('fit_score')
+                ->take($limit)
+                ->values();
         });
     }
 
-    private function evaluateProductFit(array $userMetrics, ?array $sizeChart): array
+    /**
+     * The customer's chosen fit, in the CATALOG's vocabulary.
+     *
+     * Returns null when the shopper never picked a fit (or picked one this
+     * class does not recognise) — the recommendation then falls back to the
+     * size gate alone rather than guessing a silhouette for them.
+     */
+    private function customerFitStyle(mixed $preferred): ?string
     {
-        if (empty($sizeChart)) {
-            return ['score' => 0, 'size' => null];
+        if (! is_string($preferred)) {
+            return null;
         }
 
-        $maxScore = 0;
-        $matchedSize = null;
-
-        foreach ($sizeChart as $sizeLabel => $garmentSpecs) {
-            if (!is_array($garmentSpecs)) {
-                continue;
-            }
-
-            $matches = 0;
-            $evaluatedCount = 0;
-
-            foreach ($userMetrics as $metric => $userVal) {
-                // Support both min/max format (from normalizer) and single-value format
-                $minKey = "{$metric}_min";
-                $maxKey = "{$metric}_max";
-
-                if (isset($garmentSpecs[$minKey]) && isset($garmentSpecs[$maxKey])) {
-                    $evaluatedCount++;
-                    $minVal = (float) $garmentSpecs[$minKey];
-                    $maxVal = (float) $garmentSpecs[$maxKey];
-
-                    $userMetricVal = (float) $userVal;
-                    $distance = $userMetricVal < $minVal
-                        ? $minVal - $userMetricVal
-                        : ($userMetricVal > $maxVal ? $userMetricVal - $maxVal : 0);
-                    $matches += max(0, 1 - ($distance / self::TOLERANCE_CM));
-                } elseif (isset($garmentSpecs[$metric])) {
-                    // Legacy single-value format
-                    $evaluatedCount++;
-                    $garmentVal = (float) $garmentSpecs[$metric];
-
-                    $distance = abs($garmentVal - (float) $userVal);
-                    $matches += max(0, 1 - ($distance / self::TOLERANCE_CM));
-                }
-            }
-
-            if ($evaluatedCount > 0) {
-                $score = round(($matches / $evaluatedCount) * 100);
-                if ($score > $maxScore) {
-                    $maxScore = $score;
-                    $matchedSize = $sizeLabel;
-                }
-            }
-        }
-
-        return [
-            'score' => $maxScore,
-            'size' => $matchedSize,
-        ];
+        return self::FIT_STYLE[strtolower(trim($preferred))] ?? null;
     }
 
-    private function hasSavedMeasurements(mixed $measurements): bool
+    /**
+     * The garment's AI-tagged cut, in the CATALOG's vocabulary.
+     *
+     * @param  mixed  $aiTags  the `ai_tags` JSON column; may be null/array/string
+     */
+    private function garmentFitStyle(mixed $aiTags): ?string
     {
-        if (is_string($measurements)) {
-            $measurements = json_decode($measurements, true) ?? [];
+        if (is_string($aiTags)) {
+            $aiTags = json_decode($aiTags, true);
         }
 
-        if (!is_array($measurements)) {
-            return false;
+        if (! is_array($aiTags)) {
+            return null;
         }
 
-        foreach ($measurements as $sizeMeasurements) {
-            if (!is_array($sizeMeasurements)) {
-                continue;
+        $fit = $aiTags['fit_type'] ?? null;
+
+        if (! is_string($fit) || trim($fit) === '') {
+            return null;
+        }
+
+        $candidate = strtoupper(trim($fit));
+
+        // The cuts are the KEYS of the ladder (its values are scores), so a
+        // value lookup here treated every tagged garment as untagged.
+        return array_key_exists($candidate, self::FIT_NEIGHBOUR_SCORE) ? $candidate : null;
+    }
+
+    /**
+     * How well a garment's cut answers the fit the customer asked for.
+     *
+     * The ladder is SLIM -> REGULAR -> LOOSE:
+     *
+     *   - same style        -> 100 ("this is what you asked for")
+     *   - one step away     -> 80 / 70, still shown, just below the exact hits
+     *   - the far end       -> 60, kept only so the shopper still sees options
+     *   - untagged garment  -> 70, deliberately mid-pack: a product with no AI
+     *                           fit tag must not outrank one the stylists
+     *                           explicitly tagged for this shopper
+     *
+     * With no fit on file for the customer the score is a flat 70, so the feed
+     * keeps its previous "all real size matches, no false ranking" behaviour.
+     */
+    private function fitScore(?string $garmentFit, ?string $customerFit): int
+    {
+        if ($customerFit === null) {
+            return 70;
+        }
+
+        if ($garmentFit === null) {
+            return 70;
+        }
+
+        if ($garmentFit === $customerFit) {
+            return 100;
+        }
+
+        $ladder = array_keys(self::FIT_NEIGHBOUR_SCORE);
+        $from = array_search($garmentFit, $ladder, true);
+        $to = array_search($customerFit, $ladder, true);
+
+        // Both are members of FIT_NEIGHBOUR_SCORE by the time we get here, so
+        // this cannot fail; the guard keeps the method total anyway.
+        if ($from === false || $to === false) {
+            return 70;
+        }
+
+        // The full ladder is three rungs, so the furthest possible distance is 2.
+        return match (abs($from - $to)) {
+            1 => self::FIT_NEIGHBOUR_SCORE[$ladder[min($from, $to)]],
+            default => min(self::FIT_NEIGHBOUR_SCORE),
+        };
+    }
+
+    /**
+     * Which sizing axis governs this garment category.
+     *
+     * Bottoms are cut from the lower body; everything wearable on the torso
+     * (tops, dresses, outerwear) is cut from the upper body. An unknown or
+     * accessory category falls back to the upper body, which is what a shopper
+     * means by "my size" for anything that is not a pair of trousers.
+     */
+    private function sizeAxisFor(string $category): string
+    {
+        $category = strtolower(trim($category));
+
+        foreach (['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'] as $lowerWord) {
+            if (str_contains($category, $lowerWord)) {
+                return 'lower';
             }
+        }
 
-            foreach ($sizeMeasurements as $value) {
-                if (is_numeric($value)) {
-                    return true;
-                }
+        return 'upper';
+    }
+
+    /**
+     * The customer's size, if the product is stocked in it.
+     *
+     * Normalises the stored `sizes` (which may be a JSON string or an array)
+     * and returns the matched label, or null. Normalisation goes through
+     * SizeChart so "m", "M " and "Medium-ish casing" all resolve the same way.
+     */
+    private function matchedSizeFor(mixed $sizes, string $axis, ?string $upper, ?string $lower): ?string
+    {
+        $wanted = $axis === 'lower' ? ($lower ?? $upper) : ($upper ?? $lower);
+
+        if ($wanted === null) {
+            return null;
+        }
+
+        $available = $this->normalisedSizeLabels($sizes);
+
+        if ($available === []) {
+            return null;
+        }
+
+        foreach ($available as $label) {
+            if (strcasecmp($label, $wanted) === 0) {
+                return $label;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    /**
+     * Pull a flat list of size labels out of a product's `sizes` column.
+     *
+     * That column has been stored as a JSON array, a JSON string and a plain
+     * string at different points in this project's life, so all three shapes
+     * are handled rather than assuming one.
+     *
+     * @return array<int, string>
+     */
+    private function normalisedSizeLabels(mixed $sizes): array
+    {
+        if (is_string($sizes)) {
+            $decoded = json_decode($sizes, true);
+            $sizes = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $sizes)));
+        }
+
+        if (! is_array($sizes)) {
+            return [];
+        }
+
+        $labels = [];
+        foreach ($sizes as $key => $entry) {
+            $label = is_array($entry) ? ($entry['label'] ?? $entry['size_label'] ?? $entry['size'] ?? null) : $entry;
+            // A keyed map ({ "M": { stock: 4 } }) names the size in the key.
+            $label = $label ?? (is_string($key) ? $key : null);
+
+            if (is_string($label) && trim($label) !== '') {
+                $labels[] = trim($label);
+            }
+        }
+
+        return $labels;
     }
 }

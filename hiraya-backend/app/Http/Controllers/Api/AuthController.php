@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\PasswordStrength;
 use App\Services\PasswordResetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Validator;
 class AuthController extends Controller
 {
     /**
-     * Register User with 5 Core Body Measurements.
+     * Register User with their sizing profile.
      *
      * Contract: 201 + { message, token, user } on success,
      *           422 + { message, errors: { field: [msg] } on validation failure.
@@ -24,21 +25,54 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'full_name'      => 'required|string|max:255',
             'email'          => 'required|string|email|max:255|unique:users,email',
-            // `confirmed` requires a matching `password_confirmation` field,
-            // which the registration form always sends. Without it, a typo in
-            // the confirm box was silently accepted and locked the customer out.
-            'password'       => 'required|string|min:8|confirmed',
-            'chest_bust'     => 'nullable|numeric|min:40|max:200',
-            'waist'          => 'nullable|numeric|min:40|max:200',
-            'hips'           => 'nullable|numeric|min:40|max:200',
-            'shoulder_width' => 'nullable|numeric|min:20|max:100',
-            'sleeve_length'  => 'nullable|numeric|min:30|max:100',
+            /*
+             * `confirmed` requires a matching `password_confirmation` field,
+             * which the registration form always sends. Without it, a typo in
+             * the confirm box was silently accepted and locked the customer out.
+             *
+             * The strength rules come from the ONE shared rule (see
+             * App\Rules\PasswordStrength) so that sign-up, reset and change
+             * password cannot drift apart again. The uppercase + number
+             * requirements were previously enforced ONLY in the React form: the
+             * server accepted anything the UI had already promised to reject.
+             */
+            'password'       => ['required', 'string', new PasswordStrength, 'confirmed'],
+            /*
+             * THE SIZING PROFILE — REQUIRED, not optional.
+             *
+             * These three used to be `nullable`, which meant a customer who
+             * skipped the sizing section got a row with all three columns NULL.
+             * That is worse than no account: size suggestions and the AI try-on
+             * render both read this profile, so the account existed but had
+             * nothing to size with, and the customer was silently shown whatever
+             * the fallback happened to be. If the form asks, the API insists —
+             * otherwise the two can disagree and the guard is only cosmetic.
+             *
+             * The two size labels are validated against the SAME ladder
+             * App\Services\SizeChart serves, so an "M" saved here is always a
+             * size the store actually stocks.
+             */
+            'upper_body_size' => ['required', 'string', 'max:10', 'in:XS,S,M,L,XL,2XL'],
+            'lower_body_size' => ['required', 'string', 'max:10', 'in:XS,S,M,L,XL,2XL'],
+            /*
+             * FIT STYLE — the same three values the "Fit Style" select offers in
+             * Account Settings (see VirtualTryOnSection.jsx), and required for
+             * the same reason as the two sizes above.
+             */
+            'preferred_fit'   => ['required', 'string', 'in:slim,regular,oversized'],
         ], [
             'email.unique'                => 'That email address is already registered.',
             'email.email'                 => 'Please enter a valid email address.',
             'password.confirmed'          => 'The password confirmation does not match.',
             'password.min'                => 'Your password must be at least 8 characters.',
+            'password.regex'              => 'Your password must contain at least 1 uppercase letter and 1 number.',
             'full_name.required'          => 'Your full name is required.',
+            'upper_body_size.required'     => 'Please choose your upper body size.',
+            'upper_body_size.in'           => 'Please choose a valid upper body size.',
+            'lower_body_size.required'     => 'Please choose your lower body size.',
+            'lower_body_size.in'           => 'Please choose a valid lower body size.',
+            'preferred_fit.required'       => 'Please choose your fit style.',
+            'preferred_fit.in'             => 'Please choose a valid fit style.',
         ]);
 
         if ($validator->fails()) {
@@ -54,11 +88,9 @@ class AuthController extends Controller
                 'email'          => strtolower(trim($request->email)),
                 'password'       => Hash::make($request->password),
                 'role'           => 'user',
-                'chest_bust'     => $request->chest_bust,
-                'waist'          => $request->waist,
-                'hips'           => $request->hips,
-                'shoulder_width' => $request->shoulder_width,
-                'sleeve_length'  => $request->sleeve_length,
+                'upper_body_size' => $request->upper_body_size,
+                'lower_body_size' => $request->lower_body_size,
+                'preferred_fit'   => $request->preferred_fit,
             ]);
         } catch (\Throwable $e) {
             Log::error('Registration failed: ' . $e->getMessage());
@@ -81,10 +113,38 @@ class AuthController extends Controller
     }
 
     /**
-     * User Login.
+     * Customer sign-in — email + password, and nothing else.
      *
-     * Contract: 200 + { message, token, user } on success,
-     *           422 for malformed input, 401 + { message } for bad credentials.
+     * Contract:
+     *   200 + { message, token, user }   customer signed in (Sanctum)
+     *   200 + { message, mfa_required }  correct password on a privileged
+     *                                    account — no token is issued here; the
+     *                                    client completes aal2 via Supabase
+     *   401 + { message }                bad credentials
+     *   422                              malformed input
+     *
+     * ---------------------------------------------------------------------
+     * WHY STAFF DO NOT GET A TOKEN HERE
+     * ---------------------------------------------------------------------
+     * This method used to be a TWO-STEP exchange for privileged accounts: the
+     * password was checked, and instead of a session the response carried a
+     * `challenge_token` that had been cached under `login:2fa:*`, which the
+     * client exchanged for a TOTP verified LOCALLY against a secret in the
+     * `user_two_factors` table. That whole path is gone, replaced by Supabase's
+     * built-in MFA (see EnsureSupabaseAAL2 and the console sign-in screen).
+     *
+     * The reason a staff account cannot simply fall through to an ordinary
+     * Sanctum session is the whole point of the migration. If it did, a
+     * superadmin's correct password would mint a plain `auth_token` that
+     * satisfies `auth:sanctum` everywhere and carries no `aal` claim at all —
+     * a session indistinguishable from a customer's, one that the console's
+     * `/api/admin/*` routes would then have to refuse on every single call.
+     * Staff get a TOTP-verified Supabase session or they get nothing.
+     *
+     * The 403 below is therefore a routing instruction, not a punishment. It
+     * names the door to use, and it is emitted ONLY AFTER the password has
+     * been verified — so it discloses nothing to a caller who does not already
+     * know the password, and cannot be used to enumerate staff accounts.
      *
      * NOTE: we use the Validator facade (not $request->validate()) so a caller
      * that forgets `Accept: application/json` still receives a JSON 422 body
@@ -108,18 +168,20 @@ class AuthController extends Controller
         $user = User::where('email', strtolower(trim($request->email)))->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            // Deliberately identical for "unknown email" and "wrong password"
-            // so the endpoint cannot be used to enumerate accounts.
+            /*
+             * A wrong password answers identically whether or not the account
+             * has a second factor, so this endpoint cannot be used to discover
+             * which addresses belong to staff.
+             */
             return response()->json([
                 'message' => 'Invalid credentials. Please check your email and password.',
             ], 401);
         }
 
         /*
-         * A suspended account is refused here — this is what makes the Super
-         * Admin "Customers" suspend action REAL rather than a stored flag that
-         * nothing reads. The message is distinct from bad credentials so a
-         * customer knows to contact support instead of retrying their password.
+         * A suspended account is refused here, and BEFORE the staff check so
+         * that a suspended admin is told the true reason rather than being
+         * pointed at a sign-in page that will also refuse them.
          */
         if ($user->suspended_at !== null) {
             return response()->json([
@@ -127,37 +189,92 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Revoke only THIS device's previous tokens rather than every session,
-        // so signing in on a phone does not silently sign the user out on desktop.
-        $requestedLifetime = $request->boolean('remember')
-            ? now()->addDays(30)
-            : now()->addHours(24);
-
-        $token = $user->createToken('auth_token', ['*'], $requestedLifetime)->plainTextToken;
-
         /*
-         * Record the sign-in so the Super Admin console's "Admin Accounts" table
-         * can show a REAL last-seen timestamp. The `last_login_at` column existed
-         * but was never written by any code path, so the table had nothing true to
-         * display. Persisting it here is the single writer the column was missing.
+         * THE SPLIT — ONE DOOR, TWO DESTINATIONS.
+         *
+         * There is a single /login form for every role. A staff account does not
+         * get a Sanctum session (it carries no `aal` claim, so /api/admin/* would
+         * refuse every call) and it does not get a 403 telling it to go and find
+         * another form either — that was the old second door, and it is gone.
+         *
+         * Instead this endpoint answers 200 with `mfa_required`, which tells the
+         * client: your password is correct, you are privileged, and the session
+         * you are about to mint MUST be raised to `aal2` before /superadmin will
+         * open. The client then signs the same credentials into Supabase and
+         * answers a 6-digit TOTP. A customer simply never sees this branch.
+         *
+         * Still emitted only AFTER the password verifies, so it discloses nothing
+         * to a caller who does not already know the password.
          */
-        $user->forceFill(['last_login_at' => now()])->save();
+        if (in_array(strtolower((string) $user->role), ['admin', 'superadmin'], true)) {
+            /*
+             * A STAFF ACCOUNT: password verified, no token issued.
+             *
+             * There is no `mfa_enrollment_required` flag any more, and there is no
+             * separate "activation" concept. It used to be computed here as
+             * `$user->mfa_enrolled_at === null` and used to send the client to an
+             * enrolment screen — a second door inside the sign-in, for a state the
+             * TOTP challenge already decides.
+             *
+             * Why it is gone: the flag described the SERVER's copy of a fact, while
+             * `supabase.aal2` verifies the SAME fact on every request, cryptographically
+             * and at the moment it is needed. A client that reads this flag is reading
+             * a stale value that can disagree with the authority — which is exactly how
+             * a correctly-enrolled admin ended up staring at a QR code they did not
+             * need, and how a pending one got sent to a code box with no factor to
+             * produce a code. The client asks GoTrue (`getAssuranceLevels`) instead,
+             * and GoTrue is the thing that actually issues `aal2`.
+             */
+            return response()->json([
+                'message' => 'Password verified. Second factor required.',
+                'mfa_required' => true,
+                'role'        => strtolower((string) $user->role),
+            ], 200);
+        }
 
-        // Explicit, stable auth payload. The frontend uses `user.role` to decide
-        // the post-login destination (admin -> /admin, customer -> /shop), so the
-        // role MUST be present here — returning a bare `$user->fresh()` coupled
-        // the contract to the model's serialization and could omit it.
-        return response()->json([
-            'message' => 'Signed in successfully.',
-            'token'   => $token,
-            'user'    => [
-                'id'        => $user->id,
-                'full_name' => $user->full_name,
-                'email'     => $user->email,
-                'role'      => $user->role,
-            ],
-        ], 200);
+        return $this->issueSession($user, $request);
     }
+
+    /**
+     * Mint a Sanctum session.
+     *
+     * Deliberately reachable ONLY by a customer now. It is no longer shared
+     * with a second-factor handshake, because there is no second-factor
+     * handshake on this side any more.
+     */
+    private function issueSession(User $user, Request $request): JsonResponse
+    {
+                // Revoke only THIS device's previous tokens rather than every session,
+                // so signing in on a phone does not silently sign the user out on desktop.
+                $requestedLifetime = $request->boolean('remember')
+                    ? now()->addDays(30)
+                    : now()->addHours(24);
+
+                $token = $user->createToken('auth_token', ['*'], $requestedLifetime)->plainTextToken;
+
+                /*
+                 * Record the sign-in so the Super Admin console's "Admin Accounts" table
+                 * can show a REAL last-seen timestamp. The `last_login_at` column existed
+                 * but was never written by any code path, so the table had nothing true to
+                 * display. Persisting it here is the single writer the column was missing.
+                 */
+                $user->forceFill(['last_login_at' => now()])->save();
+
+                // Explicit, stable auth payload. The frontend uses `user.role` to decide
+                // the post-login destination (admin -> /superadmin, customer -> /shop), so
+                // the role MUST be present here - returning a bare `$user->fresh()` coupled
+                // the contract to the model's serialization and could omit it.
+                return response()->json([
+                    'message' => 'Signed in successfully.',
+                    'token'   => $token,
+                    'user'    => [
+                        'id'        => $user->id,
+                        'full_name' => $user->full_name,
+                        'email'     => $user->email,
+                        'role'      => $user->role,
+                    ],
+                ], 200);
+            }
 
     public function checkEmail(Request $request)
     {
@@ -260,8 +377,11 @@ class AuthController extends Controller
     /**
      * Reset a password using a previously issued, signed reset token.
      *
-     * The response is intentionally identical for every outcome so the
-     * endpoint cannot be used to enumerate registered email addresses.
+     * The MESSAGE is identical for every outcome so the endpoint cannot be used
+     * to enumerate registered email addresses. A `reset` boolean accompanies it,
+     * reporting whether the token was actually consumed — that reveals nothing
+     * about the account database, because a valid token can only come from the
+     * mailbox the link was sent to. See the note at the return below.
      */
     public function resetPasswordDirect(Request $request, PasswordResetService $reset): JsonResponse
     {
@@ -272,11 +392,17 @@ class AuthController extends Controller
              * `confirmed` mirrors the registration contract: the frontend sends
              * `password_confirmation`, and a mismatch must be a validation error
              * the customer can see rather than a silent no-op.
+             *
+             * The same shared strength rule as /register, so a customer cannot
+             * choose a weaker password by resetting than the one they signed up
+             * with. This used to ask for nothing but 8 characters while the
+             * sign-up form demanded an uppercase letter and a number.
              */
-            'password'              => 'required|string|min:8|confirmed',
+            'password'              => ['required', 'string', new PasswordStrength, 'confirmed'],
         ], [
             'password.confirmed' => 'The password confirmation does not match.',
             'password.min' => 'Your password must be at least 8 characters.',
+            'password.regex' => 'Your password must contain at least 1 uppercase letter and 1 number.',
         ]);
 
         if ($validator->fails()) {
@@ -289,19 +415,38 @@ class AuthController extends Controller
         // Generic message returned on every failure path below.
         $genericMessage = 'If that email is registered, the password has been reset.';
 
-        $reset->resetPassword(
+        $applied = $reset->resetPassword(
             (string) $request->email,
             (string) $request->token,
             (string) $request->password
         );
 
         /*
-         * Deliberately the SAME 200 whether the token was accepted or rejected.
-         * Reporting the rejection would let a caller test tokens, and the link's
-         * validity is already confirmed by /validate-reset-token before this is
-         * ever reached from the UI.
+         * SAME 200, SAME MESSAGE — BUT NOW IT SAYS WHETHER IT WORKED.
+         *
+         * The message stays identical on purpose: it must not confirm that an
+         * address is registered, or this endpoint becomes a probe for that.
+         *
+         * The `reset` BOOLEAN is safe to add, and the reason matters. Revealing
+         * "does this EMAIL exist?" is enumeration. Revealing "was this TOKEN
+         * valid?" is not, because a caller cannot obtain a valid token without
+         * already controlling the mailbox the link was mailed to — the token is
+         * HMAC-signed over the address, expires in 60 minutes, and dies the
+         * moment it is used. Someone holding one already knows the account
+         * exists, because they just read its mail.
+         *
+         * WITHOUT THIS FLAG THE UI LIES. The frontend used to treat any 200 as
+         * proof of success and render "Your new password is active — every device
+         * has been signed out", so submitting an expired or already-used link
+         * produced a confident success screen and a password that had not
+         * changed. Reproduced against a garbage token: HTTP 200, unchanged
+         * password, "Password changed" on screen. The honest signal is the only
+         * thing that lets the page tell the customer to request a new link.
          */
-        return response()->json(['message' => $genericMessage], 200);
+        return response()->json([
+            'message' => $genericMessage,
+            'reset'   => $applied,
+        ], 200);
     }
 
     /**

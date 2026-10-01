@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -10,6 +10,7 @@ import UserWelcomeBanner from '../components/home/UserWelcomeBanner';
 import ShopHeader from '../components/shop/ShopHeader';
 import CategoryRow from '../components/shop/CategoryRow';
 import QuickViewModal from '../components/shop/QuickViewModal';
+import ShopStage from '../components/shop/ShopStage';
 import { SkeletonProductGrid } from '../components/common/SkeletonLoader';
 
 const Shop = () => {
@@ -54,12 +55,14 @@ const Shop = () => {
      * and the customer can read the layout before the images arrive.
      */
     return (
-      <div className="bg-hiraya-bg pt-36 pb-20 px-8 md:px-20 min-h-screen">
-        {/* Header placeholders — cream-tinted, because this sits on the canvas. */}
+      <div className="container-page min-h-screen pb-20 pt-32">
+        {/* Header placeholders, in the cream ramp so they read on the canvas. */}
         <div className="mb-12 space-y-3">
-          <div className="h-6 w-64 animate-pulse rounded-md bg-hiraya-cream/30" />
-          <div className="h-3 w-40 animate-pulse rounded-md bg-hiraya-cream/20" />
+          <div className="h-3 w-40 animate-pulse rounded-full bg-cream-300" />
+          <div className="h-9 w-72 animate-pulse rounded-full bg-cream-300/80" />
         </div>
+
+        <div className="mb-16 h-[340px] animate-pulse rounded-[32px] bg-navy-950/90 sm:h-[420px] lg:h-[540px]" />
 
         <SkeletonProductGrid count={4} />
 
@@ -72,18 +75,20 @@ const Shop = () => {
 
   if (isError) {
     return (
-      <div className="pt-36 pb-20 px-8 md:px-20 bg-hiraya-bg min-h-screen text-hiraya-ink">
-        <div className="max-w-5xl mx-auto text-center py-24 border-hiraya-sand rounded-2xl bg-hiraya-olive/60">
-          <AlertCircle className="w-8 h-8 text-hiraya-ink mx-auto mb-4" />
-          <p className="text-xs uppercase tracking-[0.25em] text-hiraya-sand font-semibold">
+      <div className="container-page min-h-screen pb-20 pt-32 text-hiraya-ink">
+        <div className="card-raised mx-auto max-w-3xl px-8 py-20 text-center">
+          <span className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-navy-900 text-cream-100 shadow-neu-sm">
+            <AlertCircle className="h-5 w-5" />
+          </span>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-hiraya-ink">
             We could not load the collection
           </p>
-          <p className="text-[11px] text-hiraya-sand mt-2">
+          <p className="mt-2 text-[11px] text-hiraya-ink-muted">
             Please refresh the page, or try again in a moment.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-8 px-8 py-3 bg-[#CB997E] text-hiraya-ink text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-hiraya-cream-deep transition"
+            className="btn-primary mt-8 cursor-pointer rounded-full"
           >
             Retry
           </button>
@@ -93,19 +98,19 @@ const Shop = () => {
   }
 
   return (
-    <div className="pt-36 pb-20 px-8 md:px-20 bg-hiraya-bg min-h-screen text-hiraya-ink">
+    <div className="container-page min-h-screen pb-24 pt-32 text-hiraya-ink">
       {/* MEMBER BANNER */}
       <UserWelcomeBanner user={user} />
 
       {/* ACTIVE SEARCH INDICATOR BADGE */}
       {searchKeyword && (
-        <div className="mb-6 flex items-center justify-between bg-hiraya-cream/10 border border-hiraya-olive/20 px-6 py-3 rounded-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-medium text-hiraya-ink">
-            Showing results for: <span className="text-hiraya-ink font-bold">"{searchKeyword}"</span>
+        <div className="mb-8 flex items-center justify-between gap-4 rounded-full bg-cream-200/70 py-2 pl-6 pr-3 shadow-neu-inset">
+          <p className="text-xs uppercase tracking-[0.16em] font-medium text-hiraya-ink">
+            Showing results for: <span className="font-semibold text-hiraya-accent">&ldquo;{searchKeyword}&rdquo;</span>
           </p>
           <button
             onClick={clearSearch}
-            className="flex items-center gap-2 text-xs uppercase tracking-widest text-hiraya-ink hover:text-hiraya-ink transition"
+            className="btn-quiet cursor-pointer"
           >
             <X size={14} /> Clear Filter
           </button>
@@ -115,30 +120,43 @@ const Shop = () => {
       {/* HEADER & FILTER TABS */}
       <ShopHeader activeSubCat={activeSubCat} onSelectSubCat={setActiveSubCat} />
 
+      {/* FEATURED STAGE — read-only carousel over the pieces already loaded
+          (and already filtered) above; it links to the existing product page. */}
+      <ShopStage products={safeProducts} />
+
       {/* CATEGORY ROWS */}
       {safeCategories.length > 0 ? (
-        safeCategories.map((cat) => (
-          <CategoryRow
-            key={cat}
-            title={cat}
-            dbCategory={cat}
-            products={safeProducts}
-            activeSubCat={activeSubCat}
-            bagIds={safeBagIds}
-            // The heart is a true toggle over bag membership — save OR remove.
-            onSaveToBag={handleToggleBag || handleAddToBag}
-            onTryOn={handleTryOn}
-            onQuickView={setSelectedProductModal}
-            onExplore={setActiveSubCat}
-          />
-        ))
+        /*
+         * `data-tour="shop-grid"` wraps EVERY category row, not just the first.
+         *
+         * The Spotlight tour step is "act on any card", and the cards repeat once
+         * per category — so the honest target is the whole grid region. Anchoring
+         * it inside CategoryRow instead would highlight whichever single row
+         * happened to mount first, implying the other categories behave
+         * differently when they do not.
+         */
+        <div data-tour="shop-grid">
+          {safeCategories.map((cat) => (
+            <CategoryRow
+              key={cat}
+              title={cat}
+              dbCategory={cat}
+              products={safeProducts}
+              activeSubCat={activeSubCat}
+              bagIds={safeBagIds}
+              // The heart is a true toggle over bag membership — save OR remove.
+              onSaveToBag={handleToggleBag || handleAddToBag}
+              onTryOn={handleTryOn}
+              onQuickView={setSelectedProductModal}
+              onExplore={setActiveSubCat}
+            />
+          ))}
+        </div>
       ) : (
-        <div className="text-center py-20 text-hiraya-ink uppercase tracking-[0.2em] text-xs">
-          {searchKeyword ? (
-            `No pieces match your search"${searchKeyword}"`
-          ) : (
-"No garments available in this collection yet."
-          )}
+        <div className="card-raised py-20 text-center text-xs uppercase tracking-[0.16em] text-hiraya-ink-muted">
+          {searchKeyword
+            ? `No pieces match your search “${searchKeyword}”`
+            : 'No garments available in this collection yet.'}
         </div>
       )}
 

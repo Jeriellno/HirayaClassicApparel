@@ -41,7 +41,7 @@ class TryOnController extends Controller
      */
     private const HIRAYA_KNOWLEDGE = <<<'TXT'
 ABOUT HIRAYA: A Filipino fashion storefront. The Studio pairs a customer's own
-body measurements with the garment's own measurements to recommend a size and
+sizing profile with the garment's own measurements to recommend a size and
 render a virtual fitting. Everything you say must stay inside this storefront.
 
 GARMENT DOMAINS (what Hiraya sells): TOPS, BOTTOMS, OUTERWEAR, DRESSES, SHOES,
@@ -56,15 +56,16 @@ AVAILABLE_PIECES_IN_SIZE in the context you were given.
 GARMENT MEASUREMENTS: each product stores its own per-size measurements
 (chest_bust, waist, hips, shoulder_width, sleeve_length) taken flat. These are
 the GARMENT's numbers, not the customer's. A size fits when the garment's
-measures meet or exceed the customer's body measures by a small ease margin.
+measures meet or exceed the customer's size band by a small ease margin.
 
 VIRTUAL FITTING FLOW (how a customer gets a render):
-  1. Sign in and record the 5 core body measurements (chest_bust, waist, hips,
-     shoulder_width, sleeve_length) in the Studio or Account Settings.
+  1. Sign in and record your sizing profile: an UPPER BODY SIZE and a LOWER
+     BODY SIZE (XS-2XL, e.g. both M) in Account Settings. That is the only body
+     information Hiraya stores — there are no centimetre measurements to enter.
   2. Pick garments from the bag into the style stack and choose a size per piece.
   3. Upload a full-body photo, then generate the virtual fitting.
-Measurements are NEITHER required nor a blocker for rendering — they only power
-the size suggestion. Never tell a customer they cannot render without them.
+Sizing is NEITHER required nor a blocker for rendering — it only powers the
+size suggestion. Never tell a customer they cannot render without it.
 TXT;
 
     /**
@@ -187,6 +188,12 @@ TXT;
              * malformed/hostile value cannot bloat the stored payload; placement
              * itself is decided by the planner, never by this validator.
              */
+            // Measurements are no longer accepted from the client. The customer
+            // no longer types any: their sizing profile is two size labels
+            // (upper_body_size / lower_body_size), and the centimetres the
+            // renderer needs are DERIVED from the size chart below. A stale
+            // client sending a `measurements` object is simply ignored — it can
+            // no longer widen the attack surface by asserting a chest of 900.
             'garments.*.category' => 'nullable|string|max:64',
             /*
              * The CATALOG id of the piece, so the server can upgrade the input to
@@ -198,17 +205,6 @@ TXT;
             'garments.*.product_id' => 'nullable|integer',
             'garment_photos_base64' => 'required_without:garments|nullable|array|min:1',
             'garment_photos_base64.*' => 'string',
-
-            // Measurements are optional: any field the customer left blank in
-            // the Studio is backfilled from their saved users record below.
-            'measurements' => 'nullable|array',
-            'measurements.chest_bust' => 'nullable|numeric|min:30|max:250',
-            'measurements.chest' => 'nullable|numeric|min:30|max:250',
-            'measurements.waist' => 'nullable|numeric|min:30|max:250',
-            'measurements.hips' => 'nullable|numeric|min:30|max:250',
-            'measurements.shoulder_width' => 'nullable|numeric|min:10|max:120',
-            'measurements.sleeve_length' => 'nullable|numeric|min:10|max:120',
-            'measurements.height' => 'nullable|numeric|min:100|max:250',
         ]);
 
         $user = $request->user();
@@ -292,13 +288,9 @@ TXT;
             ], 422);
         }
 
-        // Normalise measurements: the Studio speaks 5-core CM fields; the
-        // processor's size heuristics read height/waist/chest, so we alias
-        // chest_bust -> chest and keep every other field intact.
-        $measurements = $this->normaliseMeasurements(
-            $validated['measurements'] ?? [],
-            $user
-        );
+        // Resolve the body metrics the renderer reads. These come from the
+        // customer's SIZE profile via the size chart — see bodyMetricsFor().
+        $measurements = $this->bodyMetricsFor($user);
 
         // Create unique session ID
         $sessionId = 'tryon_' . Str::uuid()->toString();
@@ -793,47 +785,61 @@ TXT;
     }
 
     /**
-     * Normalise the 5-core CM measurements into the shape the processor reads.
-     *
-     * The Studio sends chest_bust/waist/hips/shoulder_width/sleeve_length; the
-     * size heuristics in ProcessTryOnJob read chest/waist/height. We alias
-     * chest_bust -> chest and leave the 5-core fields in place so nothing is lost.
-     *
-     * @param  array<string, mixed>  $measurements
-     * @return array<string, mixed>
-     */
-    private function normaliseMeasurements(array $measurements, $user = null): array
+ * THE BODY METRICS THE RENDERER READS, DERIVED FROM THE CUSTOMER'S SIZES.
+ *
+ * The 5 Core Body Measurements are gone. A customer now stores an
+ * `upper_body_size` and a `lower_body_size`, and every downstream consumer
+ * (the size heuristics in ProcessTryOnJob, the drape geometry in
+ * TryOnPreProcessor, the stylist prompt) still wants CENTIMETRES.
+ *
+ * So the centimetres are derived here, from the ONE size chart the rest of
+ * the platform already uses, and stored on the session in the same shape the
+ * renderer has always read. Both aliases are emitted (`chest` and `chest_bust`)
+ * because two different consumers look for different names.
+ *
+ * A customer with no sizes on file gets an EMPTY array, which every consumer
+ * already treats as "no measurements supplied, fall back to the subject's own
+ * silhouette in the photo" — so a render is never blocked by a missing profile.
+ *
+ * @return array<string, float>
+ */
+    private function bodyMetricsFor($user = null): array
     {
-        // 1. Backfill any blank field from the customer's saved body profile.
-        //    This is what makes measurements_json complete even when the
-        //    Studio form was only partially filled in.
-        if ($user) {
-            foreach (['chest_bust', 'waist', 'hips', 'shoulder_width', 'sleeve_length'] as $field) {
-                if (blank($measurements[$field] ?? null) && filled($user->{$field})) {
-                    $measurements[$field] = (float) $user->{$field};
-                }
-            }
+        if (! $user) {
+            return [];
         }
 
-        // 2. Drop null/blank noise so the stored JSON stays clean and the
-        //    processor's `?? default` fallbacks work as intended.
-        $measurements = array_filter(
-            $measurements,
-            static fn ($value) => $value !== null && $value !== ''
-        );
+        $upper = SizeChart::normaliseLabel($user->upper_body_size);
+        $lower = SizeChart::normaliseLabel($user->lower_body_size);
 
-        // 3. The processor's size heuristics read chest/waist/height, while the
-        //    Studio speaks chest_bust. Alias across both directions so neither
-        //    consumer is left reading a field that does not exist.
-        if (! isset($measurements['chest']) && isset($measurements['chest_bust'])) {
-            $measurements['chest'] = $measurements['chest_bust'];
+        // Prefer the lower body's band for the waist when both are set: the
+        // waist is the lower body's own sizing axis, and a customer whose upper
+        // and lower sizes differ should be measured on the axis that governs it.
+        $waist = SizeChart::measurementsFor($lower ?? $upper ?? '');
+        $chest = SizeChart::measurementsFor($upper ?? $lower ?? '');
+
+        if (! $waist && ! $chest) {
+            return [];
         }
 
-        if (! isset($measurements['chest_bust']) && isset($measurements['chest'])) {
-            $measurements['chest_bust'] = $measurements['chest'];
+        $metrics = array_filter([
+            'chest' => $chest['chest_bust'] ?? null,
+            'waist' => $waist['waist'] ?? null,
+            'hips'  => $waist['hips'] ?? null,
+            'shoulder_width' => $chest['shoulder_width'] ?? null,
+            'sleeve_length'  => $chest['sleeve_length'] ?? null,
+        ]);
+
+        // Alias across both spellings so no consumer reads a missing field.
+        if (isset($metrics['chest'])) {
+            $metrics['chest_bust'] = $metrics['chest'];
         }
 
-        return $measurements;
+        // The size the customer actually wears, carried through so the render's
+        // size recommendation agrees with the profile instead of re-deriving it.
+        $metrics['size'] = $upper ?? $lower;
+
+        return $metrics;
     }
 
     /**
@@ -1035,31 +1041,145 @@ TXT;
      */
     public function history(Request $request): JsonResponse
     {
+        /*
+         * A LIGHT LIST: ONE SMALL THUMBNAIL PER LOOK.
+         *
+         * This used to hydrate WHOLE rows — the customer photo, the render AND
+         * every garment image (garment_photos_json averages ~640 KB) — and send
+         * the full-size render and photo back for up to 50 looks: ~2.6 MB a row,
+         * over the remote pooler and into the browser, to draw a grid of cards.
+         *
+         * Now only the render is read (the thumbnail needs it) and it leaves as a
+         * ~20 KB JPEG. The full render and the before photo are fetched per look
+         * by historyDetail() when the customer actually opens one.
+         */
         $query = TryOnSession::where('user_id', $request->user()->id)
             ->where('status', TryOnSession::STATUS_COMPLETED)
-            ->whereNotNull('result_image_base64');
+            ->whereNotNull('result_image_base64')
+            ->select(['id', 'session_id', 'is_favorite', 'history_title', 'garment_metadata_json', 'result_image_base64', 'created_at']);
 
         if ($request->boolean('favorites')) {
             $query->where('is_favorite', true);
         }
 
-        $sessions = $query->latest()->paginate(min(max($request->integer('per_page', 20), 1), 50));
+        $sessions = $query->latest()->paginate(min(max($request->integer('per_page', 12), 1), 24));
 
-        $sessions->through(function (TryOnSession $session) {
-            $names = collect(is_array($session->garment_metadata_json) ? $session->garment_metadata_json : [])
-                ->map(fn ($garment) => is_array($garment) ? ($garment['name'] ?? null) : null)
-                ->filter()
-                ->unique()
-                ->values();
+        $sessions->setCollection($sessions->getCollection()->map(function (TryOnSession $session) {
+            $garments = $this->historyGarments($session);
 
-            $session->setAttribute('title', $session->history_title ?: ($names->isNotEmpty() ? $names->join(' + ') : 'Virtual Try-On'));
-            $session->setAttribute('garment_count', $names->count());
-            $session->setAttribute('original_image_base64', $session->user_photo_base64);
-            $session->setAttribute('result_image_base64', $session->result_image_base64);
-            $session->makeHidden(['user_photo_base64', 'garment_photos_json', 'garment_categories_json', 'garment_metadata_json', 'measurements_json', 'render_plan_json', 'history_title']);
-        });
+            return [
+                'session_id' => $session->session_id,
+                'title' => $this->historyTitle($session, $garments),
+                'garment_count' => count($garments),
+                'is_favorite' => (bool) $session->is_favorite,
+                'thumbnail' => $this->historyThumbnail($session->result_image_base64),
+                'created_at' => optional($session->created_at)->toIso8601String(),
+            ];
+        }));
 
         return response()->json($sessions);
+    }
+
+    /**
+     * GET /api/tryon/history/{sessionId}
+     *
+     * One look in full: the render, the before photo and the garments it wore.
+     * garment_photos_json (the heavy garment images) is NOT read here; it is only
+     * needed by reusableOutfit() when the outfit is loaded back into the Studio.
+     */
+    public function historyDetail(Request $request, string $sessionId): JsonResponse
+    {
+        $session = TryOnSession::where('session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->where('status', TryOnSession::STATUS_COMPLETED)
+            ->select(['id', 'session_id', 'is_favorite', 'history_title', 'garment_metadata_json', 'result_image_base64', 'user_photo_base64', 'created_at'])
+            ->firstOrFail();
+
+        $garments = $this->historyGarments($session);
+
+        return response()->json([
+            'session_id' => $session->session_id,
+            'title' => $this->historyTitle($session, $garments),
+            'is_favorite' => (bool) $session->is_favorite,
+            'result_image_base64' => $session->result_image_base64,
+            'original_image_base64' => $session->user_photo_base64,
+            'garments' => $garments,
+            'created_at' => optional($session->created_at)->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * The garments a session wore, from its small metadata column.
+     *
+     * @return array<int, array{name: string, category: ?string, product_id: mixed}>
+     */
+    private function historyGarments(TryOnSession $session): array
+    {
+        return collect(is_array($session->garment_metadata_json) ? $session->garment_metadata_json : [])
+            ->filter(fn ($garment) => is_array($garment) && ! empty($garment['name']))
+            ->map(fn ($garment) => [
+                'name' => (string) $garment['name'],
+                'category' => $garment['category'] ?? null,
+                'product_id' => $garment['product_id'] ?? null,
+            ])
+            ->unique('name')
+            ->values()
+            ->all();
+    }
+
+    private function historyTitle(TryOnSession $session, array $garments): string
+    {
+        if ($session->history_title) {
+            return $session->history_title;
+        }
+
+        return $garments ? implode(' + ', array_column($garments, 'name')) : 'Virtual Try-On';
+    }
+
+    /**
+     * A ~360px-wide JPEG thumbnail of a stored render, as a data URI.
+     *
+     * Transparent renders are flattened onto black, the frame the Studio shows
+     * every render on. If GD is unavailable or the image cannot be decoded, the
+     * original is returned so the card still has a picture.
+     */
+    private function historyThumbnail(?string $source): ?string
+    {
+        if (! is_string($source) || $source === '') {
+            return null;
+        }
+
+        if (! function_exists('imagecreatefromstring')) {
+            return $source;
+        }
+
+        try {
+            $payload = str_contains($source, ',') ? substr($source, strpos($source, ',') + 1) : $source;
+            $image = @imagecreatefromstring(base64_decode($payload, true) ?: '');
+            if (! $image) {
+                return $source;
+            }
+
+            $width = imagesx($image);
+            $height = imagesy($image);
+            $targetWidth = min(360, $width);
+            $targetHeight = max(1, (int) round($height * ($targetWidth / max(1, $width))));
+
+            $thumb = imagecreatetruecolor($targetWidth, $targetHeight);
+            imagefill($thumb, 0, 0, imagecolorallocate($thumb, 0, 0, 0));
+            imagecopyresampled($thumb, $image, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+
+            ob_start();
+            imagejpeg($thumb, null, 80);
+            $jpeg = ob_get_clean();
+
+            imagedestroy($image);
+            imagedestroy($thumb);
+
+            return 'data:image/jpeg;base64,' . base64_encode($jpeg);
+        } catch (\Throwable $e) {
+            return $source;
+        }
     }
 
     public function updateFavorite(Request $request, string $sessionId): JsonResponse

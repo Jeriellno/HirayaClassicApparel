@@ -55,18 +55,68 @@ use Illuminate\Support\Facades\Log;
 class TryOnCheckProvider extends Command
 {
     protected $signature = 'tryon:check-provider
+                            {--slot=vton : Which VTON slot to probe (vton = PixelAPI, fashn = FASHN)}
                             {--quiet-ok : Print nothing when the provider is healthy}
                             {--keep-ok-hours=24 : How many hours of healthy probe rows to keep}';
 
-    protected $description = 'Probe the try-on provider (PixelAPI) and record its health so outages are visible to super admins.';
+    protected $description = 'Probe a try-on provider slot (PixelAPI by default, or FASHN with --slot=fashn) and record its health so outages are visible to super admins.';
 
     /** The provider's own sentinel for "its clothing-safety service is down". */
     private const SAFETY_SENTINEL = 'safety_unavailable';
 
+    /**
+     * SLOT -> how the operator sees it.
+     *
+     * `envPrefix` is used ONLY in the "not configured" text, so the operator is
+     * pointed at the variables that actually enable the slot they asked to probe
+     * — telling them to set VTON_API_TOKEN while probing FASHN would be a dead end.
+     *
+     * `provider` is the ProviderHealth id the probe row is filed under, so the
+     * console can distinguish a FASHN outage from a PixelAPI one.
+     */
+    private const SLOTS = [
+        'vton' => [
+            'label' => 'PixelAPI',
+            'envPrefix' => 'VTON_API_URL / VTON_API_TOKEN',
+            'provider' => ProviderHealth::PROVIDER_PIXELAPI,
+        ],
+        'fashn' => [
+            'label' => 'FASHN',
+            'envPrefix' => 'VTON_FASHN_API_URL / VTON_FASHN_API_TOKEN',
+            'provider' => ProviderHealth::PROVIDER_FASHN,
+        ],
+    ];
+
+    /**
+     * Resolve the requested slot, falling back to PixelAPI.
+     *
+     * An unknown `--slot` must NOT make the probe silently do nothing: it warns
+     * and probes the default, so a typo surfaces as a visible message rather than
+     * as a scheduled job that quietly records the wrong thing — or nothing.
+     *
+     * @return array{label: string, envPrefix: string, provider: string}
+     */
+    private function resolveSlot(): array
+    {
+        $slot = strtolower(trim((string) $this->option('slot')));
+
+        if (isset(self::SLOTS[$slot])) {
+            return self::SLOTS[$slot];
+        }
+
+        $this->warn("Unknown --slot '{$slot}' — probing PixelAPI instead. Valid: " . implode(', ', array_keys(self::SLOTS)) . '.');
+
+        return self::SLOTS['vton'];
+    }
+
     public function handle(): int
     {
-        $endpoint = trim((string) config('services.vton.endpoint'));
-        $token = trim((string) config('services.vton.token'));
+        $slot = strtolower(trim((string) $this->option('slot')));
+        $meta = $this->resolveSlot();
+        $slotName = isset(self::SLOTS[$slot]) ? $slot : 'vton';
+
+        $endpoint = trim((string) config("services.{$slotName}.endpoint"));
+        $token = trim((string) config("services.{$slotName}.token"));
 
         /*
          * NOT CONFIGURED IS ITS OWN STATE — AND IT IS NOT AN OUTAGE.
@@ -79,10 +129,10 @@ class TryOnCheckProvider extends Command
          * command error.
          */
         if ($endpoint === '' || $token === '') {
-            $this->record('unconfigured', null, 'not_configured', 'VTON_API_URL and/or VTON_API_TOKEN are empty.');
+            $this->record('unconfigured', null, 'not_configured', $meta['envPrefix'] . ' are empty.', $meta['provider']);
 
             if (! $this->option('quiet-ok')) {
-                $this->warn('PixelAPI is not configured (VTON_API_URL / VTON_API_TOKEN) — nothing to probe.');
+                $this->warn($meta['label'] . ' is not configured (' . $meta['envPrefix'] . ') — nothing to probe.');
             }
 
             return self::SUCCESS;
@@ -92,25 +142,19 @@ class TryOnCheckProvider extends Command
             $response = Http::timeout(25)
                 ->acceptJson()
                 ->withToken($token)
-                ->post($endpoint, [
-                    // Same deliberately-invalid payload the console probe uses, so
-                    // the two screens can never report different things.
-                    'person_image' => 'probe',
-                    'garment_image' => 'probe',
-                    'category' => '__status_probe__',
-                ]);
+                ->post($endpoint, $this->probePayload($slotName, $token));
         } catch (\Throwable $e) {
             /*
              * A TRANSPORT FAILURE IS A PROVIDER OUTAGE, not a command error. The
              * provider being unreachable is precisely the condition this command
              * exists to surface, so it is recorded as `down` rather than thrown.
              */
-            Log::warning('tryon:check-provider could not reach PixelAPI: ' . $e->getMessage());
+            Log::warning("tryon:check-provider could not reach {$meta['label']}: " . $e->getMessage());
 
-            $this->record('down', null, 'renderer_unreachable', $e->getMessage());
+            $this->record('down', null, 'renderer_unreachable', $e->getMessage(), $meta['provider']);
 
             if (! $this->option('quiet-ok')) {
-                $this->error('PixelAPI could not be reached: ' . $e->getMessage());
+                $this->error($meta['label'] . ' could not be reached: ' . $e->getMessage());
             }
 
             return self::SUCCESS;
@@ -121,17 +165,67 @@ class TryOnCheckProvider extends Command
 
         [$state, $code] = $this->classify($status, (string) $reason);
 
-        $this->record($state, $status, $code, $reason);
+        $this->record($state, $status, $code, $reason, $meta['provider']);
 
         if (! $this->option('quiet-ok') || $state !== 'ok') {
             $label = strtoupper($state);
-            $line = sprintf('PixelAPI: %s (HTTP %d)%s', $label, $status, $reason ? ' — ' . $reason : '');
+            $line = sprintf('%s: %s (HTTP %d)%s', $meta['label'], $label, $status, $reason ? ' — ' . $reason : '');
             $state === 'ok' ? $this->info($line) : $this->warn($line);
         }
 
-        $this->pruneHealthyProbes();
+        $this->pruneHealthyProbes($meta['provider']);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The deliberately-INVALID payload used to probe a slot.
+     *
+     * WHY INVALID ON PURPOSE — the provider's AUTH layer runs BEFORE validation,
+     * so the status code alone tells us what we need (401 = bad token, 422 = auth
+     * passed) and the call never spends a render credit.
+     *
+     * THE SHAPE FOLLOWS THE SLOT, because the two vendors disagree about both the
+     * field names and the envelope:
+     *
+     *   vton  (PixelAPI) FLAT    : { person_image, garment_image, category }
+     *   fashn (FASHN)    WRAPPER : { model_name, inputs: { model_image, garment_image, category } }
+     *
+     * Sending PixelAPI's flat body to FASHN (or the reverse) would be rejected by
+     * the vendor's SCHEMA before its auth could be judged, so the probe would
+     * report a healthy endpoint as broken. Each branch mirrors what
+     * `VtonApiRenderer::buildPayload()` sends for that slot.
+     *
+     * @return array<string, mixed>
+     */
+    private function probePayload(string $slot, string $token): array
+    {
+        $categoryField = trim((string) config("services.{$slot}.category_field", 'category'));
+        $categoryField = $categoryField !== '' ? $categoryField : 'category';
+
+        $personField = trim((string) config("services.{$slot}.person_field", 'model_image'));
+        $personField = $personField !== '' ? $personField : 'model_image';
+
+        $garmentField = trim((string) config("services.{$slot}.garment_field", 'garment_image'));
+        $garmentField = $garmentField !== '' ? $garmentField : 'garment_image';
+
+        $inputs = [
+            $personField => 'probe',
+            $garmentField => 'probe',
+            $categoryField => '__status_probe__',
+        ];
+
+        /*
+         * `model_name` non-empty is the WRAPPER signal, exactly as the renderer
+         * treats it — so the probe's shape cannot drift from the render's.
+         */
+        $modelName = trim((string) config("services.{$slot}.model_name", ''));
+
+        if ($modelName !== '') {
+            return ['model_name' => $modelName, 'inputs' => $inputs];
+        }
+
+        return $inputs;
     }
 
     /**
@@ -177,11 +271,11 @@ class TryOnCheckProvider extends Command
     }
 
     /** Persist one observation. Never throws — see ProviderHealth::recordRenderFailure. */
-    private function record(string $state, ?int $httpStatus, string $code, ?string $message): void
+    private function record(string $state, ?int $httpStatus, string $code, ?string $message, string $provider = ProviderHealth::PROVIDER_PIXELAPI): void
     {
         try {
             ProviderHealthEvent::create([
-                'provider' => ProviderHealth::PROVIDER_PIXELAPI,
+                'provider' => $provider,
                 'source' => 'probe',
                 'state' => $state,
                 'http_status' => $httpStatus,
@@ -200,11 +294,11 @@ class TryOnCheckProvider extends Command
      * rows are rare AND are the ones worth keeping. So only `ok` rows are pruned,
      * and only past the retention window.
      */
-    private function pruneHealthyProbes(): void
+    private function pruneHealthyProbes(string $provider = ProviderHealth::PROVIDER_PIXELAPI): void
     {
         try {
             ProviderHealthEvent::query()
-                ->where('provider', ProviderHealth::PROVIDER_PIXELAPI)
+                ->where('provider', $provider)
                 ->where('source', 'probe')
                 ->where('state', 'ok')
                 ->where('created_at', '<', now()->subHours((int) $this->option('keep-ok-hours')))

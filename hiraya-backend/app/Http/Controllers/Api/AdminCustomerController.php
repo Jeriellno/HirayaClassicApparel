@@ -109,15 +109,10 @@ class AdminCustomerController extends Controller
             'suspended_at' => $user->suspended_at,
             'last_login_at' => $user->last_login_at,
             'created_at' => $user->created_at,
-            'measurements' => [
-                'chest_bust' => $user->chest_bust,
-                'waist' => $user->waist,
-                'hips' => $user->hips,
-                'shoulder_width' => $user->shoulder_width,
-                'sleeve_length' => $user->sleeve_length,
-                'top_size' => $user->top_size,
-                'bottom_size' => $user->bottom_size,
-                'preferred_fit' => $user->preferred_fit,
+            'sizes' => [
+                'upper_body_size' => $user->upper_body_size,
+                'lower_body_size' => $user->lower_body_size,
+                'preferred_fit'   => $user->preferred_fit,
             ],
             'order_count' => $orders->count(),
             // Lifetime value counts only FULLY PAID orders — a pending down
@@ -220,11 +215,19 @@ class AdminCustomerController extends Controller
     }
 
     /**
-     * DEV ONLY — temporary auth bypass, mirroring AdminAccountController.
-     * PRODUCTION: remove the `&& !$this->devAuthBypass()` clauses and this method.
+     * DEV ONLY — an explicit, opt-in auth bypass (mirrors AdminAccountController).
+     *
+     * The previous body was `return !app()->isProduction();`, a NEGATIVE test that
+     * enabled the bypass in `local`, `testing`, `staging` and in any environment
+     * with an unset or misspelled `APP_ENV`. It now requires the deliberate
+     * `ALLOW_DEV_AUTH_BYPASS=true`, and is hard-refused in production.
      */
     private function devAuthBypass(): bool
     {
-        return !app()->isProduction();
+        if (app()->isProduction()) {
+            return false;
+        }
+
+        return (bool) config('app.allow_dev_auth_bypass', false);
     }
 }

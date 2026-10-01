@@ -54,6 +54,7 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    strictPort: true,
 
     /*
      * NO Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy.

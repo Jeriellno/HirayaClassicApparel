@@ -119,7 +119,17 @@ $check = function (string $label, bool $ok, string $detail = '') use (&$pass, &$
 };
 
 $email = 'flow-probe@hiraya.test';
-$originalPassword = 'original-flow-123';
+/*
+ * THE FIXTURE PASSWORDS MUST SATISFY THE SHARED POLICY.
+ *
+ * App\Rules\PasswordStrength now requires an uppercase letter and a number in
+ * addition to 8 characters — the same policy Register has always advertised.
+ * These values used to be lowercase-only ('original-flow-123'), so once the
+ * server began ENFORCING what the sign-up form always promised, the reset
+ * steps below correctly answered 422 and the suite reported the tightened rule
+ * as a failure. The rule object is the fix; these literals just have to obey it.
+ */
+$originalPassword = 'Original-Flow-123';
 
 /*
  * THE MAIL CAPTURE IS REGISTERED BEFORE THE FIRST REQUEST.
@@ -222,7 +232,7 @@ $check('token bound to another email -> invalid', ($r['body']['valid'] ?? null) 
 
 echo "\n4. CONSUME THE LINK\n";
 
-$newPassword = 'flow-reset-456';
+$newPassword = 'Flow-Reset-456';
 
 $r = $post('/api/reset-password-direct', [
     'email' => $email,
@@ -246,8 +256,8 @@ $check('used token -> valid:false', ($r['body']['valid'] ?? null) === false);
 $r = $post('/api/reset-password-direct', [
     'email' => $email,
     'token' => $goodToken,
-    'password' => 'should-not-apply-789',
-    'password_confirmation' => 'should-not-apply-789',
+    'password' => 'Should-Not-Apply-789',
+    'password_confirmation' => 'Should-Not-Apply-789',
 ]);
 $check(
     'replay did NOT change the password',

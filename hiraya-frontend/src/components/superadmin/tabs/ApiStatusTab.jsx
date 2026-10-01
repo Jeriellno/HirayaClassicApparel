@@ -203,11 +203,11 @@ const ApiStatusTab = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn font-mono text-xs">
+    <div className="space-y-7 animate-fadeIn text-xs">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hiraya-olive/15">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-hiraya-structure-line">
         <div>
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] text-hiraya-ink flex items-center gap-2">
+          <h2 className="font-serif text-[clamp(1.4rem,2.2vw,1.9rem)] uppercase tracking-[0.05em] text-navy-900 flex items-center gap-2">
             <KeyRound size={22} /> API & AI STATUS
           </h2>
           <p className="text-xs text-hiraya-ink mt-1">
@@ -219,7 +219,7 @@ const ApiStatusTab = () => {
         <button
           onClick={loadStatus}
           disabled={loading}
-          className="px-4 py-2.5 bg-[#CB997E] hover:bg-hiraya-cream-deep disabled:opacity-50 text-hiraya-olive font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          className="px-4 py-2.5 bg-hiraya-accent hover:bg-hiraya-gold-deep disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none text-hiraya-on-accent font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           {loading ? 'Refreshing' : 'Refresh'}
@@ -227,7 +227,7 @@ const ApiStatusTab = () => {
       </div>
 
       {error && (
-        <div className="p-3.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-2xl uppercase tracking-wider">
+        <div className="p-3.5 bg-red-500/12 border border-red-600/40 text-red-700 rounded-2xl uppercase tracking-wider">
           {error}
         </div>
       )}
@@ -237,18 +237,18 @@ const ApiStatusTab = () => {
         <div
           className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${payload.tryon_ready
               ? 'bg-green-500/5 border-green-500/30'
-              : 'bg-red-500/10 border-red-500/40'
+              : 'bg-red-500/12 border-red-500/40'
             }`}
         >
           <div className="flex items-start gap-3">
             {payload.tryon_ready ? (
-              <CheckCircle2 size={20} className="text-green-400 shrink-0 mt-0.5" />
+              <CheckCircle2 size={20} className="text-green-700 shrink-0 mt-0.5" />
             ) : (
-              <XCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
+              <XCircle size={20} className="text-red-700 shrink-0 mt-0.5" />
             )}
             <div>
               <p
-                className={`uppercase tracking-widest font-bold ${payload.tryon_ready ? 'text-green-400' : 'text-red-400'
+                className={`uppercase tracking-widest font-bold ${payload.tryon_ready ? 'text-green-700' : 'text-red-700'
                   }`}
               >
                 {payload.tryon_ready
@@ -285,27 +285,27 @@ const ApiStatusTab = () => {
             healthTone === 'good'
               ? 'bg-green-500/5 border-green-500/30'
               : healthTone === 'bad'
-                ? 'bg-red-500/10 border-red-500/40'
+                ? 'bg-red-500/12 border-red-500/40'
                 : 'bg-amber-500/5 border-amber-500/30'
           }`}
         >
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
               {healthTone === 'good' ? (
-                <Activity size={20} className="text-green-400 shrink-0 mt-0.5" />
+                <Activity size={20} className="text-green-700 shrink-0 mt-0.5" />
               ) : healthTone === 'bad' ? (
-                <XCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
+                <XCircle size={20} className="text-red-700 shrink-0 mt-0.5" />
               ) : (
-                <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                <AlertTriangle size={20} className="text-amber-700 shrink-0 mt-0.5" />
               )}
               <div className="min-w-0">
                 <p
                   className={`uppercase tracking-widest font-bold ${
                     healthTone === 'good'
-                      ? 'text-green-400'
+                      ? 'text-green-700'
                       : healthTone === 'bad'
-                        ? 'text-red-400'
-                        : 'text-amber-400'
+                        ? 'text-red-700'
+                        : 'text-amber-700'
                   }`}
                 >
                   {healthCopy.title}
@@ -317,7 +317,7 @@ const ApiStatusTab = () => {
             </div>
 
             {health.since && healthTone === 'bad' && (
-              <span className="text-[10px] uppercase tracking-widest text-red-400/80 shrink-0 flex items-center gap-1">
+              <span className="text-[10px] uppercase tracking-widest text-red-700/80 shrink-0 flex items-center gap-1">
                 <Clock size={11} /> Since {fmtWhen(health.since)}
               </span>
             )}
@@ -325,7 +325,7 @@ const ApiStatusTab = () => {
 
           {/* THE MEASUREMENTS BEHIND THE VERDICT — never a bare colour. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+            <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
               <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                 Last checked
               </p>
@@ -335,16 +335,16 @@ const ApiStatusTab = () => {
               )}
             </div>
 
-            <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+            <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
               <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                 Outages ({health.window_hours}h)
               </p>
-              <p className={health.outages_in_window > 0 ? 'text-amber-400' : 'text-hiraya-ink'}>
+              <p className={health.outages_in_window > 0 ? 'text-amber-700' : 'text-hiraya-ink'}>
                 {health.outages_in_window}
               </p>
             </div>
 
-            <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+            <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
               <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                 Last result
               </p>
@@ -392,7 +392,7 @@ const ApiStatusTab = () => {
 
       {/* GEMINI KEY POOL */}
       {payload?.gemini_key_pool?.length > 0 && (
-        <div className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4">
+        <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-hiraya-ink flex items-center gap-2">
               <KeyRound size={14} className="text-hiraya-ink" /> Gemini key pool
@@ -400,8 +400,8 @@ const ApiStatusTab = () => {
                 <span
                   className={`text-[9px] px-2 py-0.5 rounded border uppercase tracking-widest ${
                     payload.gemini_key_pool_summary.available > 0
-                      ? 'bg-green-500/20 text-green-400 border-green-500/40'
-                      : 'bg-red-500/20 text-red-400 border-red-500/40'
+                      ? 'bg-green-500/15 text-green-700 border-green-600/45'
+                      : 'bg-red-500/20 text-red-700 border-red-500/40'
                   }`}
                 >
                   {payload.gemini_key_pool_summary.available}/{payload.gemini_key_pool_summary.total} available
@@ -418,19 +418,19 @@ const ApiStatusTab = () => {
             {payload.gemini_key_pool.map((k, i) => (
               <li
                 key={i}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-cream-200/45 rounded-xl shadow-neu-inset"
               >
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`font-bold flex items-center gap-1.5 ${
-                      k.state === 'drained' ? 'text-amber-400' : 'text-green-400'
+                      k.state === 'drained' ? 'text-amber-700' : 'text-green-700'
                     }`}
                   >
                     {k.state === 'drained' ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
                     {k.state === 'drained' ? 'Drained today' : 'Available'}
                   </span>
                   {k.preferred && (
-                    <span className="text-[9px] bg-[#CB997E]/20 text-hiraya-ink px-2 py-0.5 rounded border border-[#CB997E]/40 uppercase tracking-widest">
+                    <span className="text-[9px] bg-hiraya-accent/20 text-hiraya-ink px-2 py-0.5 rounded border border-hiraya-accent/40 uppercase tracking-widest">
                       Answering now
                     </span>
                   )}
@@ -447,7 +447,7 @@ const ApiStatusTab = () => {
                       onClick={() => resetKey(k.label)}
                       disabled={resetting === k.label}
                       title="Clear this key's 429 cooldown — use only if the 429 was reported in error"
-                      className="px-2.5 py-1 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 disabled:opacity-40 border border-hiraya-olive/15 rounded-lg text-[10px] uppercase tracking-wider shrink-0 transition cursor-pointer"
+                      className="px-2.5 py-1 bg-cream-200/60 hover:bg-cream-200/60 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none border border-hiraya-structure-line/80 rounded-lg text-[10px] uppercase tracking-wider shrink-0 transition cursor-pointer"
                     >
                       {resetting === k.label ? 'Resetting…' : 'Reset cooldown'}
                     </button>
@@ -473,7 +473,7 @@ const ApiStatusTab = () => {
             return (
               <div
                 key={svc.key}
-                className="p-5 bg-hiraya-cream border border-hiraya-olive/15 rounded-2xl space-y-4"
+                className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -482,7 +482,7 @@ const ApiStatusTab = () => {
                         {svc.label}
                       </h3>
                       {svc.required && (
-                        <span className="text-[9px] bg-[#CB997E]/20 text-hiraya-ink px-2 py-0.5 rounded border border-[#CB997E]/40 uppercase tracking-widest">
+                        <span className="text-[9px] bg-hiraya-accent/20 text-hiraya-ink px-2 py-0.5 rounded border border-hiraya-accent/40 uppercase tracking-widest">
                           Required
                         </span>
                       )}
@@ -500,7 +500,7 @@ const ApiStatusTab = () => {
                         ? 'Make a real request to this service'
                         : 'Set the key first'
                     }
-                    className="px-3.5 py-2 bg-hiraya-cream/60 hover:bg-hiraya-cream/60 disabled:opacity-40 disabled:cursor-not-allowed border border-hiraya-olive/15 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0 uppercase tracking-wider text-[10px]"
+                    className="px-3.5 py-2 bg-cream-200/60 hover:bg-cream-200/60 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed border border-hiraya-structure-line/80 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0 uppercase tracking-wider text-[10px]"
                   >
                     {isProbing ? (
                       <Loader2 size={13} className="animate-spin" />
@@ -513,12 +513,12 @@ const ApiStatusTab = () => {
 
                 {/* CONFIGURATION ROW */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                  <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
                     <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                       Status
                     </p>
                     <p
-                      className={`flex items-center gap-1.5 font-bold ${svc.configured ? 'text-green-400' : 'text-red-400'
+                      className={`flex items-center gap-1.5 font-bold ${svc.configured ? 'text-green-700' : 'text-red-700'
                         }`}
                     >
                       {svc.configured ? (
@@ -530,7 +530,7 @@ const ApiStatusTab = () => {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                  <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
                     <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                       Key
                     </p>
@@ -539,7 +539,7 @@ const ApiStatusTab = () => {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                  <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
                     <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                       Variable
                     </p>
@@ -547,7 +547,7 @@ const ApiStatusTab = () => {
                   </div>
 
                   {svc.endpoint && (
-                    <div className="p-3 bg-hiraya-cream/30 border border-hiraya-olive/15 rounded-xl">
+                    <div className="p-3 bg-cream-200/45 rounded-xl shadow-neu-inset">
                       <p className="text-[10px] uppercase tracking-widest text-hiraya-sand mb-1">
                         Endpoint
                       </p>
@@ -565,7 +565,7 @@ const ApiStatusTab = () => {
                       }`}
                   >
                     <p
-                      className={`font-bold flex items-center gap-1.5 ${probe.ok ? 'text-green-400' : 'text-amber-400'
+                      className={`font-bold flex items-center gap-1.5 ${probe.ok ? 'text-green-700' : 'text-amber-700'
                         }`}
                     >
                       {probe.ok ? (
@@ -576,7 +576,7 @@ const ApiStatusTab = () => {
                       {probe.summary}
                     </p>
                     {probe.http_status != null && (
-                      <p className="text-hiraya-olive/70 mt-1">
+                      <p className="text-charcoal-600 mt-1">
                         HTTP {probe.http_status}
                         {probe.reachable === false ? ' · unreachable' : ''}
                       </p>
@@ -604,11 +604,11 @@ const ApiStatusTab = () => {
                         }`}
                       >
                         {k.ok ? (
-                          <CheckCircle2 size={13} className="text-green-400 shrink-0" />
+                          <CheckCircle2 size={13} className="text-green-700 shrink-0" />
                         ) : k.http_status === 429 ? (
-                          <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+                          <AlertTriangle size={13} className="text-amber-700 shrink-0" />
                         ) : (
-                          <XCircle size={13} className="text-red-400 shrink-0" />
+                          <XCircle size={13} className="text-red-700 shrink-0" />
                         )}
                         <span className="text-hiraya-ink shrink-0">{k.label}</span>
                         <span className="text-hiraya-sand shrink-0">HTTP {k.http_status}</span>
@@ -619,7 +619,7 @@ const ApiStatusTab = () => {
                 )}
 
                 {svc.notes && (
-                  <p className="text-hiraya-sand normal-case tracking-normal border-l-2 border-[#CB997E]/30 pl-3">
+                  <p className="text-hiraya-sand normal-case tracking-normal border-l-2 border-hiraya-accent/30 pl-3">
                     {svc.notes}
                   </p>
                 )}
@@ -642,7 +642,7 @@ const ApiStatusTab = () => {
         </div>
       )}
 
-      <p className="text-hiraya-sand normal-case tracking-normal text-[11px] border-t border-hiraya-olive/15 pt-4">
+      <p className="text-hiraya-sand normal-case tracking-normal text-[11px] border-t border-hiraya-structure-line/80 pt-4">
         Secrets are never sent to the browser in full. To rotate a key, edit the
         backend <code>.env</code> and run <code>php artisan config:clear</code> —
         then use <strong>Test</strong> above to confirm the new value is accepted.

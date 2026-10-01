@@ -1,11 +1,15 @@
-/**
+﻿/**
  * AITryOnSection — the AI Try-On workspace shell.
  *
  * Composes the restored "My Bag" categorical Style Stack with the try-on
- * canvas, body-profile form and stylist chat. This is the section-level entry
+ * canvas and stylist chat. This is the section-level entry
  * point that the AiTryOn page (and any future host) mounts; it exists so the
  * Style Stack can be dropped into other surfaces without re-wiring the whole
  * studio's state hook.
+ *
+ * There is no body-profile panel here. The customer's sizing profile is two
+ * size labels edited in Account Settings; the Studio reads them off the hook
+ * and derives the centimetres the renderer needs from the size chart.
  *
  * `useTryOnState` owns the studio state; this component is presentation-only
  * and forwards every prop straight through. When `withStyleStack` is true (the
@@ -15,13 +19,12 @@
  */
 import { useTryOnState } from '../../hooks/useTryOnState';
 import { StyleStack } from './StyleStack';
-import { BodyProfileForm } from './BodyProfileForm';
 import { TryOnCanvas } from './TryOnCanvas';
 import { StylistChat } from './StylistChat';
 
 export const AITryOnSection = ({ withStyleStack = true, withChat = true }) => {
   const {
-    measurements, handleMeasurementChange, saveMeasurementsToDB, isSavingMeasurements, measurementStatus,
+    bodySizes, measurements,
     garmentsByCategory, selectedGarments, toggleGarment, clearLayer, clearAllStack, wishlistLoading,
     userPhotoPreview, handlePhotoUpload, removeUserPhoto, canGenerate, isGenerating, generatedImage,
     handleGenerateFitting, handleRetryFitting, proceedToCheckout, addWornItemsToBag,
@@ -33,7 +36,7 @@ export const AITryOnSection = ({ withStyleStack = true, withChat = true }) => {
   } = useTryOnState();
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-black pt-16 text-hiraya-ink">
+    <div className="flex h-screen w-full overflow-hidden pt-16 text-hiraya-ink">
       {/* 1. LEFT PANEL — MY BAG STYLE STACK (categorical rows + BG removal) */}
       {withStyleStack && (
         <StyleStack
@@ -46,19 +49,12 @@ export const AITryOnSection = ({ withStyleStack = true, withChat = true }) => {
         />
       )}
 
-      {/* 2. CENTER PANEL — BODY PROFILE & TRY-ON CANVAS */}
+      {/* 2. CENTER PANEL — TRY-ON CANVAS */}
       <main className="z-10 flex-1 flex-col space-y-6 overflow-y-auto p-6">
-        <BodyProfileForm
-          measurements={measurements}
-          onChange={handleMeasurementChange}
-          onSave={saveMeasurementsToDB}
-          isSaving={isSavingMeasurements}
-          status={measurementStatus}
-        />
-
         <TryOnCanvas
           selectedGarments={selectedGarments}
           userPhotoPreview={userPhotoPreview}
+          bodySizes={bodySizes}
           generatedImage={generatedImage}
           isGenerating={isGenerating}
           canGenerate={canGenerate}

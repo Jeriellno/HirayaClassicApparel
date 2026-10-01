@@ -1,39 +1,89 @@
-import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
+﻿import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import {
+    Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ArrowRight,
+    ShieldCheck, KeyRound, ArrowLeft,
+} from 'lucide-react';
+
+import { useAuth } from '../context/AuthContext';
 import { parseApiError } from '../api/axios';
+import { roleHome } from '../utils/consoleAccess';
+import MfaEnrollment from '../components/settings/MfaEnrollment';
+import AuthShell from '../components/auth/AuthShell';
+import {
+    signInWithPassword,
+    getAssuranceLevels,
+    createMfaChallenge,
+    verifyMfaChallenge,
+    signOutSupabase,
+} from '../services/supabaseMfa';
 
-/**
- * Reads a role out of the freshly-authenticated user so the post-login
- * destination can branch: admins go to the console, customers to the shop.
+/*
+ * Login — THE ONE DOOR.
+ * ============================================================================
+ *
+ * There is no longer a second sign-in form for staff. Every account — customer,
+ * admin, superadmin — types its email and password HERE, and what happens next
+ * is decided by the ROLE, not by which page they were on:
+ *
+ *     superadmin  ->  6-digit TOTP  ->  /superadmin
+ *     admin       ->  6-digit TOTP  ->  /superadmin
+ *     user        ->  done          ->  /home
+ *
+ * WHY THE TWO-DOOR DESIGN WAS REPLACED
+ * ------------------------------------
+ * There used to be `/login` (Laravel, customers only) and `/admin/login`
+ * (Supabase, staff only), joined by a 403 `{ staff_door }` that bounced a
+ * correctly-typed superadmin out of the first form into the second. That split
+ * meant the role was read from two different sources, the destination was
+ * written out in two files, and a staff member's correct password was reported
+ * as an ERROR rather than as the first half of a two-step sign-in.
+ *
+ * The single form removes all three. The backend answers a correct password on a
+ * privileged account with `200 { mfa_required: true, role }` — an explicit "your
+ * password is right, now prove the second factor" — and this component owns
+ * everything that follows it.
+ *
+ * WHY A STAFF SESSION IS A SUPABASE SESSION
+ * -----------------------------------------
+ * /superadmin is authorized by a Supabase `aal2` claim, and the API calls behind
+ * it are authorized by the Supabase JWT. A Laravel/Sanctum token carries no such
+ * claim, so a staff member is signed into Supabase as part of this same form. A
+ * customer has no such requirement and never touches Supabase here.
+ *
+ * THE THREE STEPS ARE STATES, NOT PAGES
+ * ------------------------------------
+ * `step` is the whole state machine: 'password' -> 'verify' -> (or) 'enroll'.
+ * These were once two separate routes, which cost a second component, a second
+ * copy of the challenge logic, and a way for the two to disagree.
  */
-const roleOf = (user) =>
-    String(
-        user?.role ??
-        user?.role_name ??
-        (Array.isArray(user?.roles) ? user.roles[0] : user?.roles) ??
-        (user?.is_admin || user?.isAdmin ? 'admin' : ''),
-    )
-        .toLowerCase()
-        .replace(/[\s_-]+/g, '');
-
 const Login = () => {
+    const { login } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const [step, setStep] = useState('password');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [code, setCode] = useState('');
+    // The factor uuid and the challenge id are DIFFERENT things; verify needs both.
+    const [factorId, setFactorId] = useState(null);
+    const [challengeId, setChallengeId] = useState(null);
+    const [role, setRole] = useState('');
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const codeRef = useRef(null);
 
-    const { login } = useAuth();
-    const navigate = useNavigate();
-    const location = useLocation();
     const successMessage = location.state?.message;
-    // Where to send the customer after a successful sign-in.
+    // An explicit deep link always wins over the role's own landing page.
     const redirectTo = location.state?.from || null;
+
+    useEffect(() => {
+        if (step === 'verify') codeRef.current?.focus();
+    }, [step]);
 
     /** Cheap client-side gate so we never fire an obviously-invalid request. */
     const validate = () => {
@@ -54,102 +104,295 @@ const Login = () => {
         return Object.keys(errs).length === 0;
     };
 
-    const handleSubmit = async (e) => {
+    /**
+     * The destination for a staff member whose session is already aal2 — this
+     * browser still holds a verified one from earlier, so there is nothing left
+     * to ask for.
+     */
+    const finishStaffSignIn = (resolvedRole) => {
+        navigate(redirectTo || roleHome(resolvedRole), { replace: true });
+    };
+
+    /** Step 1 — the password, and the role decision that follows it. */
+    const handlePassword = async (e) => {
         e.preventDefault();
         setError('');
         setFieldErrors({});
 
         if (!validate()) return;
 
+        const normalizedEmail = email.trim().toLowerCase();
         setLoading(true);
+
         try {
             const response = await login({
-                email: email.trim().toLowerCase(),
+                email: normalizedEmail,
                 password,
                 remember: rememberMe,
             });
 
-            // AuthContext has already persisted token + user. Branch the
-            // destination by role: an explicit `from` always wins (deep link),
-            // otherwise admins land on the console DASHBOARD and customers on
-            // the shop — this is the shared-gateway"big company" login model.
-            const authedUser = response?.data?.user;
-            const role = roleOf(authedUser);
+            const body = response?.data || {};
 
-            // superadmins keep their own higher-privileged console.
-            let roleHome = '/shop';
-            if (role === 'superadmin') roleHome = '/superadmin';
-            else if (role === 'admin') roleHome = '/admin/dashboard';
+            /*
+             * A CUSTOMER. Laravel minted a Sanctum session, AuthContext has
+             * already persisted it, and there is nothing left to prove.
+             */
+            if (!body.mfa_required) {
+                navigate(redirectTo || roleHome(body.user), { replace: true });
+                return;
+            }
 
-            const destination = redirectTo || roleHome;
-            navigate(destination, { replace: true });
+            /*
+             * A STAFF ACCOUNT. The password is verified but no token was issued —
+             * the session that opens /superadmin has to carry `aal2`, so it must
+             * be minted by Supabase and raised with a TOTP code.
+             */
+            const resolvedRole = body.role || 'admin';
+            setRole(resolvedRole);
+
+            await signInWithPassword(normalizedEmail, password);
+
+            const levels = await getAssuranceLevels();
+
+            if (levels.currentLevel === 'aal2') {
+                finishStaffSignIn(resolvedRole);
+                return;
+            }
+
+            /*
+             * NO FACTOR ENROLLED: MOUNT THE ENROLLMENT SCREEN INSTEAD.
+             *
+             * `nextLevel` is GoTrue's own answer to "is there a second factor to
+             * challenge?", and it is the only honest source for that question. This
+             * branch no longer consults a flag from `/login`: `mfa_enrollment_required`
+             * has been removed from that response, because it described the server's
+             * stale copy of a fact the aal2 middleware already verifies on every
+             * request — and a client reading that copy is what sent a correctly
+             * enrolled admin to a QR code they did not need.
+             *
+             * A staff account with no factor is a legitimate, expected state — an
+             * invitee who has set a password but not yet scanned a code. Offering a
+             * 6-digit prompt here would be a dead end: `createMfaChallenge` throws
+             * "No verified authenticator is enrolled on this account", which reads
+             * like a broken authenticator rather than an unfinished setup. So the
+             * screen that says "you have no authenticator" is mounted here, and it is
+             * the same screen that fixes it.
+             */
+            if (levels.nextLevel !== 'aal2') {
+                setError(
+                    'Set up your authenticator app to activate this administrator account.',
+                );
+                setStep('enroll');
+                return;
+            }
+
+            const challenge = await createMfaChallenge('totp');
+            setFactorId(challenge.factorId);
+            setChallengeId(challenge.challengeId);
+            setCode('');
+            setStep('verify');
         } catch (err) {
-            const { message, errors: apiFieldErrors } = parseApiError(err);
+            /*
+             * A SUPABASE ERROR IS NOT A NETWORK ERROR, AND SAYING OTHERWISE IS A
+             * LIE THE USER CANNOT ACT ON.
+             *
+             * This catch block handles BOTH failures in one try: the Laravel
+             * `/login` request and the Supabase `signInWithPassword` that follows
+             * it. `parseApiError` derives `isNetworkError` from the ABSENCE of an
+             * `.response`, which is true of every error Supabase throws — it
+             * rejects with a plain object carrying `{ message, status }`, never an
+             * axios response. So a Supabase 400 ("Invalid login credentials")
+             * was rewritten to "Cannot reach the Hiraya server." and the user was
+             * told to check their network when the truth was that the account's
+             * password was not accepted there.
+             *
+             * An error that already carries a Supabase status has told us exactly
+             * what happened; pass it through unchanged. Only an error with no
+             * response AND no status is a genuine unknown, and that is what
+             * parseApiError is for.
+             */
+            const isSupabaseError = err?.status !== undefined && !err?.response;
 
-            // Laravel may answer a bad login with either a 401 ("Invalid
-            // credentials") or a 422 field map — surface whichever arrived.
+            const { message, errors: apiFieldErrors } = isSupabaseError
+                ? { message: err?.message, errors: {} }
+                : parseApiError(err);
+
             if (Object.keys(apiFieldErrors).length > 0) {
                 setFieldErrors(apiFieldErrors);
             }
             setError(message);
+
+            /*
+             * THE PASSWORD WAS FINE — THE SECOND FACTOR WAS NOT.
+             * A Supabase failure after the Laravel step must not leave the user
+             * staring at a password form implying they mistyped it.
+             *
+             * It must NOT dump them into enrollment either. `createMfaChallenge`
+             * throws when the account has no VERIFIED factor, but `nextLevel`
+             * already said it had one — so that specific failure means the factor
+             * list and the assurance level disagree, and showing a QR code would
+             * have them enroll a SECOND authenticator. Stay on the password form
+             * with Supabase's own message; it is honest and it is retryable.
+             */
+            if (step === 'verify') {
+                setStep('password');
+            }
         } finally {
             setLoading(false);
         }
     };
 
+    /** Step 2 — the 6-digit code, elevating THIS session to aal2. */
+    const handleVerify = async (e) => {
+        e.preventDefault();
+        setError('');
+
+        if (!/^\d{6}$/.test(code)) {
+            setError('Enter the 6-digit code from your authenticator app.');
+            return;
+        }
+        if (!challengeId || !factorId) {
+            setError('This verification expired. Enter your password again.');
+            setRole('');
+            setCode('');
+            setStep('password');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await verifyMfaChallenge(factorId, challengeId, code);
+            finishStaffSignIn(role);
+        } catch (err) {
+            // The challenge survives a wrong code, so the user may retry in place.
+            setError(err?.message || 'That code was not accepted. Try the next one.');
+            setCode('');
+            codeRef.current?.focus();
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Called by MfaEnrollment once a factor is verified.
+     *
+     * Confirming a factor does not by itself raise THIS session to aal2 — GoTrue
+     * issues the elevated token only after a challenge is verified — so this re-reads
+     * the level and opens a real challenge rather than assuming the sign-in is done.
+     *
+     * There is no activation step here any more, and no `mfa-enrolled` call to paper
+     * over one. The account becomes usable the moment an aal2 request is accepted, and
+     * `supabase.aal2` verifies that on every call. The audit stamp is still worth
+     * recording, so it is sent once and treated as best-effort: if it fails, the sign-in
+     * itself is unaffected and the honest outcome below still says so.
+     */
+    const handleEnrolled = async () => {
+        try {
+            setLoading(true);
+            setError('');
+
+            const levels = await getAssuranceLevels();
+
+            if (levels.currentLevel === 'aal2') {
+                finishStaffSignIn(role);
+                return;
+            }
+
+            /*
+             * The factor is verified but this session is still aal1, which is the
+             * normal state immediately after enrolment. Open the code prompt rather
+             * than declaring failure — the user owes exactly one 6-digit code, and
+             * they can produce it from the app they just set up.
+             */
+            const challenge = await createMfaChallenge('totp');
+            setFactorId(challenge.factorId);
+            setChallengeId(challenge.challengeId);
+            setCode('');
+            setStep('verify');
+        } catch (err) {
+            setError(
+                err?.message ||
+                'The authenticator was created but the session could not be verified.',
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Abandon the challenge and start over.
+     *
+     * Signs out of Supabase FIRST, so the aal1 session open in this tab cannot
+     * linger while the user goes looking for their phone — and so the next
+     * password submit starts from a clean state.
+     */
+    const restartAsAnotherUser = async () => {
+        try {
+            await signOutSupabase();
+        } catch (err) {
+            console.warn('Login: Supabase sign-out failed', err);
+        }
+        setStep('password');
+        setFactorId(null);
+        setChallengeId(null);
+        setRole('');
+        setCode('');
+        setPassword('');
+        setError('');
+        setFieldErrors({});
+    };
+
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black p-4 font-sans">
-            {/* Ambient monochrome glow */}
-            <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -top-1/3 left-1/2 h-[70vh] w-[70vh] -translate-x-1/2 rounded-full bg-white/[0.05] blur-[120px]" />
-                <div className="absolute bottom-0 right-0 h-[40vh] w-[40vh] rounded-full bg-white/[0.03] blur-[100px]" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.05),transparent_60%)]" />
-            </div>
-
-            <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="relative z-10 w-full max-w-[420px]"
-            >
-                <div className="overflow-hidden rounded-[2rem] border-hiraya-sand/30 bg-hiraya-cream-deep/80 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
-                    {/* Brand mark */}
-                    <div className="mb-8 text-center">
-                        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border-hiraya-olive/20 bg-white/[0.06] text-hiraya-ink">
-                            <Sparkles size={20} />
-                        </div>
-                        <h1 className="font-serif text-3xl uppercase leading-none tracking-[0.25em] text-hiraya-ink">
-                            Login
-                        </h1>
-                        <p className="mt-3 text-[10px] uppercase tracking-[0.3em] text-hiraya-olive/70">
-                            Welcome back to Hiraya
-                        </p>
-                    </div>
-
-                    {successMessage && !error && (
-                        <div className="mb-5 flex items-start gap-2 rounded-xl border-hiraya-olive/20 bg-white/[0.06] p-3 text-center text-xs font-medium text-hiraya-ink">
-                            <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
+        /*
+         * The sliding Sign In / Create Account card (see AuthShell). The shell
+         * owns the page, the heading and the switch to /register; everything
+         * below is this page's own form, unchanged in behaviour.
+         *
+         * The ShieldCheck badge still marks the two-factor steps — there the
+         * shield IS the message — and the switch to registration is hidden
+         * while a staff member is mid-verification.
+         */
+        <AuthShell
+            mode="signin"
+            title={step === 'password' ? 'Sign In' : 'Verify'}
+            kicker={step === 'password' ? 'Welcome back to Hiraya' : 'Staff accounts require an authenticator code'}
+            icon={step !== 'password' ? <ShieldCheck size={20} /> : null}
+            allowSwitch={step === 'password'}
+        >
+            <div>
+                    {successMessage && !error && step === 'password' && (
+                        <div className="mb-5 flex items-start gap-2 rounded-xl border border-hiraya-accent/20 bg-hiraya-accent-wash p-3 text-xs font-medium text-hiraya-ink">
+                            <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-hiraya-accent" />
                             <span className="leading-relaxed">{successMessage}</span>
                         </div>
                     )}
 
                     {error && (
-                        <div className="mb-5 flex items-start gap-2 rounded-xl border-red-500/30 bg-red-500/10 p-3 text-center text-xs font-medium text-red-400">
+                        <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/15 p-3 text-xs font-medium leading-relaxed text-amber-800">
                             <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                            <span className="leading-relaxed">{error}</span>
+                            <span>{error}</span>
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                    {/*
+                        THE ONLY BRANCH ON THIS SCREEN.
+                        The password form and the second-factor form are two
+                        states of one sign-in, not two doors. Which one renders is
+                        decided by the role the backend reported — `mfa_required`
+                        put us on the code step, and a staff account with no
+                        authenticator enrolled put us on enrollment.
+                    */}
+                    {step === 'password' ? (
+                        <form onSubmit={handlePassword} className="space-y-4" noValidate>
                         {/* Email Input */}
                         <div>
                             <input
                                 type="email"
                                 placeholder="Email Address"
                                 autoComplete="email"
-                                className={`w-full rounded-xl border bg-hiraya-cream/50 px-5 py-3.5 text-sm text-hiraya-ink placeholder-zinc-500 outline-none transition-all focus:ring-1 ${fieldErrors.email
-                                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
-                                        : 'border-hiraya-sand/30 focus:border-hiraya-gold/60 focus:ring-white/20'
+                                className={`field ${fieldErrors.email
+                                        ? 'border-red-500/50 focus:border-red-500'
+                                        : ''
                                     }`}
                                 value={email}
                                 onChange={(e) => {
@@ -159,7 +402,7 @@ const Login = () => {
                                 required
                             />
                             {fieldErrors.email && (
-                                <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-400">{fieldErrors.email}</p>
+                                <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{fieldErrors.email}</p>
                             )}
                         </div>
 
@@ -170,9 +413,9 @@ const Login = () => {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="Password"
                                     autoComplete="current-password"
-                                    className={`w-full rounded-xl border bg-hiraya-cream/50 px-5 py-3.5 pr-12 text-sm text-hiraya-ink placeholder-zinc-500 outline-none transition-all focus:ring-1 ${fieldErrors.password
-                                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
-                                            : 'border-hiraya-sand/30 focus:border-hiraya-gold/60 focus:ring-white/20'
+                                    className={`field pr-12 ${fieldErrors.password
+                                            ? 'border-red-500/50 focus:border-red-500'
+                                            : ''
                                         }`}
                                     value={password}
                                     onChange={(e) => {
@@ -185,29 +428,29 @@ const Login = () => {
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-hiraya-sand transition-colors hover:text-hiraya-ink"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-hiraya-ink-muted transition-colors hover:text-hiraya-accent cursor-pointer"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                             {fieldErrors.password && (
-                                <p className="pl-2 text-[10px] font-medium text-red-400">{fieldErrors.password}</p>
+                                <p className="pl-2 text-[10px] font-medium text-red-700">{fieldErrors.password}</p>
                             )}
 
                             {/* REMEMBER ME & FORGOT PASSWORD */}
                             <div className="flex items-center justify-between px-1 pt-1">
-                                <label className="flex cursor-pointer items-center gap-2 text-xs text-hiraya-sand transition-colors hover:text-hiraya-ink">
+                                <label className="flex cursor-pointer items-center gap-2 text-hiraya-ink-muted transition-colors hover:text-hiraya-ink">
                                     <input
                                         type="checkbox"
                                         checked={rememberMe}
                                         onChange={(e) => setRememberMe(e.target.checked)}
-                                        className="cursor-pointer rounded border-hiraya-sand/40 bg-black text-hiraya-ink accent-stone-200 focus:ring-0"
+                                        className="cursor-pointer accent-hiraya-accent focus:ring-0"
                                     />
                                     <span className="text-[11px]">Remember me</span>
                                 </label>
                                 <Link
                                     to="/forgot-password"
-                                    className="text-[11px] text-hiraya-sand underline transition-colors hover:text-hiraya-ink"
+                                    className="text-[11px] text-hiraya-ink-muted underline transition-colors hover:text-hiraya-accent"
                                 >
                                     Forgot Password?
                                 </Link>
@@ -217,7 +460,7 @@ const Login = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[#CB997E] py-4 text-xs font-bold uppercase tracking-widest text-hiraya-ink shadow-lg shadow-hiraya-sand/40 transition-all hover:bg-hiraya-cream-deep active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="btn-primary group mt-4 w-full rounded-full py-3.5"
                         >
                             {loading ? (
                                 <>
@@ -225,24 +468,84 @@ const Login = () => {
                                 </>
                             ) : (
                                 <>
-                                    Sign In <ArrowRight size={15} />
+                                    Sign In <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" />
                                 </>
                             )}
                         </button>
-                    </form>
+                        {/* "Create one" now lives in the shell's overlay (desktop)
+                            and its Sign In / Create Account switch (mobile). */}
+                        </form>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 rounded-xl border border-hiraya-structure-line bg-hiraya-surface-raised p-3 text-[11px] text-hiraya-ink shadow-neu-sm">
+                                <ShieldCheck size={14} className="shrink-0 text-hiraya-accent" />
+                                <span className="truncate">{email.trim().toLowerCase()}</span>
+                            </div>
 
-                    <p className="mt-8 text-center text-[11px] text-hiraya-sand">
-                        Don&apos;t have an account?{' '}
-                        <Link
-                            to="/register"
-                            className="ml-1 border-b border-[#CB997E]/40 font-bold text-hiraya-ink transition-colors hover:text-[#FFE8D6]"
-                        >
-                            Create One
-                        </Link>
-                    </p>
-                </div>
-            </motion.div>
-        </div>
+                            {step === 'enroll' ? (
+                                <>
+                                    <p className="text-center text-[11px] leading-relaxed text-hiraya-ink-muted">
+                                        Staff accounts must have an authenticator app. Scan the code, then
+                                        enter the 6 digits it shows to finish setting it up.
+                                    </p>
+                                    <MfaEnrollment bootstrap userRole={role} onEnrolled={handleEnrolled} />
+                                </>
+                            ) : (
+                                <form onSubmit={handleVerify} className="space-y-4" noValidate>
+                                    <p className="text-center text-[11px] leading-relaxed text-hiraya-ink-muted">
+                                        Your password was accepted. Enter the 6-digit code from
+                                        Google Authenticator.
+                                    </p>
+                                    <input
+                                        ref={codeRef}
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        maxLength={6}
+                                        placeholder="000000"
+                                        value={code}
+                                        onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                                        className="field text-center text-2xl tracking-[0.5em]"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={loading || code.length !== 6}
+                                        className="btn-primary w-full rounded-full py-3.5"
+                                    >
+                                        {loading ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                <KeyRound size={14} /> Verify
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={restartAsAnotherUser}
+                                className="flex w-full items-center justify-center gap-2 text-[10px] uppercase tracking-[0.18em] text-hiraya-ink-muted transition hover:text-hiraya-accent cursor-pointer"
+                            >
+                                <ArrowLeft size={12} /> Use a different account
+                            </button>
+                        </div>
+                    )}
+
+                    {/*
+                        WHICH ROLE THIS IS — ONLY ON THE SECOND-FACTOR SCREENS.
+                        On the password form there is no role yet: it is still
+                        whatever the last attempt resolved to, and printing it
+                        above an empty password box reads as "you are already
+                        signed in", which is exactly backwards.
+                    */}
+                    {role && step !== 'password' && (
+                        <p className="mt-6 border-t border-hiraya-structure-line pt-4 text-center text-[9px] uppercase tracking-[0.2em] text-hiraya-ink-muted">
+                            Signed in as {role}
+                        </p>
+                    )}
+            </div>
+        </AuthShell>
     );
 };
 

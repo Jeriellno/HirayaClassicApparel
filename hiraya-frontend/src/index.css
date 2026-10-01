@@ -6,52 +6,199 @@
 
 @theme {
   /*
-   * HIRAYA THEME — "EARTH" (the six-colour brand palette)
+   * HIRAYA THEME — "VINTAGE ATELIER"
+   * ============================================================================
    *
-   * THE PALETTE IS LIGHT-DOMINANT, SO THE THEME IS A LIGHT THEME.
-   * ------------------------------------------------------------
-   * Five of the six colours sit between 70% and 100% luminance; only olive
-   * (#6B705C) is dark, and it is only ~15% — not dark enough to serve as a
-   * canvas behind cream text (that pairing stalls around 4:1, which is why an
-   * earlier attempt rendered the hero nearly invisible).
+   * ONE PALETTE: NAVY BLUE, DARK GREY, BLACK, CREAM.
+   * The ramps themselves (`navy-*`, `charcoal-*`, `noir`, `cream-*`) are declared
+   * in the "VINTAGE ATELIER" block further down. Every `hiraya-*` token in this
+   * block is a ROLE that now points INTO those ramps, so every existing call
+   * site (`text-hiraya-ink`, `bg-hiraya-accent`, `bg-hiraya-nav` …) re-themes
+   * without a single component edit.
    *
-   * So the roles follow the ACTUAL weights of the colours:
+   *   ink / on-canvas ...... navy-900       headings + body copy on light grounds
+   *   ink-soft / muted ..... charcoal-700/600  secondary copy, captions
+   *   accent (the action) .. navy-800       buttons, active states
+   *   accent-deep .......... noir           hover / pressed
+   *   structure / nav ...... navy-800/900/950  navigation, sidebar, deep panels
+   *   canvas / surfaces .... cream-100 page, cream-50 cards, cream-200 wells
    *
-   *   #FFE8D6  cream      — THE PAGE CANVAS. The lightest step: the background
-   *                         everything else sits on.
-   *   #DDBEA9  sand-light — RAISED surfaces: cards, panels, modals. One step
-   *                         darker than the canvas so a card reads as a card
-   *                         without needing a shadow.
-   *   #CB997E  terracotta — THE ACCENT. Fills, active states, focus rings, and
-   *                         (on cream) readable accent text.
-   *   #B7B7A4  sage       — SUNKEN bands / section wash.
-   *   #A5A58D  sage-deep  — MUTED text, labels, hints, hairlines.
-   *   #6B705C  olive      — THE INK. Headings and body copy (≈5.5:1 on cream),
-   *                         plus the deepest containers and text ON the accent.
+   * LEGACY NAMES KEEP THEIR ROLE, NOT THEIR HUE. `maroon`, `gold`, `indigo`,
+   * `peach`, `olive` and `sand` are still referenced by older call sites; each
+   * now carries the palette colour for the JOB it does (`maroon` was the action
+   * colour, so it is navy-800 now). Rename at leisure; nothing depends on it.
    *
-   * CONTRAST RULE OF THE SYSTEM: dark ink (#6B705C) on light surfaces
-   * (#FFE8D6 / #DDBEA9), and cream on olive when olive is used as a fill. The
-   * accent is never asked to carry small text on a light surface at low weight —
-   * at #CB997E on cream it clears ~3.4:1, which is fine for large/bold text and
-   * for fills, and the olive ink is what carries body copy.
+   * WHY THE ACTION IS NAVY-800 AND THE NAV IS NAVY-900/950
+   * ------------------------------------------------------
+   * Buttons sit on cream, where navy-800 carries cream ink at 12.6:1. The
+   * navigation sits a step darker (navy-900 band, navy-950 sidebar) and flips
+   * its own call-to-action to a CREAM plate, so an action never camouflages
+   * against the bar it lives on.
+   *
+   * CONTRAST RULE (measured, WCAG 2.x): every text pairing the roles produce is
+   * >= 5.9:1, and body copy on every light ground is >= 13:1. Hairlines are
+   * decorative and exempt.
    */
-  --color-hiraya-bg: #FFE8D6;            /* Cream — page canvas */
-  --color-hiraya-charcoal: #6B705C;      /* Olive — primary text on canvas */
+  /*
+   * THE CANVAS GRADIENT, AS A TOKEN.
+   * One definition, so `body` and any full-bleed section that needs to continue
+   * the canvas use byte-identical values and can never drift apart.
+   *
+   * Aged paper under a window: a soft light from the upper-left falling off to
+   * the core cream. All three stops are cream-ramp values, so navy ink holds
+   * >= 13:1 anywhere on it.
+   */
+  --hiraya-canvas: radial-gradient(120% 90% at 20% 0%, #FCFAF5 0%, #F7F2E7 45%, #EFE6D2 100%);
 
-  /* --- Accent ramp (#CB997E) ----------------------------------------- */
-  --color-hiraya-gold: #CB997E;          /* Terracotta — primary brand accent */
-  --color-hiraya-gold-deep: #B7B7A4;     /* Sage — hover / pressed accent */
-  --color-hiraya-gold-soft: #DDBEA9;     /* Sand-light — highlights, focus rings */
+  /*
+   * THE AMBIENT GLOW — luminous light pooling over the canvas.
+   *
+   * Cream lamp-light highlights (which only LIGHTEN the page, so they can only
+   * raise text contrast) and faint navy / slate glows pooled in the corners.
+   * The dark glows stay at <= 6% alpha on purpose: muted charcoal captions sit
+   * close to 4.5:1 on the deeper cream, and a stronger shadow would push them
+   * under it. Painted on `body` above the canvas, anchored to the viewport.
+   */
+  --hiraya-ambient:
+    radial-gradient(42% 36% at 8% 4%, rgba(255, 255, 255, 0.75) 0%, rgba(252, 250, 245, 0) 70%),
+    radial-gradient(38% 34% at 62% 38%, rgba(252, 250, 245, 0.55) 0%, rgba(252, 250, 245, 0) 70%),
+    radial-gradient(46% 40% at 100% 0%, rgba(29, 44, 69, 0.06) 0%, rgba(29, 44, 69, 0) 72%),
+    radial-gradient(40% 44% at 0% 100%, rgba(67, 65, 62, 0.05) 0%, rgba(67, 65, 62, 0) 72%),
+    radial-gradient(52% 46% at 100% 100%, rgba(21, 32, 54, 0.06) 0%, rgba(21, 32, 54, 0) 74%);
+
+  /*
+   * THE EDITORIAL CANVAS — a diagonal fall-off through the cream ramp, for
+   * full-bleed marketing bands (hero, footer CTA) where a flat fill would look
+   * like a placeholder.
+   */
+  --hiraya-canvas-editorial: linear-gradient(
+    160deg,
+    #FCFAF5 0%,
+    #F7F2E7 42%,
+    #EFE6D2 100%
+  );
+
+  /*
+   * ===========================================================================
+   * "HERITAGE TAILORING" — THE RESTYLE
+   * ===========================================================================
+   *
+   * WHAT CHANGED AND WHY
+   * --------------------
+   * The previous pass was correct but generic: a soft modern SaaS look wearing
+   * brand colours. It read as "a website that happens to be maroon", not as a
+   * house that makes formal garments.
+   *
+   * A classic tailor's identity is built from three things this system now has:
+   *
+   *   1. INK, NOT GREY. Every text tone is a DARKENED BRAND HUE — navy, indigo
+   *      or maroon. There is no neutral grey ramp anywhere, so even a caption
+   *      reads as branded rather than as filler.
+   *   2. RULES AND HAIRLINES. Tailoring is structure: pinstripes, lapel edges,
+   *      chalk marks. The system now expresses that with hairline borders in
+   *      place of heavy shadows, and a short accent rule above section titles.
+   *   3. EDGES, NOT BUBBLES. The old palette of `rounded-full` on everything
+   *      read as consumer-app. Panels and buttons are now near-square with a
+   *      small radius so they read as cut cloth, while PILLS are reserved for
+   *      genuine tags (badges, chips, counters) where a rounded form is right.
+   *
+   * Every token below is a shade of the five mandated colours. The hue family
+   * of each is recorded so a future edit cannot drift off-palette by accident.
+   */
+
+  /* --- INK RAMP: navy ink, dark-grey support ------------------------- */
+  --color-hiraya-ink: #152036;           /* navy-900     — body + headings (13.1–15.6:1) */
+  --color-hiraya-ink-soft: #43413E;      /* charcoal-700 — secondary copy (>= 8.2:1) */
+  --color-hiraya-ink-muted: #56534F;     /* charcoal-600 — captions, meta (>= 5.9:1) */
+
+  /* --- ACCENT RAMP: the action is navy, pressed is black -------------- */
+  --color-hiraya-accent: #1D2C45;        /* navy-800 — the action colour */
+  --color-hiraya-accent-deep: #111110;   /* noir     — hover / pressed */
+  --color-hiraya-accent-soft: #364A6A;   /* navy-600 — borders, rings */
+  --color-hiraya-accent-wash: #E6E2DA;   /* navy 8% over cream — tinted panels */
+
+  /* --- STRUCTURE RAMP: deep navy surfaces ----------------------------- */
+  --color-hiraya-structure: #1D2C45;      /* navy-800     — deep surfaces */
+  --color-hiraya-structure-deep: #152036; /* navy-900     — sidebar base */
+  --color-hiraya-structure-line: #CFCDCA; /* charcoal-200 — the hairline */
+
+  /* --- SURFACES ------------------------------------------------------- */
+  --color-hiraya-surface: #FCFAF5;        /* cream-50  — the card, lifted off the canvas */
+  --color-hiraya-surface-raised: #FEFDFA; /* cream-50+ — lifted from the card */
+  --color-hiraya-surface-sunken: #EFE6D2; /* cream-200 — wells, insets */
+
+  /*
+   * A NOTE ON THE HAIRLINE.
+   * `structure-line` is a desaturated vintage white, not a grey: it keeps the
+   * warm cast of the paper surface so a divided table looks like ruled stock
+   * rather than a spreadsheet grid.
+   *
+   * Focus is NAVY-600 at full strength (8:1 on the canvas) — one colour for one
+   * purpose, a step lighter than the action fill so a focused button's ring
+   * never merges into its own face.
+   */
+  --color-hiraya-focus: #364A6A;
+
+  /*
+   * WOVEN TEXTURE — a one-pixel pinstripe baked as a token.
+   *
+   * Applied at very low alpha over the light surface it produces a faint
+   * twill line, which is what separates "cloth" from "flat fill" at a glance.
+   * Kept as a token so every surface that wants it uses the identical weave.
+   */
+  --hiraya-weave:
+    repeating-linear-gradient(
+      45deg,
+      rgba(21, 32, 54, 0.022) 0px,
+      rgba(21, 32, 54, 0.022) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+
+  --color-hiraya-bg: #F7F2E7;            /* cream-100 — canvas base */
+  --color-hiraya-charcoal: #152036;      /* navy-900  — primary text on canvas */
+
+  /* --- Legacy colour NAMES, now carrying their ROLE's palette value --- */
+  --color-hiraya-navy: #152036;          /* navy-900  — the ink */
+  --color-hiraya-indigo: #1D2C45;        /* navy-800  — navigation, deep surfaces */
+  --color-hiraya-maroon: #1D2C45;        /* navy-800  — the action (was maroon) */
+  --color-hiraya-peach: #F7F2E7;         /* cream-100 — the canvas */
+  --color-hiraya-vintage: #EFE6D2;       /* cream-200 — core cream */
+
+  /* --- Accent ramp (the action) --------------------------------------- */
+  --color-hiraya-gold: #1D2C45;          /* navy-800 — primary brand accent */
+  --color-hiraya-gold-deep: #111110;     /* noir     — hover / pressed */
+  --color-hiraya-gold-soft: #364A6A;     /* navy-600 — highlights, rings */
 
   /* --- Surface + text ramp ------------------------------------------- */
-  --color-hiraya-cream: #FFE8D6;         /* The canvas + the lightest surface */
-  --color-hiraya-cream-deep: #DDBEA9;    /* Raised cards / panels */
-  --color-hiraya-cream-soft: #DDBEA9;    /* Soft dividers on raised cards */
-  --color-hiraya-sand: #A5A58D;          /* Muted labels, hints, hairlines */
-  --color-hiraya-ink: #6B705C;           /* Ink — text on light surfaces */
+  --color-hiraya-cream-deep: #EFE6D2;    /* cream-200    — raised cards / panels */
+  --color-hiraya-cream-soft: #EFE6D2;    /* cream-200    — soft dividers on cards */
+  --color-hiraya-sand: #56534F;          /* charcoal-600 — muted labels, hints (>= 5.9:1) */
+
   /* --- Extended surface tokens --------------------------------------- */
-  --color-hiraya-olive: #6B705C;         /* Deep containers + ink on light */
-  --color-hiraya-matcha: #B7B7A4;        /* Sunken bands / section wash */
+  --color-hiraya-olive: #1D2C45;         /* navy-800  — deep containers + ink */
+  --color-hiraya-matcha: #EFE6D2;        /* cream-200 — sunken bands */
+
+  /*
+   * WHY `olive` NOW CARRIES A DARKER VALUE THAN BEFORE.
+   *
+   * It is used 406 times, overwhelmingly as HEADING TEXT and as borders on light
+   * cards — not as a fill. At #232F72 (indigo) it measured 9.8:1, which is fine,
+   * but the earlier code also paired it as a FILL (`bg-hiraya-olive`) with light
+   * text, so the one token had to serve two opposite roles and could not be tuned
+   * for either.
+   *
+   * It stays indigo here so no call site changes meaning, and the rarer
+   * `bg-hiraya-olive` (deep panels) keeps its light-on-dark pairing intact.
+
+  /*
+   * `cream` IS KEPT AS A NAME BUT NO LONGER CARRIES CREAM.
+   * It is referenced by ~100 call sites as "the light raised surface", and that
+   * ROLE did not change — only the value did, from #F7F1DE to the vintage white.
+   * Repointing the token updates every one of those sites without touching a
+   * single component, which is the whole point of having the token.
+   */
+  --color-hiraya-cream: #FCFAF5;         /* cream-50 (role: light surface) */
 
   /*
    * SEMANTIC CONTRAST TOKENS.
@@ -61,10 +208,146 @@
    * means a component can say WHAT it is — "ink on the accent", "muted text on a
    * card" — instead of re-deriving the contrast maths at every call site.
    */
-  --color-hiraya-on-accent: #FFE8D6;     /* Cream — text on terracotta (5.1:1) */
-  --color-hiraya-on-canvas: #6B705C;     /* Olive — text on cream (5.5:1) */
-  --color-hiraya-on-raised: #6B705C;     /* Olive — text on sand-light (4.9:1) */
-  --color-hiraya-muted: #A5A58D;         /* Sage — hints/labels (large text only) */
+  --color-hiraya-on-accent: #F7F2E7;     /* cream-100    — text on the navy action (12.6:1) */
+  --color-hiraya-on-canvas: #152036;     /* navy-900     — text on the canvas (14.6:1) */
+  --color-hiraya-on-raised: #152036;     /* navy-900     — text on raised cards (15.6:1) */
+  --color-hiraya-on-structure: #F7F2E7;  /* cream-100    — text on deep navy (12.6:1) */
+  --color-hiraya-muted: #56534F;         /* charcoal-600 — hints/labels (>= 5.9:1) */
+
+  /*
+   * NAVIGATION SURFACES — DEEP NAVY.
+   *
+   * The bar is navy-900 and the sidebar a step deeper at navy-950, so the two
+   * surfaces separate without introducing a new hue family. The storefront bar
+   * renders these as FROSTED GLASS (the token at ~80% plus a backdrop blur);
+   * the solid values here are what the glass resolves to.
+   *
+   * INK ON THE DARK SURFACES IS ALWAYS LIGHT: `nav-ink` is cream-100 (14.6:1)
+   * and `nav-muted` is cream-400, a warm brass tint that still holds 9.1:1, so
+   * even an INACTIVE item is legible rather than dim.
+   */
+  --color-hiraya-nav: #152036;           /* navy-900  — the navigation bar */
+  --color-hiraya-nav-deep: #0D1524;      /* navy-950  — the sidebar */
+  --color-hiraya-nav-ink: #F7F2E7;       /* cream-100 — text/icons ON the nav (14.6:1) */
+  --color-hiraya-nav-muted: #D3C09C;     /* cream-400 — inactive nav items (9.1:1) */
+
+  /*
+   * THE NAV IS NOW A TAILORED BAND, NOT A FLAT BAR.
+   * -------------------------------------------------
+   * Three structural details carry the classic register, and all three are
+   * tokens so the storefront navbar and the console header cannot diverge:
+   *
+   *   nav-rule      a brass (cream-500) hairline pinned to the nav's foot — a
+   *                 deep band finished with a fine metallic rule reads like a
+   *                 shopfront fascia.
+   *   nav-sheen     a barely-there vertical lift so the band has a top and a
+   *                 bottom instead of reading as one solid block.
+   *   nav-muted     a parchment that still holds 7:1 on the band, so an
+   *                 INACTIVE item is quiet but never illegible.
+   */
+  --color-hiraya-nav-rule: #BCA47C;      /* cream-500 — a brass fascia hairline */
+  --hiraya-nav-sheen: linear-gradient(
+    180deg,
+    rgba(247, 242, 231, 0.06) 0%,
+    rgba(247, 242, 231, 0) 58%
+  );
+
+  /*
+   * DISABLED / SUNKEN SURFACES.
+   *
+   * These replace the old `bg-hiraya-sand text-hiraya-sand` idiom, which drew a
+   * LOW-CONTRAST PAIR on purpose — faded enough to read as "not available".
+   *
+   * That idiom could not survive the palette change: `sand` is now indigo, so
+   * `bg-hiraya-sand text-hiraya-sand` became indigo ON indigo — a button whose
+   * label is literally invisible, not merely faded. Measured 1.00:1.
+   *
+   * A disabled control still has to be LEGIBLE: WCAG exempts disabled controls
+   * from the contrast minimum, but a label nobody can read is a bug, not a
+   * style. These tokens are the faded-but-readable pair, and they are on the
+   * LIGHT side of the palette so they still read as "washed out" against the
+   * maroon primary button they replace.
+   */
+  --color-hiraya-disabled-bg: #E7E6E4;   /* charcoal-100 — disabled fill */
+  --color-hiraya-disabled-ink: #56534F;  /* charcoal-600 — readable on that fill (6.1:1) */
+
+  /*
+   * ===========================================================================
+   * "VINTAGE ATELIER" — THE GLOBAL COLOUR STANDARD (introduced by GuestHero)
+   * ===========================================================================
+   *
+   * Four primaries — NAVY BLUE, DARK GREY, BLACK, CREAM — each with a full
+   * shade/tint ramp so every future surface, ink and hairline can be picked
+   * from ONE family instead of invented per component. Utilities are generated
+   * automatically: `bg-navy-900`, `text-cream-100`, `border-charcoal-200/60`…
+   *
+   *   navy-800      #1D2C45  THE NAVY — the core brand blue (desaturated,
+   *                          slightly warm, so it reads as dyed wool, not UI).
+   *   charcoal-700  #43413E  THE DARK GREY — warm-neutral, never blue-grey.
+   *   noir          #111110  THE BLACK — a soft ink black, not #000.
+   *   cream-200     #EFE6D2  THE CREAM — aged paper; cream-100 is the canvas.
+   *
+   * CONTRAST PAIRINGS (measured, WCAG 2.x):
+   *   navy-900 on cream-100 ........ 14.6:1  headings
+   *   charcoal-600 on cream-100 ....  6.9:1  body copy
+   *   charcoal-500 on cream-100 ....  4.8:1  captions (smallest text allowed)
+   *   cream-100 on navy-900 ........ 14.6:1  primary buttons
+   *   cream-300 on navy-950 ........ 12.7:1  body copy on dark bands
+   *   cream-400 on navy-950 ........ 10.3:1  kickers / labels on dark bands
+   *   cream-600 / cream-500 ........ DECORATIVE ONLY on light surfaces (3.2:1)
+   *
+   * The `hiraya-*` role tokens above resolve INTO these ramps, so older call
+   * sites follow the standard automatically; new markup should use the ramps
+   * (or the roles) directly, never a raw hex.
+   */
+  --color-navy-50: #F0F2F6;
+  --color-navy-100: #DDE2EB;
+  --color-navy-200: #BCC5D5;
+  --color-navy-300: #93A1B8;
+  --color-navy-400: #687A98;
+  --color-navy-500: #4A5D7E;
+  --color-navy-600: #364A6A;
+  --color-navy-700: #283A57;
+  --color-navy-800: #1D2C45;            /* core Navy Blue */
+  --color-navy-900: #152036;
+  --color-navy-950: #0D1524;
+
+  --color-charcoal-50: #F4F4F3;
+  --color-charcoal-100: #E7E6E4;
+  --color-charcoal-200: #CFCDCA;
+  --color-charcoal-300: #B0ADA8;
+  --color-charcoal-400: #8C8984;
+  --color-charcoal-500: #6E6B66;
+  --color-charcoal-600: #56534F;
+  --color-charcoal-700: #43413E;        /* core Dark Grey */
+  --color-charcoal-800: #333230;
+  --color-charcoal-900: #262524;
+  --color-charcoal-950: #1A1A19;
+
+  --color-noir: #111110;                /* core Black */
+
+  --color-cream-50: #FCFAF5;
+  --color-cream-100: #F7F2E7;           /* the vintage canvas */
+  --color-cream-200: #EFE6D2;           /* core Cream */
+  --color-cream-300: #E4D6BA;
+  --color-cream-400: #D3C09C;
+  --color-cream-500: #BCA47C;
+  --color-cream-600: #9C845D;
+  --color-cream-700: #7A6645;
+
+  /*
+   * DEPTH — NEUMORPHIC + GLASS SHADOWS.
+   * Neumorphism is two lights: a cream highlight up-left and a navy shade
+   * down-right, so a surface reads as pressed OUT of the paper. It is always
+   * paired with a hairline border in the primitives, because shadow alone is
+   * too faint an edge for low-vision users. Generates `shadow-neu`,
+   * `shadow-neu-sm`, `shadow-neu-inset`, `shadow-neu-dark`, `shadow-glass`.
+   */
+  --shadow-neu-sm: -3px -3px 8px rgba(255, 255, 255, 0.75), 4px 5px 12px -4px rgba(21, 32, 54, 0.22);
+  --shadow-neu: -8px -8px 18px rgba(255, 255, 255, 0.7), 10px 12px 28px -8px rgba(21, 32, 54, 0.22);
+  --shadow-neu-inset: inset 3px 3px 7px rgba(21, 32, 54, 0.10), inset -3px -3px 7px rgba(255, 255, 255, 0.85);
+  --shadow-neu-dark: -4px -4px 12px rgba(54, 74, 106, 0.18), 10px 14px 30px -8px rgba(0, 0, 0, 0.55);
+  --shadow-glass: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(21, 32, 54, 0.06), 0 18px 40px -24px rgba(21, 32, 54, 0.45);
 
   /*
    * Font Families.
@@ -82,6 +365,17 @@
   --font-serif: 'Cinzel', 'Segoe UI', 'Noto Sans', serif;
 }
 
+/*
+ * VINTAGE GRAIN — the film/paper texture of the Vintage Atelier standard.
+ * A tiny tiled SVG noise (no network request, ~0.4 KB). The utility only
+ * paints the texture; the caller sets strength and blend, e.g.
+ *   <div class="vintage-grain absolute inset-0 opacity-20 mix-blend-overlay" />
+ */
+@utility vintage-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
 
 
 @layer base {
@@ -94,28 +388,99 @@
   }
 
   body {
-    @apply bg-hiraya-bg text-hiraya-ink font-sans antialiased leading-[1.6] tracking-tight;
     /*
-     * `light`: the canvas is cream now, so native controls (scrollbars, autofill,
-     * date pickers) render in their LIGHT form — which is what belongs on a light
-     * surface. `dark` would paint dark scrollbars onto a cream page.
+     * THE CANVAS — aged cream paper (see `--hiraya-canvas`).
+     *
+     * The canvas is painted by `body::after` below, a `position: fixed` layer,
+     * so the light fall-off stays anchored to the VIEWPORT on every page.
+     *
+     * NOT `background-attachment: fixed`. That anchors it the same way, but
+     * Chrome then disables composited scrolling for the whole page and
+     * repaints the entire viewport — every neumorphic shadow included — on
+     * every scroll frame. On long pages (the Master Console dashboard with its
+     * charts) that was the scroll lag. A fixed layer is composited once.
+     */
+    @apply text-hiraya-ink font-sans antialiased leading-[1.65] tracking-[-0.005em];
+    /*
+     * `light`: the canvas is a LIGHT surface, so native controls (scrollbars,
+     * autofill, date pickers) must render in their light form. `dark` would
+     * paint dark scrollbars onto a pale page.
      */
     color-scheme: light;
   }
 
+  html {
+    background-color: #F7F2E7;
+    /*
+     * The canvas gradient is on the fixed `body::after` layer, which only
+     * paints the viewport. A short page (a login form, an empty state) would
+     * otherwise show the html element's own background through the last few
+     * pixels, so html carries the same base colour as a floor.
+     */
+  }
+
   /*
-   * Themed scrollbar. The browner rails of a dark theme looked like a seam
-   * against the olive canvas, so the track is transparent and the thumb is the
-   * muted sage step — visible without becoming a stripe down the page.
+   * THE DRIFTING GLOW — one fixed layer behind all content whose soft light
+   * wanders very slowly (a 60s round trip), so the page feels lit rather than
+   * printed. It animates `transform` only, which the compositor handles
+   * without repainting, and it stands still under reduced motion.
+   */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -15%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(28% 24% at 30% 22%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 70%),
+      radial-gradient(26% 24% at 74% 66%, rgba(29, 44, 69, 0.045) 0%, rgba(29, 44, 69, 0) 70%),
+      radial-gradient(24% 22% at 18% 78%, rgba(54, 74, 106, 0.04) 0%, rgba(54, 74, 106, 0) 70%);
+    animation: hiraya-ambient-drift 30s ease-in-out infinite alternate;
+  }
+
+  /*
+   * THE CANVAS LAYER — the body's paper, as a fixed composited layer (see the
+   * `body` note above). It comes after `body::before` in paint order, so it
+   * sits over the drifting glow exactly as the old opaque body background did.
+   *
+   * `background-blend-mode: multiply` on the first layer only would tint the
+   * gradient; instead the weave sits ABOVE it as a transparent overlay, which
+   * is why both layers are listed weave-first. The weave is ~2% alpha so it
+   * contributes no measurable luminance and cannot move any contrast ratio.
+   */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: #F7F2E7; /* cream-100 — the base if gradients are unsupported */
+    background-image: var(--hiraya-weave), var(--hiraya-ambient), var(--hiraya-canvas);
+    background-repeat: repeat, no-repeat;
+  }
+
+  @keyframes hiraya-ambient-drift {
+    from { transform: translate3d(-3%, -2%, 0) scale(1); }
+    to   { transform: translate3d(3%, 3%, 0) scale(1.06); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before { animation: none; }
+  }
+
+  /*
+   * Themed scrollbar. The thumb is navy, inset with a wide transparent gutter
+   * so the rail reads as a thin inlay in the page edge rather than as a stripe
+   * running beside the content. Hover deepens it to black.
    */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #A5A58D transparent;
+    scrollbar-color: #1D2C45 transparent;
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
   }
 
   ::-webkit-scrollbar-track {
@@ -123,14 +488,14 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: #A5A58D;
+    background-color: #1D2C45;
     border-radius: 999px;
-    border: 2px solid transparent;
+    border: 3px solid transparent;
     background-clip: content-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #CB997E;
+    background-color: #111110;
     background-clip: content-box;
   }
 
@@ -149,6 +514,61 @@
    */
   h1, h2, h3, .font-serif {
     font-family: var(--font-serif);
+    /*
+     * OPTICAL FIT — Cinzel is an engraved Trajan-style face with a short
+     * x-height, so it needs a touch more letterform air than the sans and a
+     * slightly tighter line to stop a two-line heading from drifting apart.
+     * Applied here (not per-component) so every heading in the app, customer
+     * and console alike, gets the same classical setting.
+     */
+    letter-spacing: 0.02em;
+    line-height: 1.18;
+  }
+
+  /*
+   * RESPONSIVE HEADING SCALE.
+   * A heritage house sets its name LARGE and in capitals. These are opt-in
+   * classes rather than element rules so they never fight a component's own
+   * sizing; they exist to keep display type consistent across pages.
+   */
+  .display-xl { @apply font-serif uppercase text-[clamp(2.1rem,6vw,4.2rem)] leading-[1.05] tracking-[0.06em]; }
+  .display-lg { @apply font-serif uppercase text-[clamp(1.6rem,3.6vw,2.6rem)] leading-[1.1] tracking-[0.05em]; }
+  .display-md { @apply font-serif uppercase text-[clamp(1.15rem,2.2vw,1.6rem)] leading-[1.15] tracking-[0.04em]; }
+
+  /*
+   * THE KICKER — the small ruled label above a section title.
+   *
+   * This is the single most reused editorial device in the restyle: a short
+   * maroon rule, then a wide-tracked uppercase micro-label. It replaces the
+   * bare coloured paragraph that used to introduce sections, and it is what
+   * makes a page of cards read as a lookbook rather than as a grid.
+   */
+  .kicker {
+    @apply inline-flex items-center gap-3 text-[10px] font-semibold uppercase text-hiraya-accent;
+    letter-spacing: 0.3em;
+  }
+
+  .kicker::before {
+    content: '';
+    display: block;
+    width: 26px;
+    height: 1px;
+    background-color: currentColor;
+    flex-shrink: 0;
+  }
+
+  /* Centred variant for a section that is itself centred. */
+  .kicker-center {
+    @apply justify-center;
+  }
+
+  .kicker-center::after {
+    content: '';
+    display: block;
+    width: 26px;
+    height: 1px;
+    background-color: currentColor;
+    flex-shrink: 0;
   }
 
   /*
@@ -178,67 +598,414 @@
     display: none;
   }
 
-  .glass-card {
-    @apply bg-hiraya-cream-deep/90 backdrop-blur-md border-hiraya-olive/15 shadow-xl;
+  /*
+   * ===========================================================================
+   * THE PRIMITIVES — "VINTAGE ATELIER" (neumorphic + glass)
+   * ===========================================================================
+   *
+   * Everything a page needs to look like it belongs to this house:
+   *   .btn-*    actions          .card-*   surfaces
+   *   .glass-*  frosted panes    .field    inputs
+   *   .rule-*   dividers
+   *
+   * THE DESIGN LANGUAGE, IN THREE RULES
+   *   1. NEUMORPHIC DEPTH — surfaces carry two lights (the `--shadow-neu*`
+   *      tokens): a cream highlight up-left, a navy shade down-right.
+   *   2. GLASS FOR LAYERS — anything that floats OVER content (menus, sticky
+   *      bars, overlays) is a frosted pane, never an opaque slab.
+   *   3. EDGES STAY VISIBLE — every surface keeps a 1px hairline as well as
+   *      its shadow. Soft shadow alone is the classic neumorphism failure for
+   *      low-vision users; the hairline is what carries the shape.
+   *
+   * RADIUS SCALE: controls `rounded-md`, cards and panes `rounded-xl`. Soft
+   * enough to read as modern, still squared enough for a tailor's house.
+   *
+   * KEPT-NAME NOTE: older call sites use `.btn-cream`, `.glass-card` and
+   * `.auth-input`; they remain as aliases of the semantic primitives.
+   *
+   * NOTE ON COMPOSITION: every variant repeats its full declaration set.
+   * Tailwind v4 refuses to `@apply` a class defined in the same layer, so the
+   * variants deliberately do not inherit from each other, and shared rules
+   * (focus, disabled) are written as selector LISTS.
+   */
+
+  /* ----------------------------------------------------------------------
+   * BUTTONS
+   * -------------------------------------------------------------------- */
+
+  /* PRIMARY — the navy action. Cream ink at 12.6:1; pressed turns black. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md font-sans font-semibold uppercase
+           transition-all duration-200 cursor-pointer focus-visible:outline-none
+           bg-hiraya-accent text-hiraya-on-accent border border-hiraya-accent-deep
+           px-7 py-3 text-[11px]
+           hover:bg-hiraya-accent-deep hover:-translate-y-px active:translate-y-px
+           disabled:cursor-not-allowed disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:border-hiraya-disabled-bg disabled:translate-y-0;
+    letter-spacing: 0.14em;
+    box-shadow:
+      inset 0 1px 0 rgba(247, 242, 231, 0.14),
+      -3px -3px 8px rgba(255, 255, 255, 0.65),
+      0 10px 22px -10px rgba(21, 32, 54, 0.6);
   }
 
   /*
-   * Input Styling.
-   *
-   * The field sits on the CREAM canvas, so it uses the raised sand-light surface
-   * as a filled well with olive ink — the same relationship a card has to the
-   * page. Placeholder copy is the muted sage step.
+   * SECONDARY — a frosted plate. Cream glass at 70% so the navy label keeps
+   * >= 7.9:1 even when the plate sits over a dark photo; fills navy on hover.
    */
-  .auth-input {
-    @apply w-full bg-hiraya-cream-deep border border-hiraya-olive/20 rounded-xl px-5 py-4 text-[16px] text-hiraya-ink
-           focus:outline-none focus:ring-2 focus:ring-hiraya-gold/60 focus:bg-hiraya-cream-deep
-           transition-all duration-300 placeholder:text-hiraya-sand font-normal;
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md font-sans font-semibold uppercase
+           transition-all duration-200 cursor-pointer focus-visible:outline-none
+           text-hiraya-ink border border-hiraya-ink/25 px-7 py-3 text-[11px]
+           hover:bg-hiraya-accent hover:text-hiraya-on-accent hover:border-hiraya-accent
+           active:translate-y-px
+           disabled:cursor-not-allowed disabled:text-hiraya-disabled-ink disabled:border-hiraya-disabled-bg disabled:bg-transparent;
+    letter-spacing: 0.14em;
+    background-color: rgba(252, 250, 245, 0.7);
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    box-shadow: var(--shadow-neu-sm);
   }
 
   /*
-   * Primary action button (the `.btn-cream` name is kept so every existing call
-   * site keeps working). Terracotta surface, CREAM ink.
-   *
-   * Olive ink on terracotta is ~1.4:1 — it disappears. Cream on terracotta is
-   * ~5.1:1, so the accent's own text is always cream, never the dark ink that is
-   * used ON LIGHT SURFACES. Those are two different jobs.
+   * QUIET — a text action with a rule that brightens on hover. Used for
+   * "view all", "back", and any tertiary path that must not compete.
    */
+  .btn-quiet {
+    @apply inline-flex items-center justify-center gap-2 rounded-sm font-sans font-semibold uppercase
+           transition-all duration-200 cursor-pointer focus-visible:outline-none
+           bg-transparent text-hiraya-ink border-0 border-b border-hiraya-ink/25 px-1 pb-1 text-[10px]
+           hover:text-hiraya-accent-soft hover:border-hiraya-accent-soft
+           disabled:cursor-not-allowed disabled:text-hiraya-disabled-ink disabled:border-transparent;
+    letter-spacing: 0.18em;
+  }
+
+  /*
+   * NEGATIVE — destructive paths only. The one sanctioned hue outside the
+   * palette: "delete" must read as danger before it reads as brand.
+   */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-md font-sans font-semibold uppercase
+           transition-all duration-200 cursor-pointer focus-visible:outline-none
+           bg-red-800 text-hiraya-on-accent border border-red-900 px-7 py-3 text-[11px]
+           hover:bg-red-900 active:translate-y-px
+           disabled:cursor-not-allowed disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:border-hiraya-disabled-bg;
+    letter-spacing: 0.14em;
+    box-shadow: 0 10px 22px -12px rgba(127, 29, 29, 0.6);
+  }
+
+  /* ICON — a square ruled plate for a lone glyph; lifts on the neumorphic light. */
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-md border border-hiraya-ink/18
+           bg-hiraya-surface text-hiraya-ink transition-all duration-200 cursor-pointer
+           hover:bg-hiraya-accent hover:text-hiraya-on-accent hover:border-hiraya-accent
+           focus-visible:outline-none
+           disabled:cursor-not-allowed disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:border-hiraya-disabled-bg;
+    box-shadow: var(--shadow-neu-sm);
+  }
+
+  /* LEGACY ALIAS — `.btn-cream` is the primary plate under an older name. */
   .btn-cream {
-    @apply bg-hiraya-gold text-hiraya-cream font-bold rounded-full
-           transition-all duration-300 hover:bg-hiraya-gold-deep hover:text-hiraya-olive active:scale-[0.98]
-           disabled:cursor-not-allowed disabled:bg-hiraya-sand disabled:text-hiraya-cream;
+    @apply inline-flex items-center justify-center gap-2 rounded-md font-sans font-semibold uppercase
+           transition-all duration-200 cursor-pointer focus-visible:outline-none
+           bg-hiraya-accent text-hiraya-on-accent border border-hiraya-accent-deep
+           px-7 py-3 text-[11px]
+           hover:bg-hiraya-accent-deep hover:-translate-y-px active:translate-y-px
+           disabled:cursor-not-allowed disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:border-hiraya-disabled-bg disabled:translate-y-0;
+    letter-spacing: 0.14em;
+    box-shadow:
+      inset 0 1px 0 rgba(247, 242, 231, 0.14),
+      -3px -3px 8px rgba(255, 255, 255, 0.65),
+      0 10px 22px -10px rgba(21, 32, 54, 0.6);
+  }
+
+  /* A disabled control is flat: no light, no lift. */
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-danger:disabled,
+  .btn-icon:disabled,
+  .btn-cream:disabled {
+    box-shadow: none;
   }
 
   /*
-   * Progress rail. Runs muted-sage -> cream -> terracotta, so the bar reads as
-   * moving toward the accent colour as the render completes.
+   * FOCUS — one ring, defined once. Navy-600 with a 2px offset, so the ring
+   * lands on the surface BEHIND the control and never merges into its fill.
+   */
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-quiet:focus-visible,
+  .btn-danger:focus-visible,
+  .btn-icon:focus-visible,
+  .btn-cream:focus-visible {
+    outline: 2px solid var(--color-hiraya-focus);
+    outline-offset: 2px;
+  }
+
+  /* ----------------------------------------------------------------------
+   * CARDS / SURFACES
+   *
+   * A card is a sheet of cream-50 stock lifted off the cream-100 canvas by the
+   * neumorphic pair of lights, with a hairline to keep its edge crisp.
+   * -------------------------------------------------------------------- */
+  .card {
+    @apply rounded-xl border border-hiraya-structure-line/80 bg-hiraya-surface;
+    box-shadow: var(--shadow-neu-sm);
+  }
+
+  /* The default raised panel — the full neumorphic lift. */
+  .card-raised {
+    @apply rounded-xl border border-hiraya-structure-line/80 bg-hiraya-surface;
+    box-shadow: var(--shadow-neu);
+  }
+
+  /* A raised card that carries the woven texture, for marketing surfaces. */
+  .card-woven {
+    @apply rounded-xl border border-hiraya-structure-line/80 bg-hiraya-surface;
+    background-image: var(--hiraya-weave);
+    box-shadow: var(--shadow-neu);
+  }
+
+  /* A deep navy panel for the console and any dark surface. 12.6:1 with cream ink. */
+  .card-deep {
+    @apply rounded-xl border border-hiraya-nav-ink/12 bg-hiraya-structure text-hiraya-on-structure;
+    box-shadow: var(--shadow-neu-dark);
+  }
+
+  /*
+   * --------------------------------------------------------------------
+   * GLASSMORPHISM — frosted panes for anything that floats over content.
+   * --------------------------------------------------------------------
+   *
+   *   FILL     cream-50 at 78%. Over the WORST case (a dark photo) the pane
+   *            resolves to ~#C7C5C7 and navy ink still holds 9.2:1; over the
+   *            canvas it is effectively solid cream (15:1).
+   *   BLUR     18px with a saturation lift — glass transmits colour, fog
+   *            does not, and that lift is the difference.
+   *   EDGE     a cream hairline plus an inset top catch-light (the
+   *            `--shadow-glass` token), which is what tells the eye the
+   *            surface is a physical pane rather than a flat rectangle.
+   */
+  .glass {
+    @apply rounded-xl border border-cream-50/70;
+    background-color: rgba(252, 250, 245, 0.78);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /*
+   * GLASS, DEEP — the same pane in navy-950, for anything over a dark
+   * surface (console header, sidebar footer, the storefront bar once it
+   * floats). Cream ink holds 13:1+ on the resolved pane.
+   */
+  .glass-deep {
+    @apply rounded-xl border border-hiraya-nav-ink/12 text-hiraya-nav-ink;
+    background-color: rgba(13, 21, 36, 0.78);
+    backdrop-filter: blur(18px) saturate(1.3);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3);
+    box-shadow:
+      inset 0 1px 0 rgba(247, 242, 231, 0.08),
+      var(--shadow-neu-dark);
+  }
+
+  /*
+   * GLASS, QUIET — a lighter pane for chips and pills that sit ON a photo,
+   * where a solid fill would punch a hole in the composition.
+   */
+  .glass-quiet {
+    background-color: rgba(252, 250, 245, 0.7);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  }
+
+  /* LEGACY ALIAS — `.glass-card` resolves to the standard pane. */
+  .glass-card {
+    @apply rounded-xl border border-cream-50/70;
+    background-color: rgba(252, 250, 245, 0.78);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* ----------------------------------------------------------------------
+   * FIELDS — pressed INTO the paper (the inset neumorphic light), so an
+   * input reads as a well to fill rather than another raised card.
+   * -------------------------------------------------------------------- */
+  .field {
+    @apply w-full rounded-lg border border-hiraya-ink/15 bg-hiraya-surface-sunken/55
+           px-4 py-3 text-[14px] font-normal text-hiraya-ink
+           placeholder:text-hiraya-ink-muted
+           focus:outline-none focus:border-hiraya-accent-soft focus:bg-hiraya-surface-raised
+           transition-colors duration-200;
+    box-shadow: var(--shadow-neu-inset);
+  }
+
+  /*
+   * Focus keeps the inset well and adds a 3px navy wash ring — a chalk mark
+   * against the field edge rather than a glow.
+   */
+  .field:focus {
+    box-shadow: var(--shadow-neu-inset), 0 0 0 3px rgba(54, 74, 106, 0.2);
+  }
+
+  /* LEGACY ALIAS — `.auth-input` repeats the field declarations for v4. */
+  .auth-input {
+    @apply w-full rounded-lg border border-hiraya-ink/15 bg-hiraya-surface-sunken/55
+           px-4 py-3 text-[14px] font-normal text-hiraya-ink
+           placeholder:text-hiraya-ink-muted
+           focus:outline-none focus:border-hiraya-accent-soft focus:bg-hiraya-surface-raised
+           transition-colors duration-200;
+    box-shadow: var(--shadow-neu-inset);
+  }
+
+  .auth-input:focus {
+    box-shadow: var(--shadow-neu-inset), 0 0 0 3px rgba(54, 74, 106, 0.2);
+  }
+
+  /*
+   * SANCTIONED BUTTON — a completed step or a confirmed fact. Not an action.
+   */
+  .btn-sanctioned {
+    @apply inline-flex items-center gap-2 rounded-md border border-hiraya-accent/30
+           bg-hiraya-accent-wash px-3 py-1.5 text-[10px] font-semibold uppercase
+           text-hiraya-accent;
+    letter-spacing: 0.16em;
+  }
+
+  /* ----------------------------------------------------------------------
+   * RULES AND DIVIDERS
+   * -------------------------------------------------------------------- */
+
+  /* A full-width hairline in the paper tone. */
+  .rule {
+    height: 1px;
+    background-color: var(--color-hiraya-structure-line);
+  }
+
+  /*
+   * A DOUBLE RULE — two hairlines with a gap.
+   * Stationery convention for "this is a real boundary".
+   */
+  .rule-double {
+    height: 4px;
+    border-top: 1px solid var(--color-hiraya-structure-line);
+    border-bottom: 1px solid var(--color-hiraya-structure-line);
+  }
+
+  /* A short centred navy rule, for under a display heading. */
+  .rule-accent {
+    width: 54px;
+    height: 2px;
+    background-color: var(--color-hiraya-accent);
+  }
+
+  /*
+   * SECTION HEADING BLOCK — kicker + title + optional accent rule.
+   * Wrapping the pattern once means every section header in the app has
+   * identical rhythm, which is most of what "elegant" actually means.
+   */
+  .section-head {
+    @apply flex flex-col gap-3;
+  }
+
+  /*
+   * PAGE RHYTHM — one container, one vertical beat, one section-title scale.
+   * Marketing pages compose from these so every block shares the same side
+   * gutters, the same breathing room and the same headline size.
+   */
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-6 sm:px-10;
+  }
+
+  .section-y {
+    @apply py-20 lg:py-28;
+  }
+
+  .display-section {
+    @apply font-serif uppercase text-[clamp(2rem,4vw,3.4rem)] leading-[1.06] tracking-[0.04em];
+  }
+
+  /*
+   * SPOTLIGHT — a soft light that follows the pointer across a card (the
+   * glass "catch-light"). The pointer handler writes --mx / --my; the light
+   * sits behind the card's content (z -1 inside an isolated stack) so it can
+   * never wash out text. Tint with --spotlight on dark cards.
+   */
+  .spotlight {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .spotlight::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: radial-gradient(
+      340px circle at var(--mx, 50%) var(--my, 50%),
+      var(--spotlight, rgba(255, 255, 255, 0.7)),
+      transparent 65%
+    );
+  }
+
+  .spotlight:hover::before {
+    opacity: 1;
+  }
+
+  /* ----------------------------------------------------------------------
+   * TABLES — ruled stock, not a spreadsheet.
+   * -------------------------------------------------------------------- */
+  .table-heritage {
+    @apply w-full text-left text-[12px];
+  }
+
+  .table-heritage thead th {
+    @apply border-b border-hiraya-accent/25 pb-2.5 text-[9px] font-semibold uppercase text-hiraya-ink-muted;
+    letter-spacing: 0.2em;
+  }
+
+  .table-heritage tbody td {
+    @apply border-b border-hiraya-structure-line/70 py-3 text-hiraya-ink align-middle;
+  }
+
+  .table-heritage tbody tr:hover td {
+    @apply bg-hiraya-surface-sunken/60;
+  }
+
+  /*
+   * Progress rail. Runs navy -> soft navy -> brass cream, so the bar reads as
+   * warming toward the finished look as the render completes.
    */
   .cream-progress {
-    background-image: linear-gradient(to right, #A5A58D, #FFE8D6, #CB997E);
-    box-shadow: 0 0 12px rgba(203, 153, 126, 0.55);
+    background-image: linear-gradient(to right, #1D2C45, #687A98, #D3C09C);
+    box-shadow: 0 0 12px rgba(29, 44, 69, 0.35);
   }
 
-  /* Soft terracotta skeleton shimmer for the in-canvas loading state. */
+  /* Soft navy skeleton shimmer for the in-canvas loading state. */
   .cream-skeleton {
     background-image: linear-gradient(
       to bottom,
-      rgba(203, 153, 126, 0.10),
-      rgba(255, 232, 214, 0.06),
-      rgba(203, 153, 126, 0.10)
+      rgba(21, 32, 54, 0.08),
+      rgba(247, 242, 231, 0.35),
+      rgba(21, 32, 54, 0.08)
     );
   }
 
   /*
    * Loading shimmer used while a garment is having its background removed in
-   * the Style Stack. A moving sheen over a faint terracotta wash makes the wait
-   * feel intentional instead of broken.
+   * the Style Stack. A moving cream sheen over a faint navy wash makes the
+   * wait feel intentional instead of broken.
    */
   .gold-shimmer {
     background-image: linear-gradient(
       100deg,
-      rgba(203, 153, 126, 0.08) 20%,
-      rgba(255, 232, 214, 0.26) 40%,
-      rgba(203, 153, 126, 0.08) 60%
+      rgba(21, 32, 54, 0.07) 20%,
+      rgba(252, 250, 245, 0.55) 40%,
+      rgba(21, 32, 54, 0.07) 60%
     );
     background-size: 220% 100%;
     animation: gold-shimmer 1.6s linear infinite;
@@ -247,6 +1014,43 @@
   @keyframes gold-shimmer {
     from { background-position: 180% 0; }
     to   { background-position: -80% 0; }
+  }
+
+  /*
+   * INDETERMINATE RAIL — a navy segment travelling along a hairline track,
+   * for waits with no measurable progress (session restore, page shells).
+   */
+  .progress-indeterminate {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-indeterminate::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    border-radius: inherit;
+    background-color: var(--color-hiraya-accent);
+    animation: hiraya-indeterminate 1.3s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+
+  @keyframes hiraya-indeterminate {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(250%); }
+  }
+
+  /* The Shop stage's autoplay thread: it fills once per piece, and its
+     `animationend` is what advances the carousel (so pausing the animation
+     pauses the timer too). */
+  @keyframes hiraya-stage-progress {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gold-shimmer { animation: none; }
+    .progress-indeterminate::after { animation: none; left: 30%; }
   }
 
 }

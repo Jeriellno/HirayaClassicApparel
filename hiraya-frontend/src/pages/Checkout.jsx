@@ -1,8 +1,9 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, AlertTriangle, CheckCircle2, Truck } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
+import Currency from '../components/common/Currency';
 import PaymentInstructions from '../components/common/PaymentInstructions';
 
 const Checkout = () => {
@@ -24,6 +25,7 @@ const Checkout = () => {
   });
 
   const [dpProof, setDpProof] = useState(null);
+  const [dpReference, setDpReference] = useState('');
   const [agreed, setAgreed] = useState(false);
 
   // The backend prices the order server-side, so what we forward is the
@@ -78,6 +80,10 @@ const Checkout = () => {
       setErrorMessage('Please upload your 50% down payment receipt.');
       return;
     }
+    if (dpReference.trim().length < 4) {
+      setErrorMessage('Please enter the reference number from your GCash or bank receipt.');
+      return;
+    }
 
     // Guard: checkout needs something to actually order. Without this the
     // backend rejects the request with a confusing 422.
@@ -97,6 +103,7 @@ const Checkout = () => {
       payload.append('delivery_address', formData.delivery_address);
       payload.append('courier', formData.courier);
       payload.append('dp_proof_image', dpProof);
+      payload.append('dp_reference_number', dpReference.trim());
 
       // Tell the backend which path this is, so it clears the bag only for
       // genuine cart checkouts.
@@ -137,27 +144,31 @@ const Checkout = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-hiraya-bg flex items-center justify-center px-6 pt-24 pb-20 text-hiraya-ink">
-        <div className="max-w-md w-full glass-card bg-white/[0.03] border-[#CB997E]/20 rounded-2xl p-10 text-center">
-          <CheckCircle2 className="w-14 h-14 text-hiraya-ink mx-auto mb-6" />
-          <h2 className="text-2xl font-light uppercase tracking-[0.2em] mb-3 text-hiraya-ink">Order Received</h2>
-          <p className="text-xs text-hiraya-ink leading-relaxed mb-6">
+      <div className="flex min-h-screen items-center justify-center px-6 pb-20 pt-24 text-hiraya-ink">
+        <div className="glass w-full max-w-md p-10 text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-cream-100 shadow-neu ring-1 ring-cream-50">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-hiraya-accent text-hiraya-on-accent">
+              <CheckCircle2 className="h-6 w-6" />
+            </span>
+          </div>
+          <h2 className="display-md text-hiraya-ink">Order Received</h2>
+          <p className="mt-3 text-xs leading-relaxed text-hiraya-ink-soft">
             We have received your down payment proof. Our team will verify it and update your order
             status within the 3:00 PM same-day processing cutoff.
           </p>
 
-          <PaymentInstructions amount={dpAmount} amountLabel="Down payment sent" className="text-left mb-8" />
+          <PaymentInstructions amount={dpAmount} amountLabel="Down payment sent" className="mb-8 mt-6 text-left" />
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col justify-center gap-3 sm:flex-row">
             <button
               onClick={() => navigate('/orders')}
-              className="px-8 py-3 bg-[#CB997E] text-hiraya-ink text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:bg-hiraya-cream-deep transition"
+              className="btn-primary w-full rounded-full sm:w-auto"
             >
               Track My Order
             </button>
             <button
               onClick={() => navigate('/')}
-              className="px-8 py-3 border-hiraya-olive/20 text-hiraya-ink text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:border-hiraya-olive/60 transition"
+              className="btn-secondary w-full rounded-full sm:w-auto"
             >
               Back to Store
             </button>
@@ -168,53 +179,68 @@ const Checkout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-hiraya-bg px-6 md:px-20 pt-32 pb-20 text-hiraya-ink">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-10">
-          <h2 className="text-4xl font-light uppercase tracking-[0.3em] text-hiraya-ink">Checkout</h2>
-          <p className="text-[10px] text-hiraya-ink font-black uppercase tracking-widest mt-2">
-            Secure your order with a 50% down payment
-          </p>
+    <div className="container-page min-h-screen pb-24 pt-32 text-hiraya-ink">
+      <div className="mx-auto max-w-6xl">
+        {/*
+         * THE PAGE HEADING, ON THE SHARED EDITORIAL DEVICE.
+         *
+         * This was a 4xl/-font-light heading with 0.3em tracking sitting above a
+         * second `font-black` uppercase line — neither of which the rest of the
+         * app uses any more. It is now the same `.kicker` + `.display-lg` pair
+         * every other page opens with, so Checkout reads as part of the house.
+         */}
+        <div className="section-head mb-10 border-b border-hiraya-structure-line pb-8">
+          <span className="kicker text-hiraya-ink-muted">Secure your order with a 50% down payment</span>
+          <h1 className="display-section mt-2 text-navy-900">Checkout</h1>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* ORDER GUIDELINES CARD */}
           <div className="lg:col-span-1">
-            <div className="glass-card bg-white/[0.03] border-[#CB997E]/20 rounded-2xl p-6 sticky top-28">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-4">
+            <div data-tour="checkout-guidelines" className="card-raised rounded-[24px] p-6 sm:p-7 lg:sticky lg:top-28">
+              <h3 className="mb-4 border-b border-hiraya-structure-line pb-3 text-xs font-semibold uppercase tracking-[0.18em] text-hiraya-ink">
                 Order Guidelines
               </h3>
-              <ul className="space-y-3 text-[11px] text-hiraya-ink leading-relaxed">
+              <ul className="space-y-3 text-[11px] leading-relaxed text-hiraya-ink-soft">
                 <li className="flex gap-2">
-                  <span className="text-hiraya-ink">•</span>
+                  <span className="text-hiraya-accent">·</span>
                   Orders placed before <strong className="text-hiraya-ink">3:00 PM</strong> are processed the same day.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-hiraya-ink">•</span>
+                  <span className="text-hiraya-accent">·</span>
                   A <strong className="text-hiraya-ink">50% down payment (PAYO)</strong> is required to secure your order.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-hiraya-ink">•</span>
+                  <span className="text-hiraya-accent">·</span>
                   The remaining balance must be settled <strong className="text-hiraya-ink">before shipping</strong>.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-hiraya-ink">•</span>
+                  <span className="text-hiraya-accent">·</span>
                   Down payments are <strong className="text-hiraya-ink">non-refundable</strong>.
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-hiraya-ink">•</span>
+                  <span className="text-hiraya-accent">·</span>
                   All sales are <strong className="text-hiraya-ink">final</strong> once payment is confirmed.
                 </li>
               </ul>
 
-              <label className="flex items-start gap-3 mt-6 pt-5 border-t border-hiraya-olive/15 cursor-pointer">
+              {/**
+                * THE GUIDELINES CHECKBOX USES THE SAME NATIVE-CONTROL TREATMENT
+                * AS THE AUTH FORMS.
+                *
+                * `accent-[#541A1A]` was a raw hex in a className; it is now
+                * `accent-hiraya-accent`, which is the identical colour through the
+                * token. The `focus:ring-0` is kept so the browser's default blue
+                * focus halo never fights the system's maroon ring.
+                */}
+              <label className="mt-6 flex cursor-pointer items-start gap-3 border-t border-hiraya-structure-line pt-5">
                 <input
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 accent-[#CB997E]"
+                  className="mt-0.5 cursor-pointer accent-hiraya-accent focus:ring-0"
                 />
-                <span className="text-[11px] text-hiraya-ink leading-relaxed">
+                <span className="text-[11px] leading-relaxed text-hiraya-ink">
                   I have read and agree to the order guidelines above.
                 </span>
               </label>
@@ -222,16 +248,17 @@ const Checkout = () => {
           </div>
 
           {/* CHECKOUT FORM */}
-          <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 lg:col-span-2">
             {/* Shipping Details */}
-            <div className="glass-card bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-5">
+            <div data-tour="checkout-shipping" className="card-raised rounded-[24px] p-6 sm:p-7">
+              <h3 className="mb-6 flex items-center gap-3 border-b border-hiraya-structure-line pb-4 text-xs font-semibold uppercase tracking-[0.18em] text-hiraya-ink">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 font-serif text-[0.8rem] text-cream-100">1</span>
                 Shipping Details
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                     Full Name
                   </label>
                   <input
@@ -239,13 +266,13 @@ const Checkout = () => {
                     value={formData.customer_name}
                     onChange={handleChange}
                     required
-                    className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-sm focus:border-[#CB997E] outline-none transition"
+                    className="field"
                     placeholder="Juan Dela Cruz"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                     Contact Number
                   </label>
                   <input
@@ -253,13 +280,13 @@ const Checkout = () => {
                     value={formData.contact_number}
                     onChange={handleChange}
                     required
-                    className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-sm focus:border-[#CB997E] outline-none transition"
+                    className="field"
                     placeholder="09XX XXX XXXX"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                     Complete Delivery Address
                   </label>
                   <textarea
@@ -268,7 +295,7 @@ const Checkout = () => {
                     onChange={handleChange}
                     required
                     rows={3}
-                    className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-sm focus:border-[#CB997E] outline-none transition resize-none"
+                    className="field resize-none"
                     placeholder="House No., Street, Barangay, City, Province, ZIP"
                   />
                 </div>
@@ -276,9 +303,10 @@ const Checkout = () => {
             </div>
 
             {/* Courier Selection */}
-            <div className="glass-card bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-5 flex items-center gap-2">
-                <Truck className="w-4 h-4" /> Courier
+            <div data-tour="checkout-courier" className="card-raised rounded-[24px] p-6 sm:p-7">
+              <h3 className="mb-6 flex items-center gap-3 border-b border-hiraya-structure-line pb-4 text-xs font-semibold uppercase tracking-[0.18em] text-hiraya-ink">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 font-serif text-[0.8rem] text-cream-100">2</span>
+                <Truck className="h-4 w-4 text-hiraya-accent" /> Courier
               </h3>
 
               <div className="grid grid-cols-2 gap-4">
@@ -288,9 +316,9 @@ const Checkout = () => {
                 ].map((option) => (
                   <label
                     key={option.value}
-                    className={`cursor-pointer rounded-xl border px-4 py-4 text-center transition ${formData.courier === option.value
-                        ? 'border-[#CB997E] bg-[#CB997E]/10'
-                        : 'border-hiraya-olive/15 bg-hiraya-cream/30 hover:border-hiraya-olive/30'
+                    className={`cursor-pointer rounded-2xl border px-4 py-5 text-center transition-all duration-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-hiraya-focus ${formData.courier === option.value
+                        ? 'border-hiraya-accent-deep bg-hiraya-accent text-hiraya-on-accent shadow-[0_12px_24px_-14px_rgba(21,32,54,0.8)]'
+                        : 'border-cream-50/80 bg-hiraya-surface text-hiraya-ink shadow-neu-sm hover:-translate-y-0.5'
                       }`}
                   >
                     <input
@@ -299,16 +327,16 @@ const Checkout = () => {
                       value={option.value}
                       checked={formData.courier === option.value}
                       onChange={handleChange}
-                      className="hidden"
+                      className="sr-only"
                     />
-                    <span className="text-xs font-bold uppercase tracking-widest">{option.label}</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.16em]">{option.label}</span>
                   </label>
                 ))}
               </div>
 
               {formData.courier === 'lalamove' && (
-                <div className="mt-4 flex items-start gap-2 text-[11px] text-hiraya-ink/90 bg-hiraya-cream/10 border-hiraya-olive/15 rounded-lg px-4 py-3">
-                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-hiraya-accent/20 bg-hiraya-accent-wash px-4 py-3 text-[11px] text-hiraya-ink">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-hiraya-accent" />
                   <span>
                     Note: You will be responsible for booking the courier once the item is ready.
                   </span>
@@ -317,13 +345,14 @@ const Checkout = () => {
             </div>
 
             {/* Payment */}
-            <div className="glass-card bg-white/[0.03] border-hiraya-olive/15 rounded-2xl p-6">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-hiraya-ink mb-5">
+            <div data-tour="checkout-payment" className="card-raised rounded-[24px] p-6 sm:p-7">
+              <h3 className="mb-6 flex items-center gap-3 border-b border-hiraya-structure-line pb-4 text-xs font-semibold uppercase tracking-[0.18em] text-hiraya-ink">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 font-serif text-[0.8rem] text-cream-100">3</span>
                 Payment
               </h3>
 
               <div className="mb-5">
-                <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
+                <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                   Your Items
                 </label>
 
@@ -339,68 +368,109 @@ const Checkout = () => {
                     return (
                       <li
                         key={`${item.product_id}-${index}`}
-                        className="flex items-center justify-between gap-3 bg-hiraya-cream/30 rounded-lg px-3 py-2.5 text-[11px]"
+                        className="flex items-center justify-between gap-3 rounded-xl bg-cream-200/60 px-4 py-3 text-[11px] shadow-neu-inset"
                       >
-                        <span className="text-hiraya-ink min-w-0 truncate">
+                        <span className="min-w-0 truncate text-hiraya-ink">
                           {label}
-                          <span className="text-hiraya-sand">
+                          <span className="text-hiraya-ink-muted">
                             {' '}
                             {item.size ? `· ${item.size}` : ''}
                             {item.color ? ` · ${item.color}` : ''}
                             {` × ${item.quantity}`}
                           </span>
                         </span>
-                        <span className="text-hiraya-ink shrink-0">
-                          ₱{(Number(unitPrice) * Number(item.quantity)).toFixed(2)}
-                        </span>
+                        {/*
+                          * THE PESO IS ROUTED THROUGH <Currency>.
+                          *
+                          * This line hard-coded `` as a literal, and the file
+                          * had stored it as a mojibake pair — so the line total
+                          * rendered as two junk glyphs rather than a peso sign.
+                          * <Currency> pins the glyph-safe stack, which is exactly
+                          * the problem that component was written to solve.
+                          */}
+                        <Currency
+                          amount={Number(unitPrice) * Number(item.quantity)}
+                          className="shrink-0 text-hiraya-ink"
+                        />
                       </li>
                     );
                   })}
                 </ul>
 
-                <p className="text-[10px] text-hiraya-sand mt-3 leading-relaxed">
+                <p className="mt-3 text-[10px] leading-relaxed text-hiraya-ink-muted">
                   Your total is verified against live prices on our server when you submit.
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-5 text-center">
-                <div className="bg-[#CB997E]/10 border-[#CB997E]/30 rounded-xl py-4">
-                  <p className="text-[9px] uppercase tracking-widest text-hiraya-ink mb-1">
+              <div className="mb-5 grid grid-cols-2 gap-4 text-center">
+                <div className="rounded-2xl bg-navy-900 py-4 shadow-[0_12px_24px_-14px_rgba(21,32,54,0.8)]">
+                  <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-cream-400">
                     50% Down Payment
                   </p>
-                  <p className="text-lg font-light text-hiraya-ink">₱{dpAmount}</p>
+                  <Currency amount={dpAmount} className="text-lg font-semibold text-cream-50" />
                 </div>
-                <div className="bg-hiraya-cream/30 border-hiraya-olive/15 rounded-xl py-4">
-                  <p className="text-[9px] uppercase tracking-widest text-hiraya-ink mb-1">
+                <div className="rounded-2xl bg-cream-200/60 py-4 shadow-neu-inset">
+                  <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                     Balance Before Shipping
                   </p>
-                  <p className="text-lg font-light">₱{balance}</p>
+                  <Currency amount={balance} className="text-lg font-semibold text-hiraya-ink" />
                 </div>
               </div>
 
-              <label className="block text-[10px] uppercase tracking-widest text-hiraya-ink mb-2">
+              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
                 Upload Down Payment Receipt
               </label>
+              {/*
+                * THE FILE INPUT STILL USES THE NATIVE `file:` BUTTON, because a
+                * visually-hidden input plus a styled label would have changed the
+                * control's behaviour (drag-and-drop, keyboard focus order). Only
+                * its COLOURS moved onto tokens: `file:bg-[#541A1A]` is now
+                * `file:bg-hiraya-accent`, and the raw `border-hiraya-olive/15`
+                * ground is the shared `.field` surface.
+                */}
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setDpProof(e.target.files[0])}
-                className="w-full bg-hiraya-cream/30 border-hiraya-olive/15 rounded-lg px-4 py-3 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#CB997E] file:text-hiraya-olive file:text-[10px] file:font-black file:uppercase file:tracking-widest hover:file:bg-hiraya-cream-deep transition"
+                className="field cursor-pointer text-xs file:mr-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-hiraya-accent file:px-4 file:py-2 file:text-[10px] file:font-semibold file:uppercase file:tracking-[0.16em] file:text-hiraya-on-accent hover:file:bg-hiraya-accent-deep"
               />
+
+              <label
+                htmlFor="dp_reference_number"
+                className="mb-2 mt-5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted"
+              >
+                Payment Reference Number
+              </label>
+              <input
+                id="dp_reference_number"
+                type="text"
+                value={dpReference}
+                onChange={(e) => setDpReference(e.target.value)}
+                required
+                minLength={4}
+                maxLength={64}
+                autoComplete="off"
+                className="field"
+                placeholder="e.g. GCash Ref. No. 1234 567 890123"
+              />
+              <p className="mt-2 text-[10px] text-hiraya-ink-muted">
+                Printed on your GCash or bank receipt. We match it against our records to verify your payment.
+              </p>
             </div>
 
             {errorMessage && (
-              <div className="text-[11px] text-red-400 bg-red-500/10 border-red-500/30 rounded-lg px-4 py-3">
+              <div className="rounded-xl border border-red-600/40 bg-red-500/12 px-4 py-3 text-[11px] text-red-700">
                 {errorMessage}
               </div>
             )}
 
             <button
               type="submit"
+              data-tour="checkout-submit"
               disabled={loading}
-              className="w-full py-4 bg-[#CB997E] text-hiraya-olive text-xs font-black uppercase tracking-[0.2em] rounded-lg hover:bg-hiraya-cream-deep transition disabled:opacity-50 flex items-center justify-center gap-2"
+              className="btn-primary w-full rounded-full py-4"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? 'Submitting Order...' : 'Submit Order & Down Payment'}
             </button>
           </form>

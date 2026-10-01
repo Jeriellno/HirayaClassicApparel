@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Check, Loader2, Shirt, Sparkles } from 'lucide-react';
 import { useTransparentImage } from '../hooks/useTransparentImage';
@@ -107,7 +107,7 @@ const CarouselSlot = ({ garment, offset, isFocused, isSelected, isDisabled, onFo
           'bg-gradient-to-b from-hiraya-sand/90 to-hiraya-bg/90 backdrop-blur-sm transition-colors duration-300',
           isFocused
             ? 'border-hiraya-gold/70 shadow-[0_0_28px_rgba(245,235,224,0.30)]'
-            : 'border-hiraya-sand/30 hover:border-hiraya-olive/20',
+            : 'border-hiraya-olive/25 hover:border-hiraya-olive/20',
           isDisabled ? 'pointer-events-none' : '',
         ].join(' ')}
       >
@@ -121,8 +121,8 @@ const CarouselSlot = ({ garment, offset, isFocused, isSelected, isDisabled, onFo
         {garment.source && (
           <span
             className={`absolute left-2 top-2 z-10 rounded-full border px-2 py-0.5 text-[7px] font-black uppercase tracking-wider ${garment.source === 'bag'
-              ? 'border-hiraya-gold/50 bg-[#CB997E]/15 text-hiraya-ink'
-              : 'border-sky-400/40 bg-sky-400/10 text-sky-300'
+              ? 'border-hiraya-gold/50 bg-[#541A1A]/15 text-hiraya-ink'
+              : 'border-sky-600/40 bg-sky-400/10 text-sky-800'
               }`}
           >
             {garment.source === 'bag' ? 'Bag' : 'For You'}
@@ -131,7 +131,7 @@ const CarouselSlot = ({ garment, offset, isFocused, isSelected, isDisabled, onFo
 
         {/* Selected check */}
         {isSelected && (
-          <div className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#CB997E] text-hiraya-olive shadow-lg shadow-stone-200/20">
+          <div className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-[#541A1A] text-hiraya-on-accent shadow-lg shadow-stone-200/20">
             <Check size={13} strokeWidth={3} />
           </div>
         )}
@@ -148,8 +148,8 @@ const CarouselSlot = ({ garment, offset, isFocused, isSelected, isDisabled, onFo
           />
           {isProcessing && (
             <span
-              className="pointer-events-none absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-hiraya-cream/50"
-              title="Enhancing cut-out…"
+              className="pointer-events-none absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-hiraya-peach/60"
+              title="Enhancing cut-out”¦"
             >
               <Loader2 size={10} className="animate-spin text-hiraya-ink" />
             </span>
@@ -167,7 +167,7 @@ const CarouselSlot = ({ garment, offset, isFocused, isSelected, isDisabled, onFo
             </p>
           )}
           <p className={`mt-0.5 font-extrabold text-hiraya-ink ${isFocused ? 'text-xs' : 'text-[10px]'}`}>
-            ₱{Number(garment.price || 0).toLocaleString()}
+            â‚±{Number(garment.price || 0).toLocaleString()}
           </p>
         </div>
 
@@ -181,8 +181,8 @@ const CarouselSlot = ({ garment, offset, isFocused, isSelected, isDisabled, onFo
               onActivate?.(garment);
             }}
             className={`mt-2 w-full rounded-xl py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${isSelected
-              ? 'bg-[#CB997E]/15 text-hiraya-ink hover:bg-[#CB997E]/30'
-              : 'bg-[#CB997E] text-hiraya-olive hover:bg-hiraya-cream-deep'
+              ? 'bg-[#541A1A]/15 text-hiraya-ink hover:bg-[#541A1A]/30'
+              : 'bg-[#541A1A] text-hiraya-on-accent hover:bg-hiraya-gold-deep'
               }`}
           >
             {isSelected ? 'Wearing' : 'Wear This'}
@@ -228,7 +228,7 @@ const CategoryCarousel = ({ items, selectedId, isDisabled, onActivate, focusedIn
 
   if (!count) {
     return (
-      <div className="rounded-2xl border-dashed border-hiraya-sand/30 bg-hiraya-sand p-6 text-center">
+      <div className="rounded-2xl border-dashed border-hiraya-olive/25 bg-hiraya-sand p-6 text-center">
         <p className="text-[10px] italic text-hiraya-sand">Nothing in this layer yet</p>
       </div>
     );
@@ -274,7 +274,7 @@ const CategoryCarousel = ({ items, selectedId, isDisabled, onActivate, focusedIn
           onClick={() => step(-1)}
           disabled={count < 2}
           aria-label="Previous garment"
-          className="flex h-7 w-7 items-center justify-center rounded-full border-hiraya-sand/30 bg-hiraya-cream/50 text-hiraya-sand transition-colors hover:border-hiraya-gold/50 hover:text-hiraya-ink disabled:opacity-30"
+          className="flex h-7 w-7 items-center justify-center rounded-full border-hiraya-olive/25 bg-hiraya-peach/60 text-hiraya-sand transition-colors hover:border-hiraya-gold/50 hover:text-hiraya-ink disabled:opacity-30"
         >
           <ChevronLeft size={14} />
         </button>
@@ -286,7 +286,7 @@ const CategoryCarousel = ({ items, selectedId, isDisabled, onActivate, focusedIn
               type="button"
               onClick={() => goTo(i)}
               aria-label={`Go to garment ${i + 1}`}
-              className={`h-1.5 rounded-full transition-all ${i === safeIndex ? 'w-5 bg-[#CB997E]' : 'w-1.5 bg-hiraya-sand/80 hover:bg-hiraya-sand'}`}
+              className={`h-1.5 rounded-full transition-all ${i === safeIndex ? 'w-5 bg-[#541A1A]' : 'w-1.5 bg-hiraya-sand/80 hover:bg-hiraya-sand'}`}
             />
           ))}
         </div>
@@ -296,7 +296,7 @@ const CategoryCarousel = ({ items, selectedId, isDisabled, onActivate, focusedIn
           onClick={() => step(1)}
           disabled={count < 2}
           aria-label="Next garment"
-          className="flex h-7 w-7 items-center justify-center rounded-full border-hiraya-sand/30 bg-hiraya-cream/50 text-hiraya-sand transition-colors hover:border-hiraya-gold/50 hover:text-hiraya-ink disabled:opacity-30"
+          className="flex h-7 w-7 items-center justify-center rounded-full border-hiraya-olive/25 bg-hiraya-peach/60 text-hiraya-sand transition-colors hover:border-hiraya-gold/50 hover:text-hiraya-ink disabled:opacity-30"
         >
           <ChevronRight size={14} />
         </button>
@@ -400,14 +400,14 @@ export const StyleStackCarousel = ({
               className={[
                 'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all',
                 isActive
-                  ? 'border-hiraya-gold/60 bg-[#CB997E]/15 text-hiraya-ink'
-                  : 'border-hiraya-sand/30 bg-hiraya-cream/40 text-hiraya-sand hover:border-hiraya-olive/20 hover:text-hiraya-ink',
+                  ? 'border-hiraya-gold/60 bg-[#541A1A]/15 text-hiraya-ink'
+                  : 'border-hiraya-olive/25 bg-hiraya-peach/50 text-hiraya-sand hover:border-hiraya-olive/20 hover:text-hiraya-ink',
                 isTabDisabled ? 'cursor-not-allowed opacity-30' : '',
               ].join(' ')}
             >
               {Icon ? <Icon size={12} /> : null}
               {meta.label || catKey}
-              <span className={`rounded-full px-1.5 text-[8px] ${isActive ? 'bg-[#CB997E]/30 text-hiraya-ink' : 'bg-hiraya-sand/70 text-hiraya-sand'}`}>
+              <span className={`rounded-full px-1.5 text-[8px] ${isActive ? 'bg-[#541A1A]/30 text-hiraya-ink' : 'bg-hiraya-disabled-bg text-hiraya-disabled-ink'}`}>
                 {count}
               </span>
             </button>
@@ -416,7 +416,7 @@ export const StyleStackCarousel = ({
       </div>
 
       {/* CAROUSEL STAGE */}
-      <div className="relative overflow-hidden rounded-3xl border-hiraya-sand/30 bg-gradient-to-b from-hiraya-bg/60 to-hiraya-bg/60 p-3 pt-5">
+      <div className="relative overflow-hidden rounded-3xl border-hiraya-olive/25 bg-gradient-to-b from-hiraya-bg/60 to-hiraya-bg/60 p-3 pt-5">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <Loader2 size={22} className="animate-spin text-hiraya-ink" />
@@ -444,7 +444,7 @@ export const StyleStackCarousel = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="flex items-center justify-between rounded-2xl border-hiraya-sand/30 bg-hiraya-sand/80 px-4 py-3"
+            className="flex items-center justify-between rounded-2xl border-hiraya-olive/25 bg-hiraya-sand/80 px-4 py-3"
           >
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-hiraya-sand">
@@ -458,7 +458,7 @@ export const StyleStackCarousel = ({
             <div className="shrink-0 text-right">
               <p className="text-[9px] uppercase tracking-widest text-hiraya-sand">Price</p>
               <p className="text-sm font-extrabold text-hiraya-ink">
-                ₱{Number(focusedGarment.price || 0).toLocaleString()}
+                â‚±{Number(focusedGarment.price || 0).toLocaleString()}
               </p>
               {selectedForCategory?.id === focusedGarment.id && (
                 <span className="mt-1 inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-hiraya-ink">

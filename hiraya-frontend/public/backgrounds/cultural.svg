@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1250" viewBox="0 0 1000 1250">
+  <!-- Cultural / Traditional: a bahay-na-bato interior with capiz windows and narra floors. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5E3D27"/>
+      <stop offset="1" stop-color="#3A2418"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8A5A34"/>
+      <stop offset="1" stop-color="#5E3A20"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE3AE" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#FFE3AE" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="capiz" width="46" height="46" patternUnits="userSpaceOnUse">
+      <rect width="46" height="46" fill="#2E1B10"/>
+      <rect x="4" y="4" width="38" height="38" fill="#F2E2C0"/>
+      <circle cx="23" cy="23" r="15" fill="#FBF1DC" opacity="0.8"/>
+      <circle cx="18" cy="18" r="5" fill="#FFFFFF" opacity="0.45"/>
+    </pattern>
+    <pattern id="banig" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#C9934F"/>
+      <path d="M0 20 L20 0 L40 20 L20 40 z" fill="#A8323A" opacity="0.75"/>
+      <path d="M10 20 L20 10 L30 20 L20 30 z" fill="#E6B85C"/>
+    </pattern>
+  </defs>
+
+  <rect width="1000" height="1250" fill="url(#wall)"/>
+  <!-- ceiling beam -->
+  <rect x="0" y="0" width="1000" height="70" fill="#2A170D"/>
+  <rect x="0" y="70" width="1000" height="10" fill="#4A2D1A"/>
+
+  <!-- warm window light -->
+  <ellipse cx="270" cy="450" rx="330" ry="380" fill="url(#glow)"/>
+  <ellipse cx="730" cy="450" rx="330" ry="380" fill="url(#glow)"/>
+
+  <!-- capiz sliding windows (left + right) -->
+  <rect x="60" y="140" width="400" height="640" fill="#2A170D"/>
+  <rect x="80" y="160" width="360" height="600" fill="url(#capiz)"/>
+  <rect x="254" y="160" width="12" height="600" fill="#2A170D"/>
+  <rect x="540" y="140" width="400" height="640" fill="#2A170D"/>
+  <rect x="560" y="160" width="360" height="600" fill="url(#capiz)"/>
+  <rect x="734" y="160" width="12" height="600" fill="#2A170D"/>
+  <!-- ventanillas (lower grille) -->
+  <g fill="#2A170D">
+    <rect x="60" y="790" width="400" height="80"/>
+    <rect x="540" y="790" width="400" height="80"/>
+  </g>
+  <g fill="#D9A45E" opacity="0.8">
+    <rect x="90" y="805" width="10" height="50"/><rect x="130" y="805" width="10" height="50"/>
+    <rect x="170" y="805" width="10" height="50"/><rect x="210" y="805" width="10" height="50"/>
+    <rect x="300" y="805" width="10" height="50"/><rect x="340" y="805" width="10" height="50"/>
+    <rect x="380" y="805" width="10" height="50"/><rect x="420" y="805" width="10" height="50"/>
+    <rect x="570" y="805" width="10" height="50"/><rect x="610" y="805" width="10" height="50"/>
+    <rect x="650" y="805" width="10" height="50"/><rect x="690" y="805" width="10" height="50"/>
+    <rect x="780" y="805" width="10" height="50"/><rect x="820" y="805" width="10" height="50"/>
+    <rect x="860" y="805" width="10" height="50"/><rect x="900" y="805" width="10" height="50"/>
+  </g>
+
+  <!-- capiz lamps -->
+  <line x1="130" y1="80" x2="130" y2="120" stroke="#1E1009" stroke-width="3"/>
+  <circle cx="130" cy="140" r="60" fill="url(#glow)"/>
+  <path d="M130 105 l10 22 24 3 -18 16 5 24 -21 -12 -21 12 5 -24 -18 -16 24 -3 z" fill="#F7D48F"/>
+  <line x1="870" y1="80" x2="870" y2="120" stroke="#1E1009" stroke-width="3"/>
+  <circle cx="870" cy="140" r="60" fill="url(#glow)"/>
+  <path d="M870 105 l10 22 24 3 -18 16 5 24 -21 -12 -21 12 5 -24 -18 -16 24 -3 z" fill="#F7D48F"/>
+
+  <!-- narra floor -->
+  <rect x="0" y="890" width="1000" height="360" fill="url(#floor)"/>
+  <g stroke="#4A2C16" stroke-width="3" opacity="0.7">
+    <line x1="0" y1="940" x2="1000" y2="940"/>
+    <line x1="0" y1="1000" x2="1000" y2="1000"/>
+    <line x1="0" y1="1070" x2="1000" y2="1070"/>
+    <line x1="0" y1="1150" x2="1000" y2="1150"/>
+    <line x1="0" y1="1240" x2="1000" y2="1240"/>
+    <line x1="220" y1="890" x2="220" y2="940"/><line x1="610" y1="890" x2="610" y2="940"/>
+    <line x1="400" y1="940" x2="400" y2="1000"/><line x1="820" y1="940" x2="820" y2="1000"/>
+    <line x1="140" y1="1000" x2="140" y2="1070"/><line x1="560" y1="1000" x2="560" y2="1070"/>
+    <line x1="330" y1="1070" x2="330" y2="1150"/><line x1="760" y1="1070" x2="760" y2="1150"/>
+  </g>
+  <!-- banig runner -->
+  <path d="M260 1250 L360 1010 L640 1010 L740 1250 z" fill="url(#banig)" opacity="0.9"/>
+  <path d="M260 1250 L360 1010 L640 1010 L740 1250" stroke="#7A2A1E" stroke-width="6" fill="none"/>
+</svg>

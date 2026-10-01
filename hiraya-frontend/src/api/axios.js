@@ -1,9 +1,6 @@
 import axios from 'axios';
-import {
-  reportRequestSuccess,
-  reportRequestFailure,
-  isBackendReachable,
-} from '../utils/backendHealth';
+import { reportRequestSuccess, reportRequestFailure, isBackendReachable } from '../utils/backendHealth';
+import { supabase } from '../services/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
@@ -40,24 +37,75 @@ const TIMEOUTS = {
   /*
    * AI_ANALYSIS — GARMENT IMAGE AUTO-FILL (/analyze-image).
    *
-   * The backend wraps its Gemini call in UP TO 3 ATTEMPTS to survive Google's
-   * transient 503 "model overloaded" responses, with an 800ms backoff between
-   * them. Each attempt carries a 30s HTTP timeout, so a request that needs every
-   * retry can legitimately run for ~92s — and one in-flight test measured 82s
-   * before succeeding.
+   * The backend walks the configured Gemini MODEL CHAIN (`model` first, then
+   * `gemini.models`), retrying each one up to 3 times with an 800ms backoff, and
+   * each attempt carries its own 30s HTTP timeout. A first model that is retired
+   * (404), out of its 20/day free quota (429), overloaded (503) or simply slow
+   * therefore no longer ends the request — the backend falls through to the next
+   * entry and answers.
    *
-   * The old 45s HEAVY_DATA ceiling would ABORT that success client-side, which
-   * would put the failure straight back in front of the admin: the retry work
-   * the backend does to fix the 502 is only useful if the browser waits for it.
-   * 120s covers the full retry budget with headroom, while staying under the
-   * 180s try-on ceiling so a stuck analysis still fails faster than a render.
+   * 120s covered exactly ONE model exhausting all three attempts. With the chain
+   * in front of it the same budget is spent on a model that is failing for a
+   * reason a retry cannot fix, so the ceiling is raised to 300s. That stays
+   * above the worst case (2 models x 3 attempts x 30s + backoff ~= 184s) with
+   * headroom, and it is a CLIENT ceiling only: the backend gives up on its own
+   * first, so an actually-broken call still returns its real 502/504 message
+   * long before this fires.
+   *
+   * It is deliberately still BELOW the 360s try-on render ceiling — the auto-fill
+   * is a foreground button an admin waits on, and a failed analysis should not
+   * hang for as long as a full garment render.
    */
-  AI_ANALYSIS: 120000,
+  AI_ANALYSIS: 300000,
 };
 
-const AUTH_ENDPOINTS = ['/login', '/register', '/check-email', '/reset-password-direct'];
+/*
+ * ENDPOINTS WHOSE 401 MUST NOT WIPE THE SESSION.
+ *
+ * These are the requests a LOCKED-OUT customer makes: they cannot sign in, so
+ * there is no session to restore, and the response interceptor's habit of
+ * clearing storage on 401 would destroy a valid one if they happened to have
+ * one. More importantly, `/forgot-password` and `/validate-reset-token` answer
+ * a probe with 200 for enumeration safety (see PasswordResetService) — the
+ * 401 they can produce is a RATE LIMIT or a transient auth failure, not an
+ * expired session, and treating it as one logs the person out mid-reset.
+ */
+const AUTH_ENDPOINTS = [
+  '/login',
+  '/register',
+  '/check-email',
+  '/reset-password-direct',
+  '/forgot-password',
+  '/validate-reset-token',
+];
 
 const TIMEOUT_RULES = [
+  /*
+   * /tryon/history — THE RULE ABOVE, NARROWED. THIS ONE MUST COME FIRST.
+   *
+   * `find()` returns the FIRST matching rule, and the blanket `/\/try-?on/`
+   * below catches `/tryon/history` too, so every history read was being given
+   * the 180s RENDER budget. That budget exists for a reason: POST /tryon/generate
+   * blocks on a full PixelAPI render, measured at ~65s and up to ~155s when the
+   * provider's one-job queue is busy. A history read is nothing of the sort —
+   * MEASURED solo at 1.7s-5.9s, and it is a single indexed SELECT.
+   *
+   * The 180s was actively harmful here, on the single-threaded `php artisan serve`
+   * (the same queueing trap documented for /system-status and /admin/orders).
+   * This page is a CUSTOMER-FACING route, and it is requested on every mount.
+   * `TryOnHistory.load()` shows a full-page "Loading your looks…" spinner for
+   * the entire wait, so one queued read parked the grid in that state for up to
+   * THREE MINUTES — a page that looks broken rather than slow. It is also the
+   * exact route a customer opens to find out whether a render they just waited
+   * on actually landed, so a 3-minute blank grid there is the worst possible
+   * place to spend the patience.
+   *
+   * HEAVY_DATA is queue headroom for the dev server, not tolerance for a slow
+   * query — this endpoint stays one cheap SELECT. Anchored to the `/history`
+   * path so the render and its polling (`/status`, `/initiate`, `/retry`) keep
+   * the 180s budget they genuinely need.
+   */
+  { pattern: /\/try-?on\/history/, timeout: TIMEOUTS.HEAVY_DATA },
   { pattern: /\/try-?on/, timeout: TIMEOUTS.AI_TRYON },
   { pattern: /\/analyze-image/, timeout: TIMEOUTS.AI_ANALYSIS },
   { pattern: /\/notifications/, timeout: TIMEOUTS.NOTIFICATIONS },
@@ -172,8 +220,11 @@ const TIMEOUT_RULES = [
    * queued behind a console's whole mount burst. HEAVY_DATA is headroom for the
    * QUEUE, not tolerance for a slow query. Deliberately anchored to the admin path
    * so a storefront route that happens to contain the same word is unaffected.
+   *
+   * /admin/feedbacks joins the rule for the same reason: a small SELECT that
+   * was aborted at 15s ("Failed: Feedback") while queued behind a save.
    */
-  { pattern: /\/admin\/(accounts|settings|audit-logs)/, timeout: TIMEOUTS.HEAVY_DATA },
+  { pattern: /\/admin\/(accounts|settings|audit-logs|feedbacks)/, timeout: TIMEOUTS.HEAVY_DATA },
 
   /*
    * /admin/customers — THE SAME QUEUEING TRAP (and the newest stranger to it).
@@ -229,6 +280,78 @@ const TIMEOUT_RULES = [
 const isAuthEndpoint = (url = '') =>
   AUTH_ENDPOINTS.some((endpoint) => String(url).includes(endpoint));
 
+/*
+ * ADMIN PATHS ARE THE ONES AUTHORIZED BY AAL, SO THEY CARRY THE SUPABASE JWT.
+ *
+ * Anchored on the `/admin` segment rather than on a bare substring, so a
+ * storefront route that happens to contain the word (e.g. `/outfits/recommended`)
+ * is never misclassified and never loses its Sanctum token.
+ */
+const isAdminPath = (url = '') => /(^|\/)(api\/)?admin(\/|$|\?)/.test(String(url));
+
+/*
+ * THE CATALOG WRITES ARE AAL2-GATED BUT ARE NOT NAMED `/admin/...`.
+ * ------------------------------------------------------------------
+ * `POST /products`, `PUT|PATCH|DELETE /products/{id}` live behind
+ * `supabase.aal2` + `supabase.user` + `admin` on the Laravel side (see
+ * hiraya-backend/routes/api.php), yet their paths carry no `/admin`
+ * segment — so `isAdminPath()` was false for them and the request
+ * interceptor left on the header whatever `getAuthToken()` returned.
+ *
+ * For a staff console that value is usually a Laravel Sanctum token (an
+ * opaque string with no JWT shape at all) or nothing, and
+ * `EnsureSupabaseAAL2` answers exactly what was reported:
+ *
+ *     "Unauthenticated. A Supabase access token is required."
+ *
+ * The Save / Edit / Delete buttons worked only while the routes were
+ * left PUBLIC, which is not a fix — it deleted the lock instead of
+ * repairing the credential. The credential is the Supabase access token
+ * and the request has to carry it, so the classification is widened
+ * here instead of loosening the backend.
+ *
+ * It is deliberately METHOD-SCOPED. `GET /products` is the storefront
+ * catalog and must keep working for an anonymous shopper, so only the
+ * write verbs on a bare `/products` path are reclassified.
+ *
+ * The literal PUBLIC sub-routes under the same prefix are excluded by name.
+ * `/products/analyze-image` is a single segment and would otherwise satisfy the
+ * item pattern, which is harmless for correctness (an extra bearer token on a
+ * public route changes nothing) but NOT free: it puts an awaited
+ * `supabase.auth.getSession()` in front of the auto-fill request on every
+ * photo, and turns a public endpoint into one that reports a session error
+ * when the console has none. Two-segment routes such as
+ * `/products/{id}/track-canvas` are excluded by the pattern's shape.
+ */
+const CATALOG_WRITE_PATH = /^\/products\/?$/;
+const CATALOG_WRITE_ITEM_PATH = /^\/products\/[^/]+\/?$/;
+const CATALOG_WRITE_VERBS = new Set(['post', 'put', 'patch', 'delete']);
+const PUBLIC_CATALOG_SUBROUTES = new Set([
+  'analyze-image',
+  'spotlight',
+  'track-canvas',
+  'track-tryon'
+]);
+
+const isCatalogWrite = (method = '', url = '') => {
+  const verb = String(method).toLowerCase();
+  if (!CATALOG_WRITE_VERBS.has(verb)) return false;
+  // Strip the query string so a cache-buster cannot defeat the anchor.
+  const path = String(url).split('?')[0].replace(/^.*\/api/, '');
+  if (CATALOG_WRITE_PATH.test(path)) return true;
+  if (!CATALOG_WRITE_ITEM_PATH.test(path)) return false;
+  // A write aimed at a reserved public sub-route is not a catalogue mutation.
+  return !PUBLIC_CATALOG_SUBROUTES.has(path.split('/')[2] || '');
+};
+
+/**
+ * THE ONE PREDICATE that answers "does this request carry the Supabase JWT?".
+ * Both the request and the response interceptor use it, so the header that is
+ * attached and the header that is diagnosed can never disagree.
+ */
+const needsSupabaseToken = (config = {}) =>
+  isAdminPath(config?.url) || isCatalogWrite(config?.method, config?.url);
+
 const getTimeoutForUrl = (url = '') => {
   const target = String(url);
   if (isAuthEndpoint(target)) return TIMEOUTS.AUTH;
@@ -249,144 +372,6 @@ const api = axios.create({
 export const getAuthToken = () =>
   localStorage.getItem('token') || sessionStorage.getItem('token');
 
-/**
- * SUPER ADMIN TOKEN BYPASS (dev request) — "para hindi na manghingi ng
- * permission" sa /superadmin.
- *
- * WHY
- * ---
- * The console lives on the /superadmin path. When there is no session token,
- * every /api/admin/* call the console makes (notably POST /admin/products/
- * analyze-image for "Auto-fill Details (AI)" and POST /admin/products for
- * "Add Garment") is sent WITHOUT an Authorization header, so the backend's
- * auth:sanctum + superadmin gate answers 401/403 — the "Forbidden / permission"
- * the user keeps hitting.
- *
- * WHAT THIS DOES
- * --------------
- * On the /superadmin path, if no token is stored yet, this transparently
- * performs a REAL login against /api/login with the seeded dev superadmin and
- * caches the returned bearer token. Every subsequent console call then carries
- * a valid Admin/Super Admin token, so the AI auto-fill and product save WORK
- * with no permission prompt.
- *
- * The backend gate is NOT weakened — a real, valid token is still presented;
- * we only stop the console from launching with an empty session.
- *
- * SCOPE / SAFETY
- * --------------
- *  - DEV ONLY: compiled out of a production build (import.meta.env.DEV).
- *  - Only triggers on the /superadmin path; the storefront is untouched.
- *  - Credentials are the LOCAL dev seed (UserSeeder) — not a production secret.
- *  - Set VITE_SUPERADMIN_AUTOLOGIN=false in the front-end .env to disable.
- */
-/*
- * Candidate dev accounts, tried IN ORDER until one logs in. Both the seeded
- * superadmin (UserSeeder) AND the admin that `_set_dev_admin_password.php`
- * provisions are listed, because only one of them is guaranteed to exist in a
- * given local database. Either one satisfies the `admin` gate that was
- * answering "Forbidden. Admin access required."
- */
-/*
- * The hardcoded dev super-admin accounts (superadmin@hiraya.com /
- * admin@hiraya.com) were REMOVED per request — they are not used yet.
- *
- * The AI garment analysis endpoint is now PUBLIC (POST /products/analyze-image),
- * so no admin token is needed for "Auto-fill Details (AI)". Admin-only routes
- * (product save/update/delete, ai-rules, canvas-assets, ...) still require a
- * REAL admin session — promote an account with `php artisan hiraya:make-admin`.
- */
-const SUPERADMIN_CREDS = [];
-
-const isSuperAdminPath = () => {
-  if (typeof window === 'undefined') return false;
-  return window.location.pathname.toLowerCase().startsWith('/superadmin');
-};
-
-/**
- * True when the STORED user already holds admin/superadmin rights.
- *
- * WHY THIS MATTERS: the "Forbidden. Admin access required." (403) the console
- * shows is NOT a missing token — it is a token whose user is a plain CUSTOMER.
- * A leftover customer session in localStorage passed the old `if (existing)
- * return existing` short-circuit, so the bypass never signed in as superadmin
- * and every /api/admin/* call was refused by EnsureUserIsAdmin. Checking the
- * stored role (not just the token's existence) is what fixes it.
- */
-const hasStoredAdminRole = () => {
-  try {
-    const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
-    if (!raw) return false;
-    const role = String(
-      JSON.parse(raw)?.role ?? '',
-    ).toLowerCase().replace(/[\s_-]+/g, '');
-    return role === 'admin' || role === 'superadmin';
-  } catch {
-    return false;
-  }
-};
-
-let superAdminTokenRequest = null;
-
-/**
- * Ensures a token exists on the /superadmin path by silently logging in once.
- * Returns the (cached) token, or null when the bypass does not apply.
- *
- * A stored token is REUSED only when its user is already an admin/superadmin;
- * a customer (or roleless) token is discarded and replaced with a real
- * superadmin session, which is what removes the "Forbidden" 403.
- */
-const ensureSuperAdminToken = async () => {
-  if (!import.meta.env?.DEV) return null;
-  if (import.meta.env?.VITE_SUPERADMIN_AUTOLOGIN === 'false') return null;
-  if (!isSuperAdminPath()) return null;
-
-  const existing = getAuthToken();
-  if (existing && hasStoredAdminRole()) return existing;
-
-  // Stale customer/non-admin session: drop it so the fresh superadmin token is
-  // the one every subsequent request carries.
-  if (existing && !hasStoredAdminRole()) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-  }
-
-  // No dev accounts configured — nothing to auto-login with.
-  if (!SUPERADMIN_CREDS.length) return null;
-
-  if (!superAdminTokenRequest) {
-    superAdminTokenRequest = (async () => {
-      for (const creds of SUPERADMIN_CREDS) {
-        try {
-          const res = await axios.post(`${API_BASE_URL}/login`, creds, {
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            timeout: TIMEOUTS.AUTH,
-          });
-
-          const token = res.data?.token;
-          const user = res.data?.user;
-
-          if (token) {
-            localStorage.setItem('token', token);
-            if (user) localStorage.setItem('user', JSON.stringify(user));
-            return token;
-          }
-        } catch {
-          // Try the next candidate account.
-        }
-      }
-
-      return null;
-    })().finally(() => {
-      superAdminTokenRequest = null;
-    });
-  }
-
-  return superAdminTokenRequest;
-};
-
 export const clearStoredSession = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
@@ -395,10 +380,58 @@ export const clearStoredSession = () => {
 };
 
 export const parseApiError = (error) => {
+  /*
+   * AN ALREADY-NORMALIZED ERROR MUST NOT BE RE-PARSED.
+   *
+   * AuthContext.login (and friends) catch an axios error, flatten it to a plain
+   * Error carrying { message, status, errors, isAuthError } and re-throw it.
+   * Callers then run that result through parseApiError a second time.
+   *
+   * On the second pass there is no .response, so the naive logic below derives
+   * `isNetworkError = !error.response && !isTimeout` -> TRUE and overwrites the
+   * real message with "Cannot reach the Hiraya server." The backend's actual
+   * "Invalid credentials. Please check your email and password." was DISCARDED,
+   * so a wrong password read to the user as an unreachable server.
+   *
+   * If the object already carries the normalized shape, trust it verbatim.
+   */
+  if (error?.isAuthError || (error?.status !== undefined && error?.errors !== undefined)) {
+    return {
+      status: error.status ?? 0,
+      message: error.message || 'Something went wrong. Please try again.',
+      errors: error.errors || {},
+      isTimeout: !!error.isTimeout,
+      isCanceled: !!error.isCanceled,
+      isNetworkError: !!error.isNetworkError,
+      isServerError: (error.status ?? 0) >= 500,
+    };
+  }
+
   const status = error?.response?.status ?? 0;
   const data = error?.response?.data;
   const isTimeout = error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT';
-  const isNetworkError = error?.code === 'ERR_NETWORK' || (!error?.response && !isTimeout);
+  /*
+   * A CANCELED REQUEST IS NOT A NETWORK FAILURE. THE CLIENT ABORTED IT.
+   * ------------------------------------------------------------
+   * React Query aborts an in-flight query on unmount / key change, and `fetch`
+   * aborts on its own `AbortController`. axios reports the first as
+   * `ERR_CANCELED` and the second as `AbortError` — both with NO `.response`,
+   * so the `isNetworkError` test below called them connectivity failures.
+   *
+   * The user-visible consequence was concrete: navigating away from a page while
+   * it was loading produced "Cannot reach the Hiraya server." for a request that
+   * was never going to return anyway. That is a false accusation against the
+   * network, and it is what made a working backend look dead.
+   *
+   * There is no server-side fact to report here, so the honest message says the
+   * request was cancelled and names nothing.
+   */
+  const isCanceled =
+    error?.code === 'ERR_CANCELED' ||
+    error?.name === 'CanceledError' ||
+    error?.name === 'AbortError';
+  const isNetworkError =
+    !isCanceled && (error?.code === 'ERR_NETWORK' || (!error?.response && !isTimeout));
 
   const rawErrors = data?.errors;
   const errors = {};
@@ -416,48 +449,107 @@ export const parseApiError = (error) => {
 
   if (isTimeout) {
     message = 'The Hiraya server took too long to respond.';
+  } else if (isCanceled) {
+    message = 'That request was cancelled before it finished. Please try again.';
   } else if (isNetworkError) {
     message = 'Cannot reach the Hiraya server.';
   } else if (status === 401 && Object.keys(errors).length === 0) {
     message = data?.message || 'Invalid credentials or session expired.';
   }
 
-  return { status, message, errors, isTimeout, isNetworkError, isServerError: status >= 500 };
+  return {
+    status,
+    message,
+    errors,
+    isTimeout,
+    isCanceled,
+    isNetworkError,
+    isServerError: status >= 500,
+  };
 };
 
 // Request Interceptor
+// Request Interceptor
 api.interceptors.request.use(
   async (config) => {
-    let token = getAuthToken();
-
     /*
-     * SUPERADMIN TOKEN BYPASS — runs on EVERY request on the /superadmin path.
+     * AUTHENTICATION RULE
      *
-     * This used to be `if (!token) { token = await ensureSuperAdminToken(); }`,
-     * which only fired when the session was EMPTY. That left the exact reported
-     * bug: a stale CUSTOMER token sitting in localStorage is truthy, so the
-     * bypass never ran and the request carried a non-admin token — the backend's
-     * EnsureUserIsAdmin answered "Forbidden. Admin access required." (403) and
-     * the AI auto-fill / product save failed.
-     *
-     * ensureSuperAdminToken() now also REPLACES a stored token whose user is not
-     * admin/superadmin, so it must be consulted unconditionally on this path.
-     * Off /superadmin it returns the current token unchanged (or null), so the
-     * storefront and normal sign-in are unaffected.
+     * Normal requests use the stored application token.
+     * Admin requests use the current Supabase access token because
+     * the Laravel admin middleware checks the Supabase JWT.
      */
-    const ensured = await ensureSuperAdminToken();
-    if (ensured) {
-      token = ensured;
-    } else if (isSuperAdminPath() && token && !hasStoredAdminRole()) {
-      // The bypass is disabled but a non-admin token is present — do not send it
-      // to /api/admin/*, where it can only produce a 403.
-      token = null;
-    }
+
+    const token = getAuthToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    /*
+     * ADMIN REQUESTS + AAL2-GATED CATALOG WRITES
+     *
+     * The Laravel side authorizes `POST /products`, `PUT|PATCH /products/{id}`
+     * and `DELETE /products/{id}` with `supabase.aal2` + `admin`, so those must
+     * carry the Supabase session JWT exactly like an `/admin/...` call does —
+     * even though their path has no `/admin` segment. `needsSupabaseToken()` is
+     * that single decision (see its definition above).
+     *
+     * IMPORTANT:
+     * Do not silently remove the existing Authorization header unless
+     * Supabase explicitly has no session.
+     */
+    if (needsSupabaseToken(config)) {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('ADMIN SUPABASE SESSION ERROR:', error);
+        }
+
+        const session = data?.session;
+        const accessToken = session?.access_token;
+
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+        } else {
+          /*
+           * NO SESSION — DO NOT STRIP THE HEADER.
+           *
+           * The previous branch deleted `Authorization` here. That was right for
+           * `/admin/*` (where the Supabase JWT is the only credential) and wrong
+           * for the catalogue writes, and deleting it is what produced the exact
+           * reported failure: with no live Supabase session the header was removed
+           * and `EnsureSupabaseAAL2` replied
+           * "Unauthenticated. A Supabase access token is required." — with nothing
+           * on screen telling the admin they were signed out.
+           *
+           * Leaving the last known token in place costs nothing (a stale JWT is
+           * rejected by the middleware on its own merits, with the same 401) and
+           * wins the case where the session was only momentarily unreadable. So the
+           * header is only ever REPLACED, never deleted, and a genuinely missing
+           * session is reported below instead of being laundered into a bare 401.
+           */
+          console.warn(
+            'No Supabase session for an AAL2-gated request. Sending the last known token.',
+            { method: config.method, url: config.url }
+          );
+        }
+      } catch (error) {
+        /*
+         * A THROWN `getSession()` (locked IndexedDB, a revoked refresh token, a
+         * storage exception) is not proof that there is no session, so the header
+         * is left alone. Deleting it here would reproduce the same bare 401 this
+         * whole path exists to prevent.
+         */
+        console.error('Could not read the Supabase session for an AAL2-gated request.', error);
+      }
+    }
+
+    /*
+     * FormData requests need the browser to set Content-Type
+     * automatically so the multipart boundary is included.
+     */
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     } else {
@@ -465,7 +557,13 @@ api.interceptors.request.use(
       config.headers['Content-Type'] = 'application/json';
     }
 
-    config.timeout = config.explicitTimeout || getTimeoutForUrl(config.url);
+    /*
+     * Apply endpoint-specific timeout.
+     */
+    config.timeout =
+      config.explicitTimeout ||
+      getTimeoutForUrl(config.url);
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -478,8 +576,50 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    const status = error?.response?.status;
-    const url = error?.config?.url;
+    const url = error?.config?.url ?? '';
+    const status = error?.response?.status ?? 0;
+
+    if (status === 401 && isAdminPath(url)) {
+      console.error('====================================');
+      console.error('ADMIN API 401');
+      console.error('URL:', url);
+      console.error('STATUS:', status);
+      console.error('RESPONSE:', error?.response?.data);
+      console.error('HEADERS:', error?.response?.headers);
+      console.error('====================================');
+    }
+
+    /*
+     * A 401 ON AN AAL2-GATED ROUTE — EXPLAIN IT, DO NOT JUST PRINT IT.
+     *
+     * "Unauthenticated. A Supabase access token is required." is the backend
+     * talking correctly about a request that carried no usable Supabase JWT, but
+     * on its own it is unactionable for the admin who just pressed Save. The
+     * message is rewritten in place with the one thing that actually fixes it —
+     * the console session has to be re-established through the TOTP challenge —
+     * while the original stays on `error.response.data` for the console trail.
+     *
+     * The session is NOT cleared here. This route set is reached by staff who ARE
+     * signed in; wiping their session over a failed write would throw away a
+     * valid sign-in and drop them to /login mid-entry.
+     */
+    if (status === 401 && needsSupabaseToken(error?.config)) {
+      const message = error?.response?.data?.message || '';
+
+      if (/access token is required|legacy login token|Invalid or expired session token/i.test(message)) {
+        const explanation =
+          'Your admin session has expired or was not completed. Please sign in again (including your 2-step verification) before saving.';
+
+        console.error('AAL2-gated request rejected — the Supabase session was missing or stale.', {
+          method: error?.config?.method,
+          url: error?.config?.url,
+          backendMessage: message,
+        });
+
+        error.response.data.message = explanation;
+        error.response.data.backend_message = message;
+      }
+    }
 
     reportRequestFailure(error);
 
@@ -487,6 +627,34 @@ api.interceptors.response.use(
     // Lilinisin lamang ang session kung ang request na nag-fail ay ang mismong check user route (`/user`)
     if (status === 401 && url?.includes('/user') && !isAuthEndpoint(url)) {
       clearStoredSession();
+    }
+
+    /*
+     * 403 ON AN ADMIN PATH — LOGGED, NOT INTERPRETED, AND THE SESSION KEPT.
+     *
+     * There is deliberately no branch here any more. This used to read
+     * `mfa_enrollment_required` off the body and push an "activation required"
+     * screen, but that activation step no longer exists: a staff account is active
+     * the moment its TOTP challenge is verified, and `supabase.aal2` verifies that
+     * cryptographically on EVERY request. The `mfa_enrolled_at` column was a
+     * second, stale copy of a fact the middleware had already proven, and reading it
+     * here is what put a correctly-enrolled admin in front of a QR code they did
+     * not need.
+     *
+     * A 403 is now a plain refusal — wrong role, or a suspended account — and the
+     * route guard is what decides where to send the user.
+     *
+     * The session is still NOT cleared. A 403 is never "logged out": an aal1 session
+     * that reaches an aal2 endpoint is a legitimate state, merely not a sufficient
+     * one, and wiping it would throw away a valid password sign-in over a code the
+     * user has simply not typed yet.
+     */
+    if (status === 403 && needsSupabaseToken(error?.config) && !isAuthEndpoint(url)) {
+      console.warn(
+        'Admin request returned 403:',
+        url,
+        error?.response?.data
+      );
     }
 
     return Promise.reject(error);

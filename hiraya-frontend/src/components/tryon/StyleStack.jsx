@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Layers, ShoppingBag, Trash2, Shirt, Loader2, ChevronLeft, ChevronRight, Sparkles, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import StyleStackGarmentCard from './StyleStackGarmentCard';
 import { resolveStackCategory } from '../../utils/categoryHelpers';
+import { useFloatingCutouts } from '../../hooks/useFloatingCutouts';
 
 // --- Category SVG Icons ---
 const BottomsIcon = ({ size = 16, ...props }) => (
@@ -75,48 +77,56 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
     el.scrollBy({ left: dir * 300, behavior: 'smooth' });
   };
 
+  /*
+   * A SHELF. The row title is a small engraved label; an empty category
+   * collapses to one quiet line instead of a dashed box, so a bag with two
+   * pieces does not read as four empty drawers. The scroll arrows only appear
+   * when there is more than one piece to scroll to.
+   */
   return (
-    <section className="space-y-2">
+    <section className="space-y-2.5">
       <div className="flex items-center justify-between px-0.5">
-        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-hiraya-ink">
-          <Icon size={14} />
+        <h4 className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink">
+          <span className={`flex h-6 w-6 items-center justify-center rounded-lg ${items.length ? 'bg-cream-200/70 text-navy-800 shadow-neu-inset' : 'text-hiraya-ink-muted'}`}>
+            <Icon size={13} />
+          </span>
           {label}
-          <span className="rounded-full bg-hiraya-sand px-1.5 py-0.5 text-[8px] font-bold text-hiraya-sand">
+          <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold ${items.length ? 'bg-navy-900 text-cream-100' : 'bg-cream-200 text-hiraya-ink-muted'}`}>
             {items.length}
           </span>
         </h4>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => scrollBy(-1)}
-            aria-label={`Scroll ${label} left`}
-            className="flex h-6 w-6 items-center justify-center rounded-full border-hiraya-sand/30 text-hiraya-sand transition-colors hover:border-[#CB997E]/50 hover:text-hiraya-ink"
-          >
-            <ChevronLeft size={12} />
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollBy(1)}
-            aria-label={`Scroll ${label} right`}
-            className="flex h-6 w-6 items-center justify-center rounded-full border-hiraya-sand/30 text-hiraya-sand transition-colors hover:border-[#CB997E]/50 hover:text-hiraya-ink"
-          >
-            <ChevronRight size={12} />
-          </button>
-        </div>
+        {items.length > 1 && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => scrollBy(-1)}
+              aria-label={`Scroll ${label} left`}
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-hiraya-surface text-hiraya-ink shadow-neu-sm transition-colors hover:bg-navy-900 hover:text-cream-100"
+            >
+              <ChevronLeft size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollBy(1)}
+              aria-label={`Scroll ${label} right`}
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-hiraya-surface text-hiraya-ink shadow-neu-sm transition-colors hover:bg-navy-900 hover:text-cream-100"
+            >
+              <ChevronRight size={12} />
+            </button>
+          </div>
+        )}
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border-dashed border-hiraya-sand/30 bg-hiraya-sand/20 px-4 py-6 text-center">
-          <p className="text-[10px] italic text-hiraya-sand">No {label.toLowerCase()} in your bag yet</p>
-        </div>
+        <p className="px-1 text-[10px] italic text-hiraya-ink-muted">No {label.toLowerCase()} in your bag yet</p>
       ) : (
         /* Rendered as a wrapper so the exclusion hint can sit above the scroller
            without becoming a snap item itself. */
         <div>
         <div
           ref={scrollerRef}
-          className="scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1"
+          className="scrollbar-none -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3 pt-1"
         >
           {items.map((garment) => (
             <div key={garment.id} className="snap-start">
@@ -144,7 +154,7 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
 
           {/* Explains WHY the row is greyed out, so it never looks broken. */}
           {excludedByRule && (
-            <p className="mt-1.5 text-[9px] leading-snug text-amber-300/80">
+            <p className="mt-1.5 text-[9px] leading-snug text-amber-800">
               {label === 'Dresses'
                 ? 'Remove your top or bottom to wear a dress.'
                 : 'A dress covers these — remove the dress to layer separately.'}
@@ -216,6 +226,13 @@ export const StyleStack = ({
   const hasSelectedItems = Object.values(selectedGarments).some(Boolean);
   const selectedCount = Object.values(selectedGarments).filter(Boolean).length;
 
+  // Showcase-only reads: how many pieces are on the shelves, and the worn
+  // pieces' images for the outfit preview in the footer.
+  const pieceCount = CATEGORY_ROWS.reduce((n, row) => n + (resolvedByCategory?.[row.key]?.length || 0), 0);
+  const wornPieces = Object.values(selectedGarments).filter(Boolean);
+  const wornImages = wornPieces.map((g) => g.display_image_url || g.image_url).filter(Boolean);
+  const wornCutouts = useFloatingCutouts(wornImages);
+
   const handleToggle = useCallback(
     (garment) => {
       if (typeof toggleGarment === 'function') toggleGarment(garment);
@@ -238,37 +255,66 @@ export const StyleStack = ({
   );
 
   return (
-    <aside className="relative z-10 flex w-[380px] shrink-0 flex-col justify-between overflow-hidden border-r border-hiraya-sand/30 bg-hiraya-olive/60 p-5 backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-hiraya-sand/30 pb-3">
-        <div>
-          <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.3em] text-hiraya-ink">
-            <Layers size={16} className="text-hiraya-ink" /> My Bag Style Stack
-          </h3>
-          <p className="mt-0.5 text-[10px] text-hiraya-sand">
-            {locked ? 'Step 1 — add your photo, then pick pieces' : 'Tap a piece to wear it · scroll each row for more'}
-          </p>
+    /*
+     * THE STACK PANEL IS A RULED CREAM SIDEBAR.
+     *
+     * It was `border-hiraya-olive/20 bg-hiraya-cream-deep` with a 20px shadow —
+     * `olive` is INDIGO, so the panel's own edge rule was being struck in dark
+     * ink, and the two hairlines inside it (the header rule and the row rules)
+     * were the same dark band. Every divider now uses the system parchment
+     * hairline, so the panel reads as stock with rules rather than as a boxed
+     * widget.
+     */
+    <aside
+      data-tour="style-stack"
+      className="relative z-10 flex max-h-[80vh] w-full shrink-0 flex-col justify-between overflow-hidden rounded-[26px] bg-hiraya-surface p-3 shadow-neu ring-1 ring-cream-50/80 lg:max-h-none lg:w-[380px]"
+    >
+      {/*
+        * THE VITRINE HEADER — a navy plate carrying the title, a live count
+        * of what is on the shelves and what is worn, and the door to My Bag.
+        */}
+      <div className="relative isolate overflow-hidden rounded-[20px] bg-[linear-gradient(150deg,#1D2C45_0%,#152036_55%,#0D1524_100%)] px-4 py-4 text-cream-100 shadow-[0_16px_30px_-20px_rgba(13,21,36,0.9)]">
+        <div aria-hidden="true" className="absolute -right-10 -top-14 -z-10 h-36 w-36 rounded-full border border-cream-50/10" />
+        <div aria-hidden="true" className="vintage-grain absolute inset-0 -z-10 opacity-25 mix-blend-soft-light" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.24em] text-cream-400">
+              <Layers size={12} /> Style Stack
+            </span>
+            <h3 className="mt-1.5 font-serif text-[1.15rem] uppercase leading-none tracking-[0.06em] text-cream-50">My Bag</h3>
+            <p className="mt-2 text-[10px] leading-snug text-cream-300">
+              {locked ? 'Step 1 — add your photo, then pick pieces' : 'Tap a piece to wear it · scroll each shelf for more'}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/cart')}
+            title="Go to My Bag"
+            aria-label="Go to My Bag"
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-cream-100 text-navy-900 shadow-[0_8px_16px_-8px_rgba(0,0,0,0.8)] transition-colors hover:bg-cream-50 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream-100"
+          >
+            <ShoppingBag size={15} />
+          </button>
         </div>
-        <button
-          onClick={() => navigate('/cart')}
-          title="Go to My Bag"
-          className="rounded-xl border-hiraya-sand/30 bg-hiraya-sand/60 p-2 text-hiraya-sand transition-colors duration-200 hover:bg-[#CB997E]/15 hover:text-hiraya-ink"
-        >
-          <ShoppingBag size={15} />
-        </button>
+        <div className="mt-3 flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.18em]">
+          <span className="rounded-full bg-cream-50/10 px-2.5 py-1 text-cream-200">{pieceCount} {pieceCount === 1 ? 'piece' : 'pieces'}</span>
+          <span className={`rounded-full px-2.5 py-1 ${selectedCount ? 'bg-cream-100 text-navy-900' : 'bg-cream-50/10 text-cream-300'}`}>
+            {selectedCount} worn
+          </span>
+        </div>
       </div>
 
       {locked && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border-amber-400/25 bg-amber-500/10 px-3 py-2.5">
-          <Lock size={12} className="mt-0.5 shrink-0 text-amber-300" />
-          <p className="text-[10px] leading-relaxed text-amber-200">{lockedMessage}</p>
+        <div className="mx-1 mt-3 flex items-start gap-2 rounded-xl border border-amber-600/40 bg-amber-500/15 px-3 py-2.5">
+          <Lock size={12} className="mt-0.5 shrink-0 text-amber-800" />
+          <p className="text-[10px] leading-relaxed text-amber-800">{lockedMessage}</p>
         </div>
       )}
 
-      <div className="scrollbar-none flex-1 space-y-5 overflow-y-auto py-4">
+      <div className="flex-1 space-y-5 overflow-y-auto px-2 py-4 scrollbar-none">
         {isBusy ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
-            <Loader2 size={22} className="animate-spin text-hiraya-ink" />
-            <span className="text-[10px] uppercase tracking-widest text-hiraya-sand">
+            <Loader2 size={22} className="animate-spin text-hiraya-accent" />
+            <span className="text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
               Loading your bag…
             </span>
           </div>
@@ -302,7 +348,7 @@ export const StyleStack = ({
                   <button
                     type="button"
                     onClick={() => clearLayer(meta.key)}
-                    className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-hiraya-ink hover:underline"
+                    className="mt-1.5 inline-flex cursor-pointer items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted transition-colors hover:text-hiraya-accent hover:underline"
                   >
                     <Trash2 size={10} /> Remove {meta.label} layer
                   </button>
@@ -320,19 +366,42 @@ export const StyleStack = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="border-t border-hiraya-sand/30 bg-hiraya-cream-deep/80 pt-3 backdrop-blur-md"
+            className="mx-1 mb-1 rounded-[18px] bg-cream-200/50 p-3 shadow-neu-inset"
           >
-            <div className="mb-2 flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-hiraya-sand">
-              <Sparkles size={10} className="text-hiraya-ink" /> Active outfit
+            <div className="mb-2 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink-muted">
+              <Sparkles size={10} className="text-navy-800" /> Active outfit
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-hiraya-sand">
-                {selectedCount} item(s) layered
-              </span>
+            <div className="flex items-center justify-between gap-3">
+              {/* The worn pieces as a fanned row of cut-outs. */}
+              <div className="flex min-w-0 items-center">
+                <div className="flex -space-x-3">
+                  {wornPieces.slice(0, 5).map((g, i) => {
+                    const img = g.display_image_url || g.image_url;
+                    const cut = img ? wornCutouts[img] : null;
+                    return (
+                      <motion.span
+                        key={g.id ?? i}
+                        initial={{ scale: 0.6, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-hiraya-surface shadow-neu-sm ring-2 ring-cream-100"
+                        style={{ zIndex: 10 - i }}
+                        title={g.name}
+                      >
+                        {img && (cut !== undefined) && (
+                          <img src={cut ? cut.src : img} alt="" className="h-8 w-8 object-contain" />
+                        )}
+                      </motion.span>
+                    );
+                  })}
+                </div>
+                <span className="currency ml-3 text-[10px] text-hiraya-ink-muted">
+                  {selectedCount} item(s) layered
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={clearAllStack}
-                className="flex items-center gap-1.5 rounded-xl border-red-500/30 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-400 transition-colors duration-200 hover:bg-red-500/10"
+                className="btn-danger shrink-0 cursor-pointer rounded-full px-4 py-1.5 text-[10px]"
               >
                 <Trash2 size={12} /> Clear Stack
               </button>
@@ -342,6 +411,38 @@ export const StyleStack = ({
       </AnimatePresence>
     </aside>
   );
+};
+
+const iconPropTypes = { size: PropTypes.number };
+BottomsIcon.propTypes = iconPropTypes;
+FootwearIcon.propTypes = iconPropTypes;
+OuterwearIcon.propTypes = iconPropTypes;
+AccessoriesIcon.propTypes = iconPropTypes;
+DressIcon.propTypes = iconPropTypes;
+
+CategoryStackRow.propTypes = {
+  meta: PropTypes.shape({
+    key: PropTypes.string,
+    label: PropTypes.string.isRequired,
+    icon: PropTypes.elementType.isRequired,
+  }).isRequired,
+  items: PropTypes.array.isRequired,
+  selected: PropTypes.object,
+  onToggle: PropTypes.func,
+  disabled: PropTypes.bool,
+  excludedByRule: PropTypes.bool,
+};
+
+StyleStack.propTypes = {
+  garmentsByCategory: PropTypes.object,
+  selectedGarments: PropTypes.object,
+  toggleGarment: PropTypes.func,
+  clearLayer: PropTypes.func,
+  clearAllStack: PropTypes.func,
+  isLoading: PropTypes.bool,
+  locked: PropTypes.bool,
+  lockedMessage: PropTypes.string,
+  lockedCategories: PropTypes.array,
 };
 
 export default StyleStack;
