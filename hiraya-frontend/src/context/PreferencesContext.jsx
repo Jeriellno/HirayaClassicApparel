@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { TRANSLATIONS, LANGUAGES } from '../i18n/translations';
 
@@ -55,8 +55,17 @@ export const PreferencesProvider = ({ children }) => {
   const [lang, setLangState] = useState(initialLang);
   const [theme, setThemeState] = useState(initialTheme);
 
+  // Fade colours only when the visitor switches theme, never on page load:
+  // index.html already set the theme before first paint, and fading every
+  // element in for 0.4s on load read as a flicker.
+  const themeMounted = useRef(false);
   useEffect(() => {
     const root = document.documentElement;
+    if (!themeMounted.current) {
+      themeMounted.current = true;
+      root.classList.toggle('dark', theme === 'dark');
+      return undefined;
+    }
     root.classList.add('theme-transition');
     root.classList.toggle('dark', theme === 'dark');
     const timer = window.setTimeout(() => root.classList.remove('theme-transition'), 400);

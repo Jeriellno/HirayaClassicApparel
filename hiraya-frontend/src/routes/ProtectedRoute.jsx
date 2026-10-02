@@ -32,7 +32,7 @@ const resolveRole = (user) => {
 export const resolveSupabaseRole = (user) => supabaseRoleOf(user) || resolveRole(user);
 
 /** True when this browser still holds a Supabase session (sb-<ref>-auth-token). */
-const hasStoredSupabaseSession = () => {
+export const hasStoredSupabaseSession = () => {
     try {
         return Object.keys(localStorage).some((key) => /^sb-.+-auth-token$/.test(key));
     } catch {

@@ -61,7 +61,9 @@ export const AuthProvider = ({ children }) => {
      * single-threaded dev server — the whole app sat on "Loading your session"
      * and every page request (e.g. Personalized for You) queued behind it.
      */
-    const [loading, setLoading] = useState(() => !(getAuthToken() && readStoredUser()));
+    // Only a token WITHOUT a cached user has to wait for GET /user; a guest
+    // (no token) is already known to be signed out, so nothing flashes first.
+    const [loading, setLoading] = useState(() => Boolean(getAuthToken()) && !readStoredUser());
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 

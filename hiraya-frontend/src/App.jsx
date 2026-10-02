@@ -37,9 +37,12 @@ const ScrollToTop = () => {
 
 const GuestRoute = ({ children }) => {
     const { user, loading } = useAuth();
+    const location = useLocation();
 
     if (loading) return null;
-    return user ? <Navigate to={roleHome(user)} replace /> : children;
+    // Same destination Login.jsx navigates to, so signing in is ONE jump, not
+    // /home first and then the page the visitor came from.
+    return user ? <Navigate to={location.state?.from || roleHome(user)} replace /> : children;
 };
 
 GuestRoute.propTypes = {

@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { parseApiError } from '../api/axios';
 import { roleHome } from '../utils/consoleAccess';
+import { hasStoredSupabaseSession } from '../routes/ProtectedRoute';
 import MfaEnrollment from '../components/settings/MfaEnrollment';
 import AuthShell from '../components/auth/AuthShell';
 import {
@@ -82,6 +83,13 @@ const Login = () => {
     const [fieldErrors, setFieldErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const codeRef = useRef(null);
+    /*
+     * True while a saved staff session is checked (see the effect below). The
+     * form is held back meanwhile: painting it and then jumping to the console
+     * a second later is the flicker staff saw on every reload of /login.
+     * Nobody with no saved Supabase session waits at all.
+     */
+    const [resuming, setResuming] = useState(hasStoredSupabaseSession);
 
     const successMessage = location.state?.message;
     // An explicit deep link always wins over the role's own landing page.
@@ -101,6 +109,11 @@ const Login = () => {
      */
     useEffect(() => {
         let cancelled = false;
+        // A slow network must not hold the form back: give up after 5s.
+        const giveUp = window.setTimeout(() => {
+            cancelled = true;
+            setResuming(false);
+        }, 5000);
         (async () => {
             try {
                 const { data } = await supabase.auth.getSession();
@@ -111,13 +124,16 @@ const Login = () => {
                 const staffRole = await fetchAuthoritativeRole(user);
                 if (!cancelled && isPrivilegedRole(staffRole)) {
                     navigate(redirectTo || roleHome(staffRole), { replace: true });
+                    return;
                 }
             } catch {
                 // No resumable session — show the sign-in form as usual.
             }
-        })();
+            if (!cancelled) setResuming(false);
+        })().finally(() => window.clearTimeout(giveUp));
         return () => {
             cancelled = true;
+            window.clearTimeout(giveUp);
         };
         // Runs once on mount; `redirectTo` is read from the initial location.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -381,6 +397,17 @@ const Login = () => {
         setError('');
         setFieldErrors({});
     };
+
+    if (resuming) {
+        // Same look as the console's own session gate, so the hand-off is one screen.
+        return (
+            <div className="flex min-h-screen items-center justify-center" role="status">
+                <div className="animate-pulse text-[11px] uppercase tracking-[0.35em] text-hiraya-ink">
+                    Verifying Session...
+                </div>
+            </div>
+        );
+    }
 
     return (
         /*
