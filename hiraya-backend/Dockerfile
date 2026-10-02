@@ -1,9 +1,12 @@
 FROM php:8.2-cli
 
+# procps provides `ps`, which EnsureTryOnWorker uses to see the queue worker.
+# Without it the slim base image reports every render as `worker_offline`.
 RUN apt-get update && apt-get install -y \
     unzip \
     libpq-dev \
     libcurl4-openssl-dev \
+    procps \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
