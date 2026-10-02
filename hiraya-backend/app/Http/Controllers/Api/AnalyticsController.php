@@ -269,7 +269,9 @@ class AnalyticsController extends Controller
             // Every feedback carries a 1-5 star rating (the column is NOT NULL).
             'order_id' => ['nullable', 'integer'],
             'rating'  => ['required', 'integer', 'min:1', 'max:5'],
-            'comment' => ['required', 'string', 'max:2000'],
+            // Optional for an order rating given together with a product review;
+            // the general Feedback page still requires a message.
+            'comment' => ['required_without:order_id', 'nullable', 'string', 'max:2000'],
         ]);
 
         /*
@@ -296,7 +298,7 @@ class AnalyticsController extends Controller
                 'user_name' => $user->full_name ?: $user->email,
                 'user_email'=> $user->email,
                 'rating'    => $validated['rating'],
-                'comment'   => $validated['comment'],
+                'comment'   => trim((string) ($validated['comment'] ?? '')),
                 'order_id'  => $orderId,
             ]);
 

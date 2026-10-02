@@ -12,6 +12,7 @@ import {
     Upload,
     RotateCw,
     Star,
+    ChevronDown,
 } from 'lucide-react';
 import api from '../../api/axios';
 import Currency from '../common/Currency';
@@ -21,7 +22,6 @@ import OrderTracker from '../common/OrderTracker';
 import { RECONNECTED_EVENT } from '../common/ConnectionWatcher';
 import { describeProcessingDate } from '../../utils/orderPolicy';
 import ReviewProductModal from './ReviewProductModal';
-import OrderExperienceRating from './OrderExperienceRating';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
 import { productForColor } from '../../utils/productVariant';
@@ -94,6 +94,20 @@ const OrdersTab = () => {
         () => new Map((feedbackQuery.data || []).filter((f) => f.order_id).map((f) => [Number(f.order_id), f])),
         [feedbackQuery.data]
     );
+
+    // Which order cards are open. Collapsed rows by default; tap a row to open it.
+    const [expanded, setExpanded] = useState(() => new Set(focusOrderId ? [focusOrderId] : []));
+    const toggleOrder = (id) => setExpanded((current) => {
+        const next = new Set(current);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
+    useEffect(() => {
+        if (focusOrderId) setExpanded((current) => new Set(current).add(focusOrderId));
+    }, [focusOrderId]);
+    useEffect(() => {
+        if (orders.length === 1) setExpanded((current) => new Set(current).add(orders[0].id));
+    }, [orders]);
 
     const reviewByItem = useMemo(
         () => new Map((reviewsQuery.data || []).map((r) => [r.order_item_id, r])),
@@ -311,6 +325,10 @@ const OrdersTab = () => {
                                 : baseStep;
                         const isDelivered = order.order_status === 'delivered';
                         const isFocused = order.id === focusOrderId;
+                        const isOpen = expanded.has(order.id);
+                        const lineCount = Array.isArray(order.order_items) ? order.order_items.length : 0;
+                        const needsReview = isDelivered && lineCount > 0
+                            && order.order_items.some((l) => l.product_id && !reviewByItem.has(l.id));
 
                         return (
                             <div
@@ -318,8 +336,14 @@ const OrdersTab = () => {
                                 ref={isFocused ? focusedRef : undefined}
                                 className={`card-raised scroll-mt-28 rounded-[24px] p-5 md:p-7 ${isFocused ? 'ring-2 ring-hiraya-accent/60' : ''}`}
                             >
-                                {/* Header */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hiraya-structure-line pb-4">
+                                {/* Header — tap to open / close the order's details. */}
+                                <button
+                                    type="button"
+                                    onClick={() => toggleOrder(order.id)}
+                                    aria-expanded={isOpen}
+                                    aria-controls={`order-details-${order.id}`}
+                                    className={`flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus rounded-xl ${isOpen ? 'border-b border-hiraya-structure-line pb-4' : ''}`}
+                                >
                                     <div className="flex flex-wrap items-center gap-3">
                                         <span className="text-xs font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
                                             Order #{order.id}
@@ -330,12 +354,33 @@ const OrdersTab = () => {
                                             {step.label}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                                        <Truck size={13} />
-                                        {order.courier}
+                                    <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                                        <span className="flex items-center gap-2"><Truck size={13} />{order.courier}</span>
+                                        <ChevronDown size={16} className={`text-hiraya-ink transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
                                     </div>
-                                </div>
+                                    {!isOpen && (
+                                        <div className="flex w-full flex-wrap items-center justify-between gap-2 text-[11px] text-hiraya-ink-muted">
+                                            <span className="min-w-0 truncate">
+                                                {lineCount > 0
+                                                    ? `${order.order_items[0].product_name_snapshot || 'Item'}${lineCount > 1 ? ` + ${lineCount - 1} more` : ''}`
+                                                    : 'Order'}
+                                                {' · '}
+                                                {new Date(order.created_at).toLocaleDateString()}
+                                            </span>
+                                            <span className="flex items-center gap-2">
+                                                {needsReview && (
+                                                    <span className="rounded-full bg-hiraya-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-hiraya-accent">
+                                                        Review your items
+                                                    </span>
+                                                )}
+                                                <Currency amount={order.total_amount} className="font-semibold text-hiraya-ink" />
+                                            </span>
+                                        </div>
+                                    )}
+                                </button>
 
+                                {isOpen && (
+                                <div id={`order-details-${order.id}`}>
                                 {/* Line items (empty for legacy orders) */}
                                 {Array.isArray(order.order_items) && order.order_items.length > 0 && (
                                     <div className="space-y-3 border-b border-hiraya-structure-line py-4">
@@ -606,16 +651,10 @@ const OrdersTab = () => {
                                     )}
 
                                     {order.order_status === 'delivered' && (
-                                        <div className="space-y-3">
-                                            <p className="flex items-center gap-2 text-[11px] text-emerald-700">
-                                                <CheckCircle2 size={13} className="shrink-0" />
-                                                Your order has been delivered. Review each product above and rate your order experience below.
-                                            </p>
-                                            <OrderExperienceRating
-                                                orderId={order.id}
-                                                existing={feedbackByOrder.get(order.id) || null}
-                                            />
-                                        </div>
+                                        <p className="flex items-center gap-2 text-[11px] text-emerald-700">
+                                            <CheckCircle2 size={13} className="shrink-0" />
+                                            Your order has been delivered. Tap Review Product to rate each item and your order experience.
+                                        </p>
                                     )}
 
                                     {order.order_status === 'rejected' && (
@@ -629,6 +668,8 @@ const OrdersTab = () => {
                                 <p className="mt-3 text-[9px] text-hiraya-ink-muted">
                                     Placed {new Date(order.created_at).toLocaleString()}
                                 </p>
+                                </div>
+                                )}
                             </div>
                         );
                     })}
@@ -639,6 +680,7 @@ const OrdersTab = () => {
                 <ReviewProductModal
                     line={reviewLine}
                     existingReview={reviewByItem.get(reviewLine.id) || null}
+                    orderFeedback={feedbackByOrder.get(Number(reviewLine.order_id)) || null}
                     onClose={() => setReviewLine(null)}
                 />
             )}
