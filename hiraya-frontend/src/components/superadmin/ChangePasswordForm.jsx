@@ -19,6 +19,20 @@ export default function ChangePasswordForm({ onDone }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    // Catch the obvious mistakes before a round trip (the server re-checks).
+    const unmet = PASSWORD_REQUIREMENTS.find((rule) => !rule.test(form.new_password));
+    if (unmet) {
+      setNotice({ ok: false, text: `New password: ${unmet.label.toLowerCase()}.` });
+      return;
+    }
+    if (form.new_password !== form.new_password_confirmation) {
+      setNotice({ ok: false, text: 'The new passwords do not match.' });
+      return;
+    }
+    if (form.new_password === form.current_password) {
+      setNotice({ ok: false, text: 'The new password must be different from the current one.' });
+      return;
+    }
     setBusy(true);
     setNotice(null);
     try {

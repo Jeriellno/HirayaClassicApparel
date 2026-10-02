@@ -303,7 +303,12 @@ class DashboardInsightsController extends Controller
             $low = [];
             $out = 0;
             foreach ($products as $p) {
-                if ((int) $p->stock <= 0) {
+                // Sold out only when NO colour has units left (main + variants).
+                $variantUnits = 0;
+                foreach ((array) (is_string($p->color_variants) ? json_decode($p->color_variants, true) : $p->color_variants) as $v) {
+                    $variantUnits += max(0, (int) ($v['stock'] ?? array_sum(array_map('intval', (array) ($v['size_stocks'] ?? [])))));
+                }
+                if ((int) $p->stock + $variantUnits <= 0) {
                     $out++;
                 }
                 $sizes = is_string($p->size_stocks) ? json_decode($p->size_stocks, true) : (array) $p->size_stocks;

@@ -736,7 +736,7 @@ export default function InventoryTab({
    * override a real per-size breakdown and hide stock the store actually holds.
    * The matrix wins whenever it carries a positive quantity.
    */
-  const totalStockOf = (item) => {
+  const mainStockOf = (item) => {
     const storedStock = Number(item?.stock);
     if (Number.isFinite(storedStock) && storedStock > 0) return storedStock;
 
@@ -744,6 +744,23 @@ export default function InventoryTab({
       const qty = sizeQty(szData);
       return total + (qty > 0 ? qty : 0);
     }, 0);
+  };
+
+  /*
+   * EVERY COLOUR COUNTS. `stock` holds only the main colour; each entry in
+   * `color_variants` carries its own units. The row used to show the main
+   * colour alone (e.g. 1,480 of 5,600), and a product whose main colour sold
+   * out read "Out of stock" while Navy and Black were still on the shelf.
+   */
+  const totalStockOf = (item) => {
+    const variants = Array.isArray(item?.color_variants) ? item.color_variants : [];
+    const variantUnits = variants.reduce((total, v) => {
+      const stored = Number(v?.stock);
+      if (Number.isFinite(stored) && stored > 0) return total + stored;
+      const sizes = v?.size_stocks && typeof v.size_stocks === 'object' ? Object.values(v.size_stocks) : [];
+      return total + sizes.reduce((sum, q) => sum + (Number(q) > 0 ? Number(q) : 0), 0);
+    }, 0);
+    return mainStockOf(item) + variantUnits;
   };
 
   /** How many products are currently unbuyable — the header's alert number. */

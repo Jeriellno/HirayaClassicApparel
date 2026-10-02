@@ -122,7 +122,7 @@ class DemoOrderController extends Controller
         foreach ($orders as $order) {
             foreach (['dp_proof_image_path', 'full_payment_proof_image_path'] as $column) {
                 if ($order->{$column}) {
-                    Storage::disk('public')->delete($order->{$column});
+                    \App\Support\ReceiptStorage::delete($order->{$column});
                 }
             }
         }
@@ -185,9 +185,7 @@ class DemoOrderController extends Controller
         $png = ob_get_clean();
         imagedestroy($img);
 
-        $path = $dir . '/demo-' . Str::uuid() . '.png';
-        Storage::disk('public')->put($path, $png);
-
-        return $path;
+        // Same private receipts bucket as real orders (see ReceiptStorage).
+        return \App\Support\ReceiptStorage::put($png, str_replace('orders/', '', $dir), 'image/png');
     }
 }

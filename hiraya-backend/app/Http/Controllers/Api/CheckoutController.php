@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\ReceiptStorage;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -183,8 +184,7 @@ class CheckoutController extends Controller
                     }
 
                     // 3. Store the down-payment proof.
-                    $dpProofPath = $request->file('dp_proof_image')
-                        ->store('orders/dp-proofs', 'public');
+                    $dpProofPath = ReceiptStorage::store($request->file('dp_proof_image'), 'dp-proofs');
 
                     // First payment: 50% (secures the stock) or the full amount.
                     $dp = $payInFull ? round($total, 2) : round($total / 2, 2);

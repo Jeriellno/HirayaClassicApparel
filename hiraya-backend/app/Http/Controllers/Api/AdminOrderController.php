@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\WritesAuditTrail;
 use App\Http\Controllers\Controller;
+use App\Support\ReceiptStorage;
 use App\Models\Order;
 use App\Models\Product;
 use App\Support\ProductVariants;
@@ -82,11 +83,16 @@ class AdminOrderController extends Controller
             default => null,
         };
 
-        if (! $path || ! Storage::disk('public')->exists($path)) {
+        // Private Supabase bucket for new receipts, local disk for older ones.
+        $receipt = ReceiptStorage::read($path);
+        if ($receipt === null) {
             return response()->json(['message' => 'Payment proof not found.'], 404);
         }
 
-        return Storage::disk('public')->response($path, null, [
+        [$bytes, $type] = $receipt;
+
+        return response($bytes, 200, [
+            'Content-Type' => $type,
             'Cache-Control' => 'private, no-store',
         ]);
     }
@@ -335,8 +341,7 @@ class AdminOrderController extends Controller
                 ];
 
                 if ($request->hasFile('full_payment_proof_image')) {
-                    $changes['full_payment_proof_image_path'] = $request->file('full_payment_proof_image')
-                        ->store('orders/full-payment-proofs', 'public');
+                    $changes['full_payment_proof_image_path'] = ReceiptStorage::store($request->file('full_payment_proof_image'), 'full-payment-proofs');
                 }
 
                 $order->update($changes);

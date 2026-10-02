@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\ReceiptStorage;
 use App\Models\Order;
 use App\Models\Product;
 use App\Support\ProductVariants;
@@ -86,8 +87,7 @@ class OrderController extends Controller
 
         try {
             DB::transaction(function () use ($request, $order, $validated) {
-                $path = $request->file('full_payment_proof_image')
-                    ->store('orders/full-payment-proofs', 'public');
+                $path = ReceiptStorage::store($request->file('full_payment_proof_image'), 'full-payment-proofs');
 
                 $order->update([
                     'full_payment_proof_image_path' => $path,
@@ -199,8 +199,7 @@ class OrderController extends Controller
                     ProductVariants::adjust($product, $item->selected_size, $item->selected_color, -(int) $item->quantity);
                 }
 
-                $path = $request->file('dp_proof_image')
-                    ->store('orders/dp-proofs', 'public');
+                $path = ReceiptStorage::store($request->file('dp_proof_image'), 'dp-proofs');
 
                 $order->update([
                     'dp_proof_image_path' => $path,

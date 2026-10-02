@@ -66,6 +66,12 @@ ang susunod**.
 - **Product Reviews** panel sa Customers Feedback (admin at superadmin).
 - Required na ang bituin sa lahat ng feedback (dating may tahimik na default na 5★).
 
+### Mga resibo ng bayad
+- Naka-save na sa **private** na Supabase Storage bucket na `receipts` (`App\Support\ReceiptStorage`),
+  hindi na sa disk ng server — nabubura ang disk ng Render sa bawat deploy/restart.
+  Ang mga lumang resibo (`orders/...`) ay binabasa pa rin mula sa local disk. Kapag
+  hindi maabot ang Supabase, sa local disk muna sine-save para hindi pumalya ang checkout.
+
 ### Migrations na pinatakbo sa Supabase
 - `2026_10_23_000001_add_order_tracking_and_payment_qr` — mga timestamp ng order,
   `system_settings.value` → TEXT.
