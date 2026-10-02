@@ -31,6 +31,15 @@ const resolveRole = (user) => {
 
 export const resolveSupabaseRole = (user) => supabaseRoleOf(user) || resolveRole(user);
 
+/** True when this browser still holds a Supabase session (sb-<ref>-auth-token). */
+const hasStoredSupabaseSession = () => {
+    try {
+        return Object.keys(localStorage).some((key) => /^sb-.+-auth-token$/.test(key));
+    } catch {
+        return false;
+    }
+};
+
 const SessionGate = ({ label }) => (
     <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-[11px] uppercase tracking-[0.35em] text-hiraya-ink">
@@ -95,7 +104,9 @@ const useAal = ({ requireAal2, userKey }) => {
             }
         };
 
-        read().catch(() => {
+        read().catch((error) => {
+            // getAssuranceLevels already retried; this is a real failure.
+            console.warn('[ProtectedRoute] assurance level check failed:', error?.message);
             if (!cancelled) setState({ key: userKey, currentLevel: null, nextLevel: null });
         });
 
@@ -114,8 +125,21 @@ const useSupabaseIdentity = () => {
 
     const load = useCallback(async () => {
         try {
-            const { data, error } = await supabase.auth.getSession();
-            if (error) throw error;
+            // A transient failure (a token refresh racing a page reload) is
+            // retried before it can be read as "signed out".
+            let data = null;
+            let lastError = null;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+                const result = await supabase.auth.getSession();
+                if (!result.error) {
+                    data = result.data;
+                    lastError = null;
+                    break;
+                }
+                lastError = result.error;
+            }
+            if (lastError) throw lastError;
 
             /*
              * A SESSION THAT IS BRIEFLY ABSENT IS NOT "SIGNED OUT".
@@ -142,7 +166,9 @@ const useSupabaseIdentity = () => {
              */
             let user = data?.session?.user ?? null;
 
-            if (!user && wasAal2JustConfirmed()) {
+            // Also after a page reload: the grace window is in-memory and resets,
+            // but a session still in storage is mid-refresh, not signed out.
+            if (!user && (wasAal2JustConfirmed() || hasStoredSupabaseSession())) {
                 for (let attempt = 0; attempt < 6 && !user; attempt += 1) {
                     await new Promise((resolve) => setTimeout(resolve, 250));
                     const retry = await supabase.auth.getSession();

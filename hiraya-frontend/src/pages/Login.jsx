@@ -17,7 +17,10 @@ import {
     createMfaChallenge,
     verifyMfaChallenge,
     signOutSupabase,
+    fetchAuthoritativeRole,
+    isPrivilegedRole,
 } from '../services/supabaseMfa';
+import { supabase } from '../services/supabase';
 import { useT } from '../context/PreferencesContext';
 
 /*
@@ -87,6 +90,38 @@ const Login = () => {
     useEffect(() => {
         if (step === 'verify') codeRef.current?.focus();
     }, [step]);
+
+    /*
+     * RESUME A VERIFIED CONSOLE SESSION.
+     *
+     * A staff member whose browser still holds an aal2 session (they already
+     * entered their authenticator code) never has to sign in again: landing on
+     * /login — after a reload, a stale bookmark, or a guard that bounced too
+     * early — forwards straight back to the console.
+     */
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                const user = data?.session?.user;
+                if (!user) return;
+                const levels = await getAssuranceLevels();
+                if (cancelled || levels.currentLevel !== 'aal2') return;
+                const staffRole = await fetchAuthoritativeRole(user);
+                if (!cancelled && isPrivilegedRole(staffRole)) {
+                    navigate(redirectTo || roleHome(staffRole), { replace: true });
+                }
+            } catch {
+                // No resumable session — show the sign-in form as usual.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+        // Runs once on mount; `redirectTo` is read from the initial location.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     /** Cheap client-side gate so we never fire an obviously-invalid request. */
     const validate = () => {

@@ -222,28 +222,43 @@ const decodeAalClaim = (accessToken) => {
  * @returns {Promise<{ currentLevel: 'aal1'|'aal2', nextLevel: 'aal1'|'aal2', authenticated: boolean }>}
  */
 export const getAssuranceLevels = async () => {
-    const [{ data: sessionData, error: sessionError }, { data, error }] = await Promise.all([
-        supabase.auth.getSession(),
-        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-    ]);
-    if (error) throw error;
-
-    const accessToken = sessionData?.session?.access_token ?? null;
-    const fromToken = decodeAalClaim(accessToken);
-
     /*
-     * The token wins when it says aal2: a verified session must not be demoted
-     * by a stale server answer, or the console kicks you back to the prompt.
-     * When the token is silent or aal1, the server answer is reported as-is —
-     * fail-closed, never optimistic.
+     * SEQUENTIAL, RETRIED, TOKEN FIRST.
+     *
+     * This used to run getSession() and getAuthenticatorAssuranceLevel() in
+     * parallel and THROW on any error. After a page reload with an expired
+     * access token (every Vite reload during a long session) both calls raced
+     * to refresh it; one would fail transiently, the throw made ProtectedRoute
+     * treat a valid aal2 session as "not verified", and staff were sent back to
+     * /login to redo their authenticator code. getSession() now refreshes first,
+     * the signed token's own `aal` claim is trusted when present, and transient
+     * failures are retried instead of ending the session.
      */
-    const currentLevel = fromToken === 'aal2' ? 'aal2' : (data?.currentLevel ?? fromToken ?? null);
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const session = sessionData?.session ?? null;
+            const fromToken = decodeAalClaim(session?.access_token ?? null);
 
-    return {
-        currentLevel,
-        nextLevel: data?.nextLevel ?? null,
-        authenticated: Boolean(data?.authenticated ?? sessionError === undefined),
-    };
+            let data = null;
+            try {
+                ({ data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel());
+            } catch (aalError) {
+                if (!fromToken) throw aalError;
+            }
+
+            return {
+                currentLevel: fromToken === 'aal2' ? 'aal2' : (data?.currentLevel ?? fromToken ?? null),
+                nextLevel: data?.nextLevel ?? null,
+                authenticated: Boolean(session),
+            };
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError;
 };
 
 /**
