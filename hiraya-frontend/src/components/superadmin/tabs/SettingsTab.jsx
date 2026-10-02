@@ -153,6 +153,9 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
                 onClick={() => handleToggle(toggle.key)}
                 disabled={isBusy || !onToggle}
                 title={isOn ? 'Turn off' : 'Turn on'}
+                role="switch"
+                aria-checked={isOn}
+                aria-label={toggle.name}
                 className="shrink-0 text-hiraya-ink disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
               >
                 {isBusy ? (
