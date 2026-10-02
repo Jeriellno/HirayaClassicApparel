@@ -5,6 +5,7 @@ import {
   Search,
   X,
   ShieldCheck,
+  ShieldOff,
   Mail,
   ShoppingBag,
   Wallet,
@@ -281,6 +282,38 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
   };
 
 
+  /**
+   * Suspend a customer (superadmin only, the API refuses anyone else). The
+   * account is signed out and cannot log in until reactivated. Asks first,
+   * because it locks a real customer out. Returns whether it went through.
+   */
+  const handleSuspend = async (customer) => {
+    const ok = await confirm({
+      title: 'Suspend customer?',
+      message: `${customer.full_name || customer.email} will be signed out immediately and will not be able to sign in until you reactivate the account.`,
+      confirmText: 'Suspend',
+      cancelText: 'Keep active',
+      danger: true,
+    });
+    if (!ok) return false;
+
+    setBusyId(customer.id);
+    setError('');
+    try {
+      const res = await api.patch(`/admin/customers/${customer.id}/suspend`);
+      const updated = res.data?.customer || { suspended_at: new Date().toISOString() };
+      setCustomers((current) =>
+        current.map((c) => (c.id === customer.id ? { ...c, ...updated } : c))
+      );
+      return true;
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to suspend the customer.');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleReactivate = async (customer) => {
     setBusyId(customer.id);
     setError('');
@@ -467,6 +500,22 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
                         >
                           <Search size={14} />
                         </button>
+
+                        {isOwner && !customer.suspended_at && (
+                          <button
+                            onClick={() => handleSuspend(customer)}
+                            disabled={busyId === customer.id}
+                            className="p-2 bg-red-500/12 hover:bg-red-500/20 border border-red-600/40 text-red-700 rounded-lg transition cursor-pointer disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none"
+                            title="Suspend customer"
+                            aria-label={`Suspend ${customer.full_name || customer.email}`}
+                          >
+                            {busyId === customer.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <ShieldOff size={14} />
+                            )}
+                          </button>
+                        )}
 
                         {isOwner && customer.suspended_at && (
                           <button
@@ -833,6 +882,20 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
                     </>
                   );
                 })()}
+
+                {isOwner && !detail.suspended_at && (
+                <div className="pt-4 border-t border-hiraya-structure-line/80">
+                    <button
+                      onClick={async () => {
+                        if (await handleSuspend(detail)) setDetail(null);
+                      }}
+                      disabled={busyId === detail.id}
+                      className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-600/40 text-red-700 font-bold uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-2 w-full py-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {busyId === detail.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldOff size={14} />} Suspend account
+                    </button>
+                </div>
+                )}
 
                 {isOwner && detail.suspended_at && (
                 <div className="pt-4 border-t border-hiraya-structure-line/80">
