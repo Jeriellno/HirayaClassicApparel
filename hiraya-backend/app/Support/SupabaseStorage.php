@@ -145,6 +145,69 @@ class SupabaseStorage
     }
 
     /**
+     * Upload several files AT ONCE (Http::pool) instead of one after another.
+     *
+     * A product save with colours carries up to three photos per colour; sent
+     * sequentially over a slow connection they took longer than the console
+     * waits, so the save looked failed while the server was still uploading.
+     * In parallel the save costs roughly one upload, not N.
+     *
+     * @param  array<string, array{0: UploadedFile, 1: string}>  $files  label => [file, folder]
+     * @return array<string, string>  label => root-relative public path
+     */
+    public static function putUploadedFiles(array $files): array
+    {
+        if ($files === []) {
+            return [];
+        }
+
+        [$base, $serviceKey] = self::connection();
+
+        $jobs = [];
+        foreach ($files as $label => [$file, $folder]) {
+            $bytes = @file_get_contents($file->getRealPath());
+            if ($bytes === false || $bytes === '') {
+                throw new RuntimeException('The uploaded file could not be read from disk.');
+            }
+            $jobs[$label] = [
+                'bytes' => $bytes,
+                'key' => self::keyFor($file, $folder),
+                'type' => $file->getClientMimeType() ?: 'application/octet-stream',
+            ];
+        }
+
+        $responses = Http::pool(function ($pool) use ($jobs, $base, $serviceKey) {
+            foreach ($jobs as $label => $job) {
+                $pool->as((string) $label)
+                    ->withHeaders([
+                        'apikey'        => $serviceKey,
+                        'Authorization' => 'Bearer ' . $serviceKey,
+                        'x-upsert'      => 'true',
+                    ])
+                    ->withBody($job['bytes'], $job['type'])
+                    ->timeout(90)
+                    ->post($base . self::API_PREFIX . self::BUCKET . '/' . $job['key']);
+            }
+        });
+
+        $paths = [];
+        foreach ($jobs as $label => $job) {
+            $response = $responses[(string) $label] ?? null;
+            if (! $response instanceof \Illuminate\Http\Client\Response || ! $response->successful()) {
+                Log::error('SupabaseStorage: parallel upload failed.', [
+                    'key' => $job['key'],
+                    'status' => $response instanceof \Illuminate\Http\Client\Response ? $response->status() : get_class((object) $response),
+                ]);
+
+                throw new RuntimeException('Storage rejected one of the photos. Please try saving again.');
+            }
+            $paths[$label] = self::publicPath($job['key']);
+        }
+
+        return $paths;
+    }
+
+    /**
      * Delete an object we previously uploaded.
      *
      * Returns true when the object is gone (or was already absent) and false when

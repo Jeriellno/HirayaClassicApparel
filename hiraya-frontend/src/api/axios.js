@@ -42,6 +42,8 @@ const TIMEOUT_RULES = [
   { pattern: /\/admin\/(accounts|settings|audit-logs|feedbacks)/, timeout: TIMEOUTS.HEAVY_DATA },
   { pattern: /\/admin\/customers/, timeout: TIMEOUTS.HEAVY_DATA },
   { pattern: /\/products/, timeout: TIMEOUTS.HEAVY_DATA },
+  // Customer order history (with products) and its reviews / ratings.
+  { pattern: /^\/(orders|reviews\/mine|feedback\/mine)/, timeout: TIMEOUTS.HEAVY_DATA },
 ];
 
 const isAuthEndpoint = (url = '') =>

@@ -575,6 +575,26 @@ class ProductController extends Controller
         $seen = $primary !== '' ? [strtolower($primary)] : [];
         $out = [];
 
+        // Upload every new colour photo in ONE parallel batch (see putUploadedFiles).
+        $uploadFields = [
+            'variant_image_files'   => ['image_url', 'products'],
+            'variant_display_files' => ['display_image_url', 'catalog'],
+            'variant_tryon_files'   => ['ghost_mannequin_url', 'catalog'],
+        ];
+        $pending = [];
+        foreach ($validated['color_variants'] ?? [] as $incoming) {
+            foreach ($uploadFields as $field => [$column, $folder]) {
+                $file = $request->file("{$field}.{$incoming['id']}");
+                if ($file) {
+                    $pending[$incoming['id'] . '|' . $column] = [$file, $folder];
+                }
+            }
+        }
+        $uploaded = SupabaseStorage::putUploadedFiles($pending);
+        // Replaced photos are removed AFTER the response is sent, so the save
+        // does not wait on storage deletes either.
+        $replaced = [];
+
         foreach ($validated['color_variants'] ?? [] as $incoming) {
             $id = $incoming['id'];
             $color = trim($incoming['color']);
@@ -598,17 +618,12 @@ class ProductController extends Controller
                 'background_occasion' => $incoming['background_occasion'] ?? ($stored['background_occasion'] ?? null),
             ];
 
-            foreach ([
-                'variant_image_files'   => ['image_url', 'products'],
-                'variant_display_files' => ['display_image_url', 'catalog'],
-                'variant_tryon_files'   => ['ghost_mannequin_url', 'catalog'],
-            ] as $field => [$column, $folder]) {
-                $file = $request->file("{$field}.{$id}");
-                if ($file) {
+            foreach ($uploadFields as [$column]) {
+                if (isset($uploaded[$id . '|' . $column])) {
                     if (! empty($variant[$column])) {
-                        $this->deleteProductImage($variant[$column]);
+                        $replaced[] = $variant[$column];
                     }
-                    $variant[$column] = SupabaseStorage::putUploadedFile($file, $folder);
+                    $variant[$column] = $uploaded[$id . '|' . $column];
                 }
             }
 
@@ -633,9 +648,16 @@ class ProductController extends Controller
         foreach ($existing as $removed) {
             foreach (['image_url', 'display_image_url', 'ghost_mannequin_url'] as $column) {
                 if (! empty($removed[$column])) {
-                    $this->deleteProductImage($removed[$column]);
+                    $replaced[] = $removed[$column];
                 }
             }
+        }
+        if ($replaced !== []) {
+            app()->terminating(function () use ($replaced) {
+                foreach ($replaced as $url) {
+                    $this->deleteProductImage($url);
+                }
+            });
         }
 
         $validated['color_variants'] = $out;

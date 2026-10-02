@@ -106,7 +106,15 @@ const OrdersTab = () => {
         setFetching(true);
         setError('');
         try {
-            const res = await api.get('/orders');
+            // One quiet retry: a slow or briefly dropped connection should not
+            // leave the customer staring at "Failed to load your orders".
+            let res;
+            try {
+                res = await api.get('/orders');
+            } catch (firstError) {
+                if (firstError?.response) throw firstError;
+                res = await api.get('/orders');
+            }
             setOrders(Array.isArray(res.data) ? res.data : res.data?.data || []);
         } catch (err) {
             console.error('Error fetching orders:', err);

@@ -778,14 +778,15 @@ const SuperAdmin = ({ onLogout }) => {
   // console session completed with two-factor verification, and answer 401
   // "Your admin session has expired..." when it is missing.
   const handleAddProduct = async (payload) => {
-    const res = await api.post('/products', payload);
+    // Photo uploads over a slow connection can outlast the 45s default.
+    const res = await api.post('/products', payload, { explicitTimeout: 180000 });
     await fetchProducts();
     invalidateCatalog(queryClient);
     return res.data;
   };
 
   const handleUpdateProduct = async (id, payload) => {
-    const res = await api.post(`/products/${id}`, payload);
+    const res = await api.post(`/products/${id}`, payload, { explicitTimeout: 180000 });
     await fetchProducts();
     invalidateCatalog(queryClient);
     return res.data;

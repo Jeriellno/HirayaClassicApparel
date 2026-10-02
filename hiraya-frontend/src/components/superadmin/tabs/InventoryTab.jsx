@@ -1162,7 +1162,11 @@ export default function InventoryTab({
       setSaveError(
         (Array.isArray(firstValidation) ? firstValidation[0] : firstValidation) ||
         backendMessage ||
-        (status ? `Save failed (HTTP ${status}).` : 'Save failed. Check that the backend server is running.')
+        (status
+          ? `Save failed (HTTP ${status}).`
+          : error?.code === 'ECONNABORTED'
+            ? 'Saving is taking longer than usual (slow connection). Please check your internet and try again.'
+            : 'Could not reach the server. Please check your internet connection and try again.')
       );
     } finally {
       setIsSubmitting(false);
