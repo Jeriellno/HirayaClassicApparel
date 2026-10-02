@@ -119,18 +119,20 @@ const PaymentInstructions = ({ amount = null, amountLabel = 'Amount to send', cl
       </div>
 
       {data.qr_image_url && (
-        <div className="mt-3 flex items-center gap-3 border-t border-hiraya-accent/20 pt-3">
-          <QrCode size={15} className="shrink-0 text-hiraya-accent" />
+        <div className="mt-3 flex flex-col items-center gap-2 border-t border-hiraya-accent/20 pt-3 text-center">
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-accent">
+            <QrCode size={13} /> Scan to pay
+          </p>
           <img
             src={data.qr_image_url}
-            alt="Payment QR code"
-            className="h-28 w-28 rounded-sm border border-hiraya-structure-line bg-white object-contain"
+            alt="Store payment QR code"
+            className="h-44 w-44 rounded-sm border border-hiraya-structure-line bg-white object-contain"
           />
         </div>
       )}
 
       <p className="mt-3 text-[10px] leading-relaxed text-hiraya-ink-muted">
-        After sending, upload your receipt below. Keep the reference number until your payment is confirmed.
+        After paying, upload your receipt below and type the <strong className="text-hiraya-ink">reference number</strong> shown on it — the store matches that number in its GCash or bank app to confirm your payment.
       </p>
     </div>
   );

@@ -3,6 +3,7 @@ import ChangePasswordForm from '../ChangePasswordForm';
 import { Database, Download, RotateCcw, Loader2, KeyRound, ToggleLeft, ToggleRight, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import MfaEnrollment from '../../settings/MfaEnrollment';
+import PaymentQrSettings from '../PaymentQrSettings';
 import { supabase } from '../../../services/supabase';
 import { roleOf } from '../../../services/supabaseMfa';
 
@@ -166,6 +167,9 @@ const SettingsTab = ({ settings = {}, onToggle, onExportBackup, onClearDemoAnaly
           );
         })}
       </div>
+
+      {/* STORE PAYMENT QR — shown to customers wherever they pay. */}
+      <PaymentQrSettings />
 
       {/* YOUR OWN ACCOUNT SECURITY */}
       <div className="p-5 bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 space-y-4 pt-6 mt-6">

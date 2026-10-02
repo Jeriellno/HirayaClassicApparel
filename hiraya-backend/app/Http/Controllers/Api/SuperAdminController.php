@@ -336,7 +336,7 @@ class SuperAdminController extends Controller
 
             SystemSetting::updateOrCreate(
                 ['key' => $key],
-                ['value' => $value, 'updated_by' => $request->user()?->id]
+                ['value' => $value]
             );
 
             AuditLog::create([
@@ -377,6 +377,60 @@ class SuperAdminController extends Controller
     /**
      * GET /api/admin/audit-logs
      */
+    /**
+     * PUT /api/admin/payment-qr — the store's GCash/bank QR shown to customers
+     * when they pay. Kept as a data URI in system_settings (`payment_qr_image`);
+     * send `image: null` to remove it.
+     */
+    public function updatePaymentQr(Request $request)
+    {
+        $validated = $request->validate([
+            'image' => ['nullable', 'string', 'max:2800000', 'regex:/^data:image\/(png|jpe?g|webp);base64,/'],
+        ], [
+            'image.regex' => 'Upload a PNG, JPG or WebP image of your QR code.',
+            'image.max' => 'The QR image must be under 2 MB.',
+        ]);
+
+        $image = $validated['image'] ?? null;
+
+        if ($image !== null) {
+            $bytes = base64_decode(substr($image, strpos($image, ',') + 1), true);
+            if ($bytes === false || @getimagesizefromstring($bytes) === false) {
+                return response()->json(['message' => 'That file is not a readable image.'], 422);
+            }
+        }
+
+        if ($image === null) {
+            SystemSetting::where('key', 'payment_qr_image')->delete();
+        } else {
+            SystemSetting::updateOrCreate(
+                ['key' => 'payment_qr_image'],
+                ['value' => $image]
+            );
+        }
+
+        AuditLog::create([
+            'admin_email' => $request->user()?->email,
+            'action' => 'UPDATE_SETTING',
+            'target' => 'SYSTEM_SETTINGS',
+            'details' => $image === null ? 'payment QR removed' : 'payment QR updated',
+        ]);
+
+        return response()->json(['qr_image_url' => $image]);
+    }
+
+    /** The uploaded store QR, or the config/env fallback. */
+    public static function paymentQrImage(): ?string
+    {
+        try {
+            $stored = SystemSetting::where('key', 'payment_qr_image')->value('value');
+        } catch (\Throwable $e) {
+            $stored = null;
+        }
+
+        return $stored ?: config('payments.qr_image_url');
+    }
+
     public function auditLogs(Request $request)
     {
         /*

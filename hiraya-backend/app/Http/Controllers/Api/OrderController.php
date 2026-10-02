@@ -76,6 +76,14 @@ class OrderController extends Controller
             'balance_reference_number' => 'required|string|min:4|max:64',
         ]);
 
+        if (Order::referenceInUse($validated['balance_reference_number'], $order->id)
+            || strcasecmp(trim((string) $order->dp_reference_number), trim($validated['balance_reference_number'])) === 0) {
+            return response()->json([
+                'message' => 'This reference number was already used for another payment. Please check your receipt.',
+                'errors' => ['balance_reference_number' => ['This reference number was already used.']],
+            ], 422);
+        }
+
         try {
             DB::transaction(function () use ($request, $order, $validated) {
                 $path = $request->file('full_payment_proof_image')
@@ -161,6 +169,13 @@ class OrderController extends Controller
             'dp_proof_image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'dp_reference_number' => 'required|string|min:4|max:64',
         ]);
+
+        if (Order::referenceInUse($validated['dp_reference_number'], $order->id)) {
+            return response()->json([
+                'message' => 'This reference number was already used for another payment. Please check your receipt.',
+                'errors' => ['dp_reference_number' => ['This reference number was already used.']],
+            ], 422);
+        }
 
         try {
             DB::transaction(function () use ($request, $order, $validated) {

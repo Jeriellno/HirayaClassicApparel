@@ -27,6 +27,11 @@ class Order extends Model
         'balance_reference_number',
         'dp_submitted_at',
         'balance_proof_submitted_at',
+        'dp_verified_at',
+        'fully_paid_at',
+        'ready_for_shipping_at',
+        'shipped_at',
+        'delivered_at',
     ];
 
     protected $casts = [
@@ -36,7 +41,32 @@ class Order extends Model
         'dp_submitted_at' => 'datetime',
         'balance_proof_submitted_at' => 'datetime',
         'is_demo' => 'boolean',
+        'dp_verified_at' => 'datetime',
+        'fully_paid_at' => 'datetime',
+        'ready_for_shipping_at' => 'datetime',
+        'shipped_at' => 'datetime',
+        'delivered_at' => 'datetime',
     ];
+
+    /**
+     * Has this payment reference already been used on another order? Stops one
+     * receipt from being submitted for two orders (dp or balance, any order).
+     */
+    public static function referenceInUse(string $reference, ?int $exceptOrderId = null): ?int
+    {
+        $normalized = strtolower(preg_replace('/\s+/', '', $reference));
+        if ($normalized === '') {
+            return null;
+        }
+
+        return static::query()
+            ->when($exceptOrderId, fn ($q) => $q->whereKeyNot($exceptOrderId))
+            ->where(function ($q) use ($normalized) {
+                $q->whereRaw("lower(replace(dp_reference_number, ' ', '')) = ?", [$normalized])
+                  ->orWhereRaw("lower(replace(balance_reference_number, ' ', '')) = ?", [$normalized]);
+            })
+            ->value('id');
+    }
 
     /**
      * Expose public URLs of the payment proofs without a separate endpoint.

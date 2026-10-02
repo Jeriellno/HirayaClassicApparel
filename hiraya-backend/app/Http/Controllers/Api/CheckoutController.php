@@ -77,6 +77,14 @@ class CheckoutController extends Controller
                 ], 422);
             }
 
+            // One receipt, one order: a reference already on another order is refused.
+            if ($usedBy = Order::referenceInUse($validated['dp_reference_number'])) {
+                return response()->json([
+                    'message' => 'This reference number was already used for another payment. Please check your receipt.',
+                    'errors' => ['dp_reference_number' => ['This reference number was already used.']],
+                ], 422);
+            }
+
             // Normalise both paths into one list of requested lines.
             $lines = $this->normaliseLines($validated);
             $fromCart = ($validated['source'] ?? null) === 'cart';

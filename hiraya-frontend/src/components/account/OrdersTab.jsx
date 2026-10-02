@@ -17,6 +17,7 @@ import api from '../../api/axios';
 import Currency from '../common/Currency';
 import PaymentInstructions from '../common/PaymentInstructions';
 import LalamoveBookingForm from './LalamoveBookingForm';
+import OrderTracker from '../common/OrderTracker';
 import { describeProcessingDate } from '../../utils/orderPolicy';
 import ReviewProductModal from './ReviewProductModal';
 import { getProductImageUrl } from '../../utils/imageHelper';
@@ -389,12 +390,10 @@ const OrdersTab = () => {
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                                                Order Status
+                                            <p className="mb-2 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                                                Order Status · <span className="text-hiraya-ink">{ORDER_STATUS_LABELS[order.order_status] || order.order_status}</span>
                                             </p>
-                                            <p className="text-hiraya-ink">
-                                                {ORDER_STATUS_LABELS[order.order_status] || order.order_status}
-                                            </p>
+                                            <OrderTracker order={order} />
                                         </div>
                                         {order.processing_date && !['delivered', 'rejected'].includes(order.order_status) && (
                                             <div>

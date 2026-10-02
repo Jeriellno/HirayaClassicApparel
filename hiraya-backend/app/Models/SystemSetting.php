@@ -14,7 +14,7 @@ class SystemSetting extends Model
     protected $fillable = [
         'key',
         'value',
-        'updated_by',
+        // No `updated_by` column exists; who changed what is in the audit log.
     ];
 
     /**

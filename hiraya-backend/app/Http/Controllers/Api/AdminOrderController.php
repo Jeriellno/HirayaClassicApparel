@@ -115,6 +115,7 @@ class AdminOrderController extends Controller
             'payment_status'   => '50_paid',
             'order_status'     => 'processing',
             'rejection_reason' => null,
+            'dp_verified_at'   => now(),
         ]);
 
         /*
@@ -289,6 +290,8 @@ class AdminOrderController extends Controller
                 $changes = [
                     'payment_status' => 'fully_paid',
                     'order_status' => 'ready_for_shipping',
+                    'fully_paid_at' => now(),
+                    'ready_for_shipping_at' => now(),
                 ];
 
                 if ($request->hasFile('full_payment_proof_image')) {
@@ -426,7 +429,12 @@ class AdminOrderController extends Controller
                     throw new \RuntimeException('This order was already rejected.');
                 }
 
-                $locked->update(['order_status' => $newStatus]);
+                $changes = ['order_status' => $newStatus];
+                // Tracker timestamps for the steps that have one.
+                if (in_array($newStatus, ['ready_for_shipping', 'shipped', 'delivered'], true)) {
+                    $changes[$newStatus . '_at'] = now();
+                }
+                $locked->update($changes);
 
                 // A rejected down payment already released the stock
                 // (rejectDownPayment), so only credit it back once.

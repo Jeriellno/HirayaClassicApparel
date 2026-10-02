@@ -180,7 +180,7 @@ Route::get('/payment-instructions', function () {
     return response()->json([
         'instructions' => config('payments.instructions'),
         'accounts'     => config('payments.accounts'),
-        'qr_image_url' => config('payments.qr_image_url'),
+        'qr_image_url' => SuperAdminController::paymentQrImage(),
         'cutoff'       => config('payments.cutoff'),
         'timezone'     => config('payments.timezone'),
         'store_hours'  => config('payments.store_hours'),
@@ -578,6 +578,7 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
     ->group(function () {
         Route::get('/settings', [SuperAdminController::class, 'settings']);
     Route::put('/settings/{key}', [SuperAdminController::class, 'updateSetting']);
+    Route::put('/payment-qr', [SuperAdminController::class, 'updatePaymentQr']);
     Route::get('/export', [SuperAdminController::class, 'export']);
     Route::delete('/analytics/demo', [SuperAdminController::class, 'clearDemoAnalytics']);
 

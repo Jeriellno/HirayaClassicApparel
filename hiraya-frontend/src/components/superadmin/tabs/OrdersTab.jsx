@@ -18,10 +18,13 @@ import {
   Save,
   ImageOff,
   ExternalLink,
+  Check,
+  Copy,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import useConfirm from '../../../hooks/useConfirm';
 import { describeProcessingDate } from '../../../utils/orderPolicy';
+import OrderTracker from '../../common/OrderTracker';
 
 /**
  * SUPER ADMIN — ORDERS.
@@ -190,6 +193,25 @@ const ProofImage = ({ orderId, type, label }) => {
 };
 
 /** One payment step: its receipt, reference number and submission time. */
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }).catch(() => {});
+      }}
+      aria-label="Copy reference number"
+      className="cursor-pointer rounded p-0.5 text-hiraya-sand hover:text-hiraya-ink"
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  );
+};
+
 const PaymentStep = ({ order, type, title, amount, reference, submittedAt, hasProof, children }) => (
   <div className="rounded-2xl bg-navy-900/[0.03] p-4 ring-1 ring-hiraya-structure-line/70 space-y-3">
     <div className="flex items-baseline justify-between gap-3">
@@ -207,10 +229,27 @@ const PaymentStep = ({ order, type, title, amount, reference, submittedAt, hasPr
 
     <div className="grid grid-cols-2 gap-3">
       <DetailRow label="Reference No.">
-        {reference && <span className="font-mono tracking-wide">{reference}</span>}
+        {reference && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-mono tracking-wide">{reference}</span>
+            <CopyButton text={reference} />
+          </span>
+        )}
       </DetailRow>
       <DetailRow label="Submitted">{submittedAt && new Date(submittedAt).toLocaleString()}</DetailRow>
     </div>
+
+    {hasProof && (reference ? (
+      <p className="rounded-lg bg-hiraya-surface px-3 py-2 text-[10px] leading-relaxed text-hiraya-ink ring-1 ring-hiraya-structure-line/70">
+        <strong>Before approving:</strong> open the store&apos;s GCash or bank app, search reference{' '}
+        <span className="font-mono">{reference}</span>, and check that <strong>{peso(amount)}</strong> was received.
+        A photo alone is not proof of payment.
+      </p>
+    ) : (
+      <p className="rounded-lg bg-amber-500/12 px-3 py-2 text-[10px] leading-relaxed text-amber-800">
+        No reference number on this receipt. Ask the customer for it and match it in the store&apos;s GCash or bank app before approving.
+      </p>
+    ))}
 
     {children}
   </div>
@@ -374,6 +413,11 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
 
         {/* BODY */}
         <div className="overflow-y-auto p-5 space-y-6">
+          <section>
+            <p className="mb-3 text-[9px] uppercase tracking-widest text-hiraya-sand">Order progress</p>
+            <OrderTracker order={order} />
+          </section>
+
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <DetailRow label="Customer Name">{order.customer_name || order.user?.full_name}</DetailRow>
             <DetailRow label="Contact Number">{order.contact_number}</DetailRow>
