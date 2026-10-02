@@ -48,7 +48,15 @@ const Shelf = ({ title, products, loading, isRecommended, renderBadge }) => {
 
   return (
     <>
+      {/*
+        * `key` REMOUNTS the shelf when the cards replace the skeletons. The
+        * one-shot `whileInView` reveal used to fire on the SKELETONS; the real
+        * cards then mounted in their `hidden` state (opacity 0) and never
+        * animated in, so a rail that loaded slowly stayed blank until the page
+        * was revisited.
+        */}
       <motion.ul
+        key={loading ? 'loading' : `loaded-${products.length}`}
         ref={trackRef}
         onScroll={measure}
         tabIndex={0}

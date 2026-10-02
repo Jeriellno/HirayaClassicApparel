@@ -199,7 +199,8 @@ class CheckoutController extends Controller
                     // omit cart_item_ids still get the old full-bag behavior.
                     if ($fromCart) {
                         if ($ownedCartItems->isNotEmpty()) {
-                            $ownedCartItems->delete();
+                            // A Collection has no delete(); remove the rows by key.
+                            \App\Models\CartItem::whereKey($ownedCartItems->modelKeys())->delete();
                         } elseif (empty($validated['cart_item_ids'])) {
                             // Backwards-compatible full-bag checkout from an old client.
                             $request->user()?->cartItems()->delete();

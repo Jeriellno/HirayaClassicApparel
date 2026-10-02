@@ -38,9 +38,27 @@ const NotificationBell = () => {    const { user } = useAuth();
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     });
 
+    /*
+     * OPTIMISTIC: the badge and dots clear the moment it is pressed. The button
+     * used to be disabled while the list was refetching — and opening the panel
+     * always refetches — so on a slow backend the click landed on a disabled
+     * button that looked enabled, and "Mark all read" seemed to do nothing.
+     */
     const markAllMutation = useMutation({
         mutationFn: () => api.post('/notifications/read-all'),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: ['notifications'] });
+            const previous = queryClient.getQueriesData({ queryKey: ['notifications'] });
+            const now = new Date().toISOString();
+            queryClient.setQueriesData({ queryKey: ['notifications'] }, (data) => (data
+                ? { ...data, unread: 0, items: (data.items || []).map((n) => (n.read_at ? n : { ...n, read_at: now })) }
+                : data));
+            return { previous };
+        },
+        onError: (_error, _vars, context) => {
+            context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
     });
 
     const items = notificationsQuery.data?.items || [];
@@ -129,7 +147,7 @@ const NotificationBell = () => {    const { user } = useAuth();
             {unread > 0 && (
               <button
                 onClick={handleMarkAll}
-                disabled={isLoading || markAllMutation.isPending}
+                disabled={markAllMutation.isPending}
                 className="flex cursor-pointer items-center gap-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted transition-colors hover:text-hiraya-accent disabled:cursor-not-allowed"
               >
                 <Check size={11} />

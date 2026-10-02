@@ -42,6 +42,10 @@ const Checkout = () => {
         quantity: item.quantity ?? 1,
         size: item.size ?? null,
         color: item.color ?? null,
+        // Display-only (the server re-prices): without these the summary read
+        // "Product #49" and fell back to the order total for each line.
+        name: item.name ?? null,
+        price: item.price ?? null,
       }))
     : null;
 
