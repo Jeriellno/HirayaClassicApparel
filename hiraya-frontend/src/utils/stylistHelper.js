@@ -1,4 +1,4 @@
-const LOWER_WORDS = ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'];
+import { isLowerBodyGarment } from './categoryHelpers';
 const FIT_TO_CUT = { slim: 'SLIM', regular: 'REGULAR', oversized: 'LOOSE' };
 const CUT_WORDS = { SLIM: 'slim', REGULAR: 'regular', LOOSE: 'relaxed / oversized' };
 
@@ -19,8 +19,7 @@ export const getStylistRecommendation = (user, product) => {
     return 'Sign in to see how this piece fits your saved size and fit style.';
   }
 
-  const category = `${product?.category || ''} ${product?.name || ''}`.toLowerCase();
-  const isLower = LOWER_WORDS.some((word) => category.includes(word));
+  const isLower = isLowerBodyGarment(product?.category, product?.name);
   const mySize = isLower ? user.lower_body_size || user.upper_body_size : user.upper_body_size || user.lower_body_size;
 
   if (!mySize) {

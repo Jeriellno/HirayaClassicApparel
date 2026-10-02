@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
+import { isLowerBodyGarment } from '../../utils/categoryHelpers';
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL'];
-const LOWER_WORDS = ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'];
 
 // The store's standard chart (mirrors App\Services\SizeChart), used for any
 // stocked size the product has no measurements saved for.
@@ -44,8 +44,7 @@ export const sortSizes = (sizes) =>
  * upper- or lower-body columns from the category.
  */
 const SizeTable = ({ category = '', name = '', measurements = null, sizes: stocked = [], highlight = '' }) => {
-  const text = `${category} ${name}`.toLowerCase();
-  const columns = LOWER_WORDS.some((w) => text.includes(w)) ? COLUMNS.lower : COLUMNS.upper;
+  const columns = isLowerBodyGarment(category, name) ? COLUMNS.lower : COLUMNS.upper;
 
   const table = { ...(measurements && typeof measurements === 'object' ? measurements : {}) };
   stocked.forEach((size) => {

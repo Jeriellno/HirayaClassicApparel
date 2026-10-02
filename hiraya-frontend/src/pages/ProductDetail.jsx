@@ -26,6 +26,7 @@ import { ColorSelector, SizeSelector } from '../components/product/VariantSelect
 import AccordionItem from '../components/common/AccordionItem';
 import Currency from '../components/common/Currency';
 import { getStylistRecommendation, parseVariants } from '../utils/stylistHelper';
+import { isLowerBodyGarment } from '../utils/categoryHelpers';
 import { useT } from '../context/PreferencesContext';
 
 const ProductDetail = () => {
@@ -48,6 +49,8 @@ const ProductDetail = () => {
       const response = await api.get(`/products/${cleanId}`);
       return response.data;
     },
+    // A missing product (404) will not appear on a retry: show "not found" at once.
+    retry: (count, err) => err?.response?.status !== 404 && count < 2,
   });
 
   useEffect(() => {
@@ -182,8 +185,7 @@ const ProductDetail = () => {
     if (!selectedSize && productSizes.length > 0) {
       const inStock = (size) => !hasSizeStockData || (parsedSizeStocks[size] ?? 0) > 0;
       // The shopper's own saved size first, when it is in stock.
-      const lowerWords = ['pant', 'trouser', 'jean', 'skirt', 'short', 'legging', 'bottom', 'slack'];
-      const isLower = lowerWords.some((w) => `${product.category} ${product.name}`.toLowerCase().includes(w));
+      const isLower = isLowerBodyGarment(product.category, product.name);
       const mine = isLower ? user?.lower_body_size : user?.upper_body_size;
       const own = productSizes.find((size) => mine && size.toUpperCase() === String(mine).toUpperCase() && inStock(size));
       setSelectedSize(own ?? productSizes.find(inStock) ?? productSizes[0]);
@@ -271,6 +273,23 @@ const ProductDetail = () => {
    * This is the shared handoff for BOTH"Save" and the AI Try-On flow.
    */
   const persistToBag = async () => {
+    /*
+     * Already in the bag (same colour + size)? Then the Studio can use that
+     * row as it is. Posting again would ADD the quantity on top each time the
+     * shopper taps Try-On, and at low stock the server refuses the extra units,
+     * which used to block the try-on with a "only N left" error.
+     */
+    try {
+      const { data } = await api.get('/cart');
+      const inBag = (data?.items || []).some((item) =>
+        Number(item.product_id) === Number(product.id)
+        && String(item.selected_size) === String(selectedSize)
+        && String(item.selected_color) === String(effectiveColor));
+      if (inBag) return;
+    } catch {
+      // Could not read the bag: fall through and add as before.
+    }
+
     await api.post('/cart', {
       product_id: product.id,
       selected_color: effectiveColor,
@@ -653,7 +672,7 @@ const ProductDetail = () => {
                   name={product.name}
                   measurements={product.size_measurements}
                   sizes={productSizes}
-                  highlight={user?.upper_body_size || ''}
+                  highlight={(isLowerBodyGarment(product.category, product.name) ? user?.lower_body_size : user?.upper_body_size) || ''}
                 />
               </AccordionItem>
 
@@ -664,9 +683,9 @@ const ProductDetail = () => {
                   arrange yourself once the piece is ready.
                 </p>
                 <p className="mt-2.5">
-                  Payment follows our two-step flow: settle the 50% down payment to reserve your piece,
-                  then the remaining balance before dispatch. Upload your receipt from your dashboard and
-                  we will verify it.
+                  Pay a 50% down payment to reserve your piece and the balance before courier pickup, or
+                  pay in full at checkout. Scan the store QR, then upload your receipt with its reference
+                  number — we verify every payment.
                 </p>
               </AccordionItem>
             </div>

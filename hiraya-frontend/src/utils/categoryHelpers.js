@@ -45,3 +45,24 @@ export const resolveStackCategory = (rawCategory) => {
   if (c.includes('dress') || c.includes('gown')) return 'dress';
   return 'top';
 };
+/*
+ * IS THIS A LOWER-BODY GARMENT? (sizing axis: lower_body_size vs upper_body_size)
+ *
+ * Three places used to substring-match a word list against `category + name`,
+ * and the list contained 'short' — so "White Knitted SHORT Sleeve Button-Down
+ * Shirt" counted as shorts: the page pre-selected the customer's LOWER size,
+ * the stylist note said "Your lower body size…", and the size guide showed
+ * waist / hip for a shirt.
+ *
+ * The catalogue category decides first; the name is only consulted when the
+ * category says nothing, and then as whole words ('shorts', not 'short').
+ */
+const LOWER_BODY_RE = /\b(pants?|trousers?|jeans?|skirts?|shorts|leggings?|slacks?|bottoms?|joggers?|culottes?)\b/i;
+const UPPER_BODY_CATEGORY_RE = /\b(tops?|shirts?|blouses?|polos?|tees?|t-shirts?|outerwear|jackets?|coats?|blazers?|dress(es)?|gowns?|barongs?|filipinianas?)\b/i;
+
+export const isLowerBodyGarment = (category = '', name = '') => {
+  const cat = String(category || '');
+  if (LOWER_BODY_RE.test(cat)) return true;
+  if (UPPER_BODY_CATEGORY_RE.test(cat)) return false;
+  return LOWER_BODY_RE.test(String(name || ''));
+};
