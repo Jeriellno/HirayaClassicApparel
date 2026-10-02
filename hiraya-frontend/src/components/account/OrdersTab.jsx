@@ -16,6 +16,8 @@ import {
 import api from '../../api/axios';
 import Currency from '../common/Currency';
 import PaymentInstructions from '../common/PaymentInstructions';
+import LalamoveBookingForm from './LalamoveBookingForm';
+import { describeProcessingDate } from '../../utils/orderPolicy';
 import ReviewProductModal from './ReviewProductModal';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
@@ -394,7 +396,27 @@ const OrdersTab = () => {
                                                 {ORDER_STATUS_LABELS[order.order_status] || order.order_status}
                                             </p>
                                         </div>
-                                        {order.tracking_booking_details && (
+                                        {order.processing_date && !['delivered', 'rejected'].includes(order.order_status) && (
+                                            <div>
+                                                <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                                                    Processing
+                                                </p>
+                                                <p className="text-hiraya-ink">
+                                                    {describeProcessingDate(order.processing_date)}
+                                                    {order.placed_after_cutoff && (
+                                                        <span className="text-hiraya-ink-muted"> · placed after the daily cut-off</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {order.courier === 'lalamove' && order.payment_status === 'fully_paid'
+                                            && !['rejected', 'delivered'].includes(order.order_status) ? (
+                                            <LalamoveBookingForm
+                                                order={order}
+                                                onSaved={(updated) => setOrders((current) =>
+                                                    current.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)))}
+                                            />
+                                        ) : order.tracking_booking_details && (
                                             <div>
                                                 <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
                                                     Tracking / Booking

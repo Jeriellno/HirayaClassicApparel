@@ -29,6 +29,15 @@ class Product extends Model
                 $product->size_stocks
             );
         });
+
+        // A colour's stock lives inside `color_variants`, so a sale, restock or
+        // edit of a colour never touched `stock`/`size_stocks` and was missing
+        // from Stock History. Record one movement per colour that changed.
+        static::updated(function (Product $product): void {
+            if ($product->wasChanged('color_variants')) {
+                $product->recordVariantMovements();
+            }
+        });
     }
 
     protected $table = 'products';
@@ -132,12 +141,63 @@ class Product extends Model
         ]);
     }
 
+    private function recordVariantMovements(): void
+    {
+        $key = fn (array $v) => (string) ($v['id'] ?? mb_strtolower((string) ($v['color'] ?? '')));
+        $index = function (mixed $raw) use ($key): array {
+            $out = [];
+            foreach ($this->decodeSizeStocks($raw) ?? [] as $variant) {
+                if (is_array($variant)) {
+                    $out[$key($variant)] = $variant;
+                }
+            }
+
+            return $out;
+        };
+
+        $before = $index($this->getRawOriginal('color_variants'));
+        $after = $index($this->color_variants);
+
+        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $id) {
+            $old = $before[$id] ?? null;
+            $new = $after[$id] ?? null;
+            $oldSizes = $this->decodeSizeStocks($old['size_stocks'] ?? null);
+            $newSizes = $this->decodeSizeStocks($new['size_stocks'] ?? null);
+            $oldStock = $old === null ? null : (int) ($old['stock'] ?? array_sum($oldSizes ?? []));
+            $newStock = $new === null ? 0 : (int) ($new['stock'] ?? array_sum($newSizes ?? []));
+
+            if ($old !== null && $new !== null && $oldStock === $newStock && $oldSizes == $newSizes) {
+                continue;
+            }
+
+            $color = (string) (($new ?? $old)['color'] ?? 'Colour');
+            ProductStockMovement::create([
+                'product_id' => $this->id,
+                'product_name' => mb_substr($this->name . ' — ' . $color, 0, 255),
+                'changed_by' => auth()->id(),
+                'source' => $this->stockMovementSource(),
+                'before_stock' => $oldStock,
+                'after_stock' => $newStock,
+                'before_size_stocks' => $oldSizes,
+                'after_size_stocks' => $newSizes,
+            ]);
+        }
+    }
+
     private function stockMovementSource(): string
     {
         $path = request()->path();
 
+        if (str_contains($path, 'stock-adjust')) {
+            $reason = trim((string) request()->input('reason', ''));
+
+            return mb_substr('Manual adjustment' . ($reason !== '' ? ': ' . $reason : ''), 0, 80);
+        }
+
         return match (true) {
             str_contains($path, 'reject-dp') => 'Rejected payment stock restore',
+            str_contains($path, 'reupload-dp') => 'Down payment re-upload',
+            str_contains($path, '/status') && str_contains($path, 'orders') => 'Cancelled order stock restore',
             str_contains($path, 'checkout') => 'Order checkout',
             str_starts_with($path, 'api/products') => 'Inventory update',
             default => 'Stock adjustment',

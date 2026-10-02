@@ -762,6 +762,14 @@ const SuperAdmin = ({ onLogout }) => {
     return res.data;
   };
 
+  // Quick adjust: a +/- delta on one size/colour, recorded in Stock History.
+  const handleAdjustStock = async (id, body) => {
+    const res = await api.post(`/admin/products/${id}/stock-adjust`, body);
+    await fetchProducts();
+    invalidateCatalog(queryClient);
+    return res.data;
+  };
+
   const handleDeleteProduct = async (id) => {
     const res = await api.delete(`/products/${id}`);
     await fetchProducts();
@@ -1254,6 +1262,7 @@ const SuperAdmin = ({ onLogout }) => {
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
           onAnalyzeImage={analyzeProductImage}
+          onAdjustStock={handleAdjustStock}
         />
       )}
       {activeTab === 'orders' && (

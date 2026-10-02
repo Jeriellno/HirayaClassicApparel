@@ -103,6 +103,41 @@ class OrderController extends Controller
     }
 
     /**
+     * POST /api/orders/{order}/lalamove-booking
+     *
+     * Order Guidelines §4: for Lalamove the CLIENT books the courier and sends
+     * the booking/tracking details. Allowed once the order is fully paid (§3 —
+     * nothing ships before that) and until it is delivered.
+     */
+    public function submitLalamoveBooking(Request $request, Order $order)
+    {
+        if ((int) $order->user_id !== (int) $request->user()->id) {
+            return response()->json(['message' => 'Order not found.'], 404);
+        }
+
+        if ($order->courier !== 'lalamove') {
+            return response()->json(['message' => 'Booking details are only sent by the customer for Lalamove orders.'], 422);
+        }
+
+        if ($order->payment_status !== 'fully_paid' || in_array($order->order_status, ['rejected', 'delivered'], true)) {
+            return response()->json([
+                'message' => 'Book your Lalamove rider after your full payment is confirmed.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'tracking_booking_details' => 'required|string|min:4|max:255',
+        ]);
+
+        $order->update(['tracking_booking_details' => trim($validated['tracking_booking_details'])]);
+
+        return response()->json([
+            'message' => 'Lalamove booking details sent to the store.',
+            'order' => $order->fresh(),
+        ]);
+    }
+
+    /**
      * POST /api/orders/{order}/reupload-dp
      *
      * The recovery path for a rejected down payment: the customer replaces the

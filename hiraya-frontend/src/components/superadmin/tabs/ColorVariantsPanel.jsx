@@ -5,6 +5,7 @@ import { generateGarmentCatalogImage } from '../../../utils/removeBackground';
 import { releaseCompositeUrl } from '../../../utils/garmentCompositor';
 import { getProductImageUrl } from '../../../utils/imageHelper';
 import { detectGarmentColor, rankColorNames, QUICK_COLORS } from '../../../utils/detectGarmentColor';
+import { shrinkForUpload, ORIGINAL_PHOTO } from '../../../utils/shrinkForUpload';
 
 /*
  * PRODUCT COLOURS — "this same garment also comes in Navy and Maroon".
@@ -74,7 +75,7 @@ export const validateVariants = (variants, primaryColor = '') => {
 };
 
 /** Appends the colours (JSON + files) to the product's multipart payload. */
-export const appendVariantsToPayload = (payload, variants) => {
+export const appendVariantsToPayload = async (payload, variants) => {
   payload.append(
     'color_variants',
     JSON.stringify(
@@ -88,11 +89,12 @@ export const appendVariantsToPayload = (payload, variants) => {
       }))
     )
   );
-  variants.forEach((v) => {
-    if (v.file) payload.append(`variant_image_files[${v.id}]`, v.file);
-    if (v.displayBlob) payload.append(`variant_display_files[${v.id}]`, v.displayBlob, `${v.id}-card.png`);
-    if (v.tryonBlob) payload.append(`variant_tryon_files[${v.id}]`, v.tryonBlob, `${v.id}-matte.png`);
-  });
+  // Shrunk one at a time: several full-size decodes at once can exhaust memory.
+  for (const v of variants) {
+    if (v.file) payload.append(`variant_image_files[${v.id}]`, await shrinkForUpload(v.file, ORIGINAL_PHOTO));
+    if (v.displayBlob) payload.append(`variant_display_files[${v.id}]`, await shrinkForUpload(v.displayBlob), `${v.id}-card.png`);
+    if (v.tryonBlob) payload.append(`variant_tryon_files[${v.id}]`, await shrinkForUpload(v.tryonBlob), `${v.id}-matte.png`);
+  }
 };
 
 const isPhoto = (file) => /^image\/(png|jpe?g|webp)$/i.test(file.type) && file.size <= 10 * 1024 * 1024;

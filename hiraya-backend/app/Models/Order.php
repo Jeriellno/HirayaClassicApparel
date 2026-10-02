@@ -41,7 +41,32 @@ class Order extends Model
     /**
      * Expose public URLs of the payment proofs without a separate endpoint.
      */
-    protected $appends = ['dp_proof_url', 'full_payment_proof_url'];
+    protected $appends = ['dp_proof_url', 'full_payment_proof_url', 'processing_date', 'placed_after_cutoff'];
+
+    /** Order Guidelines §1: placed at or after the cut-off (store time)? */
+    public function getPlacedAfterCutoffAttribute(): bool
+    {
+        if (! $this->created_at) {
+            return false;
+        }
+
+        $placed = $this->created_at->copy()->setTimezone(config('payments.timezone', 'Asia/Manila'));
+        [$hour, $minute] = array_map('intval', explode(':', (string) config('payments.cutoff', '15:00')) + [0, 0]);
+
+        return $placed->gte($placed->copy()->setTime($hour, $minute));
+    }
+
+    /** The store-local date this order is processed on (Y-m-d). */
+    public function getProcessingDateAttribute(): ?string
+    {
+        if (! $this->created_at) {
+            return null;
+        }
+
+        $placed = $this->created_at->copy()->setTimezone(config('payments.timezone', 'Asia/Manila'));
+
+        return ($this->placed_after_cutoff ? $placed->addDay() : $placed)->toDateString();
+    }
 
     public function getDpProofUrlAttribute(): ?string
     {

@@ -58,7 +58,10 @@ const isCatalogWrite = (method = '', url = '') => {
   const verb = String(method).toLowerCase();
   if (!CATALOG_WRITE_VERBS.has(verb)) return false;
 
-  const path = String(url).split('?')[0].replace(/^.*\/api/, '');
+  // The request interceptor strips the leading slash ('products/52') before this
+  // runs, so restore it; otherwise no product write ever carried the Supabase
+  // token and every staff Save/Delete answered 401.
+  const path = `/${String(url).split('?')[0].replace(/^.*\/api/, '').replace(/^\/+/, '')}`;
   if (CATALOG_WRITE_PATH.test(path)) return true;
   if (!CATALOG_WRITE_ITEM_PATH.test(path)) return false;
 

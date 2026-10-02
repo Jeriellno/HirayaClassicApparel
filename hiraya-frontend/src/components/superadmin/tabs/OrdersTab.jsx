@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import api from '../../../api/axios';
 import useConfirm from '../../../hooks/useConfirm';
+import { describeProcessingDate } from '../../../utils/orderPolicy';
 
 /**
  * SUPER ADMIN — ORDERS.
@@ -78,11 +79,12 @@ const STATUS_LADDER = ['pending', 'processing', 'ready_for_shipping', 'shipped',
 
 /** Why a status button is unavailable for this order, or '' when it may be pressed. */
 const statusBlockReason = (order, target) => {
-  if (target === 'rejected') return '';
+  // Order Guidelines §5: a fully paid order is final.
+  if (target === 'rejected') return order.payment_status === 'fully_paid' ? 'Fully paid orders are final' : '';
   if (STATUS_LADDER.indexOf(target) < STATUS_LADDER.indexOf(order.order_status)) {
     return 'Orders cannot move back to an earlier step';
   }
-  if (['shipped', 'delivered'].includes(target) && order.payment_status !== 'fully_paid') {
+  if (['ready_for_shipping', 'shipped', 'delivered'].includes(target) && order.payment_status !== 'fully_paid') {
     return 'Confirm the full payment first';
   }
   if (target === 'delivered' && order.order_status !== 'shipped') return 'Mark it shipped first';
@@ -102,6 +104,12 @@ const paidAmount = (order) => {
   if (order.payment_status === 'fully_paid') return Number(order.total_amount || 0);
   if (order.payment_status === '50_paid') return Number(order.dp_amount || 0);
   return 0;
+};
+
+/** "Today", "Tomorrow (after cut-off)", … from the backend's processing_date. */
+const processingLabel = (order) => {
+  if (!order.processing_date) return '—';
+  return describeProcessingDate(order.processing_date) + (order.placed_after_cutoff ? ' (after cut-off)' : '');
 };
 
 const isRejected = (order) => order.order_status === 'rejected' || order.payment_status === 'rejected';
@@ -372,6 +380,9 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
             <DetailRow label="Email">{order.user?.email}</DetailRow>
             <DetailRow label="Courier">
               {order.courier && <span className="uppercase tracking-wider">{order.courier}</span>}
+            </DetailRow>
+            <DetailRow label="Processing">
+              {processingLabel(order)}
             </DetailRow>
             <div className="sm:col-span-2">
               <DetailRow label="Delivery Address">{order.delivery_address}</DetailRow>
@@ -917,8 +928,11 @@ const OrdersTab = ({ initialSearch = '', initialOrderId = null } = {}) => {
                       <Receipt size={12} className="text-hiraya-accent" aria-label="Receipt waiting for verification" />
                     )}
                   </span>
-                  <span className="justify-self-end md:justify-self-start">
+                  <span className="justify-self-end md:justify-self-start flex flex-col items-end md:items-start gap-1">
                     <Chip meta={ORDER_STATUS[order.order_status]} fallback={order.order_status} />
+                    {order.processing_date && !['delivered', 'rejected'].includes(order.order_status) && (
+                      <span className="text-[9px] uppercase tracking-widest text-hiraya-sand">Process: {processingLabel(order)}</span>
+                    )}
                   </span>
                   <span className="text-hiraya-ink font-medium truncate">{order.customer_name || order.user?.full_name || '—'}</span>
                   <span className="text-hiraya-ink truncate">{order.contact_number || '—'}</span>

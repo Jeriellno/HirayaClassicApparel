@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 import Currency from '../components/common/Currency';
 import PaymentInstructions from '../components/common/PaymentInstructions';
+import CutoffNotice from '../components/common/CutoffNotice';
 import { useT } from '../context/PreferencesContext';
 
 const Checkout = () => {
@@ -221,26 +222,27 @@ const Checkout = () => {
               <h3 className="mb-4 border-b border-hiraya-structure-line pb-3 text-xs font-semibold uppercase tracking-[0.18em] text-hiraya-ink">
                 Order Guidelines
               </h3>
+              <CutoffNotice className="mb-4" />
               <ul className="space-y-3 text-[11px] leading-relaxed text-hiraya-ink-soft">
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  Orders placed before <strong className="text-hiraya-ink">3:00 PM</strong> are processed the same day.
+                  <span>A <strong className="text-hiraya-ink">50% down payment (PAYO)</strong> is required to secure your order.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  A <strong className="text-hiraya-ink">50% down payment (PAYO)</strong> is required to secure your order.
+                  <span>The remaining balance must be settled <strong className="text-hiraya-ink">before the courier is booked</strong>. Orders with an unpaid balance before pickup may be cancelled.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  The remaining balance must be settled <strong className="text-hiraya-ink">before shipping</strong>.
+                  <span>We ship via <strong className="text-hiraya-ink">LBC</strong> or <strong className="text-hiraya-ink">Lalamove</strong> once <strong className="text-hiraya-ink">full payment</strong> is received. Fully paid orders are prioritized for dispatch.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  Down payments are <strong className="text-hiraya-ink">non-refundable</strong>.
+                  <span>Give your complete name, contact number and address. For <strong className="text-hiraya-ink">Lalamove</strong>, you book the rider and send us the booking/tracking details from My Orders.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  All sales are <strong className="text-hiraya-ink">final</strong> once payment is confirmed.
+                  <span>Once payment is confirmed the order is <strong className="text-hiraya-ink">final</strong> — no cancellations or refunds.</span>
                 </li>
               </ul>
 

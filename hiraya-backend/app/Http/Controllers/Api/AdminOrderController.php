@@ -389,6 +389,14 @@ class AdminOrderController extends Controller
             ], 422);
         }
 
+        // Order Guidelines §5: once the order is fully paid it is final — no
+        // cancellations or refunds. Unpaid balances (§2) can still be cancelled.
+        if ($newStatus === 'rejected' && $order->payment_status === 'fully_paid') {
+            return response()->json([
+                'message' => 'This order is fully paid, so it is final and can no longer be cancelled.',
+            ], 422);
+        }
+
         if ($newStatus === 'delivered' && $previousStatus !== 'shipped') {
             return response()->json(['message' => 'Mark the order as shipped before marking it delivered.'], 422);
         }

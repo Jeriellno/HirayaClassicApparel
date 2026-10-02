@@ -16,6 +16,16 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# The image ships no php.ini, so PHP's defaults (2M per file, 8M per request)
+# would reject product saves with colour photos as HTTP 413. Match the limits in
+# ProductRequest (5-10 MB per file) with room for several colours per product.
+RUN { \
+      echo 'upload_max_filesize=12M'; \
+      echo 'post_max_size=100M'; \
+      echo 'max_file_uploads=60'; \
+      echo 'memory_limit=512M'; \
+    } > /usr/local/etc/php/conf.d/hiraya-uploads.ini
+
 WORKDIR /var/www/html
 COPY . .
 

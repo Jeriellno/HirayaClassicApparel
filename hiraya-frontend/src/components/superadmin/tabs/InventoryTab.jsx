@@ -1,14 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Package, Plus, Image as ImageIcon, X, Trash2, Edit3, Sparkles, Loader2, ChevronDown, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { Package, Plus, Image as ImageIcon, X, Trash2, Edit3, Sparkles, Loader2, ChevronDown, ChevronLeft, ChevronRight, Check, SlidersHorizontal } from 'lucide-react';
 // THE single shared background-removal entry point, so products added here also
 // get a transparent, framed catalog image instead of the raw photo.
 import { generateGarmentCatalogImage } from '../../../utils/removeBackground';
 import { releaseCompositeUrl, reframeCutout } from '../../../utils/garmentCompositor';
 import { FRAME_PRESETS, isThemeKey, resolveThemeKey } from '../../../utils/framePresets';
 import { getProductImageUrl } from '../../../utils/imageHelper';
+import { shrinkForUpload, ORIGINAL_PHOTO } from '../../../utils/shrinkForUpload';
 import ColorVariantsPanel, { appendVariantsToPayload, validateVariants, variantFromApi } from './ColorVariantsPanel';
 import PairingPanel from './PairingPanel';
 import AutoFillProgress from './AutoFillProgress';
+import StockAdjustModal from './StockAdjustModal';
 import { canPair, pairedIdsOf } from '../../../utils/garmentPairing';
 import useConfirm from '../../../hooks/useConfirm';
 
@@ -153,8 +155,11 @@ export default function InventoryTab({
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct ,
-  onAnalyzeImage
+  onAnalyzeImage,
+  onAdjustStock
 }) {
+  // Product whose stock is being quick-adjusted (null = closed).
+  const [adjusting, setAdjusting] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   // In-app Confirm / Cancel dialog (replaces the browser's `window.confirm`).
@@ -1057,7 +1062,7 @@ export default function InventoryTab({
         ? formData.primary_color.trim().replace(/^./, (c) => c.toUpperCase())
         : colorVariants.length > 0 ? 'Original' : '';
       payload.append('colors', JSON.stringify(mainColor ? [mainColor] : []));
-      appendVariantsToPayload(payload, colorVariants);
+      await appendVariantsToPayload(payload, colorVariants);
 
       /*
        * PAIRINGS. Always sent (an empty list unpairs everything). Pairs that no
@@ -1094,7 +1099,7 @@ export default function InventoryTab({
       };
 
       if (imageFile) {
-        payload.append('image_file', imageFile);
+        payload.append('image_file', await shrinkForUpload(imageFile, ORIGINAL_PHOTO));
 
         const card = compositeBlob || cutoutSource ? await themedCard() : null;
 
@@ -1106,8 +1111,8 @@ export default function InventoryTab({
          * original background. When the cut-out is missing (removal failed) we
          * fall back to the raw file so the product is never left imageless.
          */
-        payload.append('display_image_file', card?.blob || compositeBlob || imageFile);
-        payload.append('tryon_image_file', tryonBlob || imageFile);
+        payload.append('display_image_file', await shrinkForUpload(card?.blob || compositeBlob || imageFile));
+        payload.append('tryon_image_file', await shrinkForUpload(tryonBlob || imageFile));
 
         /*
          * WHICH BACKGROUND WAS DRAWN — recorded in `background_occasion` so the
@@ -1128,10 +1133,10 @@ export default function InventoryTab({
          */
         const card = await themedCard();
         if (card?.blob && card.key && card.key !== savedThemeKey) {
-          payload.append('display_image_file', card.blob);
+          payload.append('display_image_file', await shrinkForUpload(card.blob));
           payload.append('background_occasion', card.key);
           // A legacy row had no bare matte; the removal just produced one.
-          if (card.matte) payload.append('tryon_image_file', card.matte);
+          if (card.matte) payload.append('tryon_image_file', await shrinkForUpload(card.matte));
         }
       }
 
@@ -1235,6 +1240,9 @@ export default function InventoryTab({
                   </div>
                   <div className="flex shrink-0 flex-col gap-1.5">
                     <button type="button" onClick={() => openEditModal(item)} aria-label={`Edit ${item.name}`} className="rounded-lg border border-hiraya-structure-line p-2 text-hiraya-ink cursor-pointer"><Edit3 size={14} /></button>
+                    {onAdjustStock && (
+                      <button type="button" onClick={() => setAdjusting(item)} aria-label={`Adjust stock of ${item.name}`} className="rounded-lg border border-hiraya-structure-line p-2 text-hiraya-ink cursor-pointer"><SlidersHorizontal size={14} /></button>
+                    )}
                     <button type="button" onClick={() => handleDelete(item)} aria-label={`Delete ${item.name}`} className="rounded-lg border border-red-600/30 p-2 text-red-700 cursor-pointer"><Trash2 size={14} /></button>
                   </div>
                 </li>
@@ -1468,6 +1476,17 @@ export default function InventoryTab({
                           >
                             <Edit3 size={14} />
                           </button>
+                          {onAdjustStock && (
+                            <button
+                              type="button"
+                              onClick={() => setAdjusting(item)}
+                              className="p-2 bg-navy-100 hover:bg-navy-200/70 border border-navy-300/70 text-navy-800 rounded-lg transition cursor-pointer"
+                              title="Quick adjust stock"
+                              aria-label={`Adjust stock of ${item.name}`}
+                            >
+                              <SlidersHorizontal size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDelete(item)}
                             className="p-2 bg-red-500/12 hover:bg-red-500/20 border border-red-600/40 text-red-700 rounded-lg transition cursor-pointer"
@@ -1931,6 +1950,9 @@ export default function InventoryTab({
         );
       })()}
 
+      {adjusting && (
+        <StockAdjustModal product={adjusting} onClose={() => setAdjusting(null)} onSubmit={onAdjustStock} />
+      )}
       {confirmDialog}
     </div>
   );

@@ -181,6 +181,9 @@ Route::get('/payment-instructions', function () {
         'instructions' => config('payments.instructions'),
         'accounts'     => config('payments.accounts'),
         'qr_image_url' => config('payments.qr_image_url'),
+        'cutoff'       => config('payments.cutoff'),
+        'timezone'     => config('payments.timezone'),
+        'store_hours'  => config('payments.store_hours'),
     ]);
 });
 
@@ -312,6 +315,9 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
     // The ADMIN (staff) dashboard: work queue + inventory, no analytics.
     Route::get('/work-summary', [\App\Http\Controllers\Api\DashboardInsightsController::class, 'work']);
     Route::get('/stock-adjustments', [AdminStockMovementController::class, 'index']);
+    // Quick adjust: +/- units for one size/colour (walk-in sales, recounts).
+    Route::post('/products/{product}/stock-adjust', [AdminStockMovementController::class, 'adjust'])
+        ->middleware('throttle:60,1');
 
 
     // Order management
@@ -767,6 +773,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::post('/orders/{order}/pay-balance', [OrderController::class, 'payBalance']);
     Route::post('/orders/{order}/reupload-dp', [OrderController::class, 'reuploadDownPayment']);
+    Route::post('/orders/{order}/lalamove-booking', [OrderController::class, 'submitLalamoveBooking'])
+        ->middleware('throttle:20,1');
 });
 
 /*

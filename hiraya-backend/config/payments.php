@@ -43,4 +43,18 @@ return [
     // Optional QR image (a public path or full URL). Leave null to hide it.
     'qr_image_url' => env('PAYMENT_QR_IMAGE_URL'),
 
+    /*
+    | Order Guidelines §1 — same-day cut-off. Orders placed before `cutoff`
+    | (store time) are processed that day; later ones the next day. The store
+    | is open every day, so the "next business day" is simply tomorrow.
+    */
+    'timezone' => env('STORE_TIMEZONE', 'Asia/Manila'),
+    'cutoff' => env('ORDER_CUTOFF', '15:00'),
+
+    // Shown to customers next to the cut-off notice.
+    'store_hours' => [
+        ['days' => 'Monday – Thursday', 'hours' => '10:00 AM – 8:00 PM'],
+        ['days' => 'Friday – Sunday', 'hours' => '10:00 AM – 9:00 PM'],
+    ],
+
 ];
