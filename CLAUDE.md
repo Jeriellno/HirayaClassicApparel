@@ -11,9 +11,10 @@ Hiraya is an independent, high-end web application acting as an AI-driven smart 
 
 ## 2. Technical Stack & State Management
 - **Frontend Architecture:** React.js (Vite), Tailwind CSS, Framer Motion (for luxury glassmorphism aesthetics).
-- **Backend Architecture:** Laravel (Stateless API endpoints, Laravel Sanctum token-based protection).
-- **Database Engine:** MySQL / MariaDB (managed via phpMyAdmin).
-- **Image Architecture:** High-capacity data streams. All image uploads bypass the filesystem entirely and are transmitted as raw Data URIs (Base64) stored inside `longText` fields within MySQL.
+- **Backend Architecture:** Laravel 12 (stateless API). Customers use Laravel Sanctum tokens; staff (admin/superadmin) use Supabase Auth JWTs that must be **aal2** (password + TOTP MFA), verified by `EnsureSupabaseAAL2`.
+- **Database Engine:** Supabase **PostgreSQL** (Singapore), shared by local and Render. Every table is prefixed `tbl_` (`DB_PREFIX`); raw SQL must use `DB::getTablePrefix()`.
+- **Image Architecture:** Catalog images live in Supabase Storage (`products`, `backgrounds` buckets) and are served same-origin through `/supabase-storage/*`. Try-on portraits/renders are stored as Base64 data URIs in `longText` columns (`try_on_sessions`).
+- **Hosting:** Render.com — backend Docker web service + frontend static site (see README.md §4).
 - **State & Data Caching:** `AuthContext.jsx` for global token management and `@tanstack/react-query` for handling asynchronous, real-time cart counts and layout invalidations.
 - **AI Integration Protocol:** Pure serverless API calls utilizing the native Google Gemini PHP/Guzzle context or Hugging Face Inference Contracts. No heavy node modules or local vision dependencies allowed.
 - **Asynchronous Pipeline:** All AI requests must be handled using non-blocking state flags (e.g., status fields: 'pending', 'processing', 'success') accompanied by frontend polling to prevent server-side request timeouts during panel presentations.

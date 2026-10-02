@@ -1,160 +1,103 @@
-# Hiraya — Admin/Super Admin Security & Console
+# Hiraya — Handoff (kalagayan ngayon, Oktubre 2, 2026)
 
-**Status at susunod na hakbang.** Para sa susunod na AI session.
+Para sa susunod na session (tao man o AI). Ang buong paliwanag ng system ay nasa
+[README.md](README.md); ito ang **ano ang bago, ano ang dapat bantayan, at ano
+ang susunod**.
 
 ---
 
-## 1. KALAGAYAN NGAYON
-
-### Ang mga account
-
-| Email | Role | 2FA | Mahalaga |
-|---|---|---|---|
-| `hirayaclassicapparel@gmail.com` | `superadmin` | **PENDING** | Ang tunay mong account (id 62) |
-| 13 customer accounts | `user` | — | Hindi ginalaw |
-
-- Ang dating seeded accounts (`superadmin@hiraya.com`, `admin@hiraya.com`) ay
-  **na-delete** na. Wala nang ibang privileged account.
-- Walang orders ang na-delete, kaya walang nawala na data.
-- **Ang 2FA ay may `confirmed_at = NULL`** — nag-scan ka pero hindi mo na-confirm
-  ang code. Kaya hindi pa ito gumagana. Ayusin ito:
-  `Account Settings → Two-Factor Authentication → Start Again`, saka i-enter
-  ang 6-digit code at i-save ang 8 recovery codes.
-
-### Ang security work na tapos na
+## 1. Kalagayan ng deployment
 
 | | |
 |---|---|
-| QR login flow | **BINURA** (controller, migrations, routes, pages, npm packages) |
-| `BYPASS_ADMIN_AUTH` | `true` → **`false`**, permanent |
-| Console routes | `auth:sanctum` + `superadmin` **naibalik** |
-| Axios auto-login | **BINURA** |
-| `devAdminAutoLogin` | **BINURA** |
-| `?role=superadmin` URL trust | **BINURA** |
-| TOTP (RFC 6238) | Native PHP, walang bagong dependency, **45/45** laban sa RFC vectors |
-| 2FA login exchange | Challenge token, single-use, replay guard, 5-attempt rate limit |
-| Recovery codes | 8 ka, bcrypt-hashed, single-use |
-| Individual accounts | Name kailangan, duplicate email tinatanggihan |
-| Verification | **65/65** security tests, **45/45** TOTP vectors |
+| Backend | Render Web Service `Hiraya_ClassicApparel` (Docker, **Singapore**) — `https://hiraya-classicapparel.onrender.com` |
+| Frontend | Render Static Site `HirayaClassicApparel-1` — `https://hirayaclassicapparel-1.onrender.com` |
+| Database | Supabase PostgreSQL (Singapore) — **iisa para sa local at Render** |
+| Lumang backend | `hirayaclassicapparel.onrender.com` (Oregon) — tinanggal na; mabagal dahil malayo sa DB |
 
-### Ang mga bug na natuklas habang nagte-test
-
-1. `hash_equals(Hash::make($x), $stored)` — hindi kailanman tumutugma sa bcrypt
-   (may salt). **Ang recovery codes ay patay.** Ayusin: `Hash::check()`.
-2. `email`/`password` `required` pa rin sa login → **422 sa lahat ng 2FA
-   sign-in**. Ayusin: `required_unless`.
-3. `last_used_ip` na `timestamp` → **500** sa bawat successful 2FA sign-in.
+- Naka-**suspend** ang dalawang Render service sa ngayon. I-resume sa dashboard, saka
+  *Manual Deploy → Deploy latest commit* (frontend: *Clear build cache & deploy*).
+- Backend env sa Render: `APP_ENV=production`, `APP_DEBUG=false`,
+  `APP_URL=https://hiraya-classicapparel.onrender.com`.
+- Static-site rewrites: `/supabase-storage/*` → backend (una), `/*` → `/index.html`.
 
 ---
 
-## 2. ANO ANG GINAWA Natin NGAYON (Variant B — hiwalay na port)
+## 2. Mga ginawa sa session na ito (buod)
 
-Ang console ay lilipat sa **sariling dev port** para hindi ito mapabuksan mula sa
-customer UI.
+### Deployment at backend reliability
+- BOM sa `config/hiraya_backgrounds.php` na sumisira sa bawat response (CORS, images).
+- Docker: GD (thumbnails), procps, upload limits, supervised queue worker
+  (`TRYON_WORKER_SUPERVISED=true`), 4 na server worker.
+- Try-on worker detection: maling grep pattern (`[q]queue:work`) na nagpaparami ng
+  worker at umuubos ng memory/credits — naayos.
+- `EnsureSupabaseAAL2`: kinukuha dati ang JWKS sa internet sa **bawat** admin request
+  → cache muna, may last-known-good fallback. Hindi na rin naka-cache ang palyang
+  email-confirmation lookup.
+- Product save na may kulay: **sabay-sabay na upload** ng mga larawan (Http::pool),
+  180s na hintay sa client, `shrinkForUpload` bago i-upload, PHP upload limits
+  (`hiraya-backend/php/hiraya-uploads.ini`, ginagamit ng `start-backend.ps1` at Docker).
+- axios: tinatanggal ng interceptor ang `/` sa unahan ng URL — kaya dati walang
+  Supabase token ang product writes at 15s ang timeout ng lahat. Naayos (tingnan
+  ang paalala sa §4).
+- MFA: hindi na bumabalik sa `/login` ang verified na staff kapag nag-reload.
+- `ConnectionWatcher`: kusang bumabawi ang lahat ng screen pagbalik ng internet.
 
-```
-http://localhost:5173   ← storefront (customer)
-http://localhost:5174   ← console (admin/superadmin lang)
-```
+### Orders, payment at stock (Order Guidelines)
+- 3:00 PM cut-off (`config/payments.php`), store hours, `Order::processing_date`.
+- **Full payment o 50% down payment** sa Checkout; ang full payment ay diretso sa
+  *fully paid · ready to ship* pagka-verify.
+- **Cancel order (unpaid balance)** sa admin — may dahilan, ibinabalik ang stock,
+  inaabisuhan ang customer. Hindi na mache-cancel ang fully paid.
+- LBC: kumpletong address (street, barangay, city, province, ZIP). Lalamove:
+  drop-off address; ang customer ang nagpapadala ng booking details sa My Orders.
+- Payment QR (System Settings), required na reference number na hindi
+  puwedeng gamitin ulit, checklist sa admin para i-match sa GCash/bank app.
+- Order tracker (customer at admin) gamit ang mga bagong timestamp.
+- Stock: naitatala na ang bawat kulay sa Stock History; **Quick adjust** (± na may
+  dahilan) para sa walk-in / offline sales.
+- Checkout mula sa bag ay dating 500 (`Collection::delete`) — naayos.
 
-**Bakit port, at hindi subdomain:** 5 minuto lang, walang DNS, walang SSL, at
-**automatic na magkaibang ang `localStorage`** dahil iba ang origin. Ang session
-ng customer ay literal na hindi makikita sa console.
+### Reviews at feedback
+- Kita na ang 1–5 star picker (halos invisible dati ang outline).
+- Bawat product card: rating o `0.0 (0 reviews)`.
+- **Rate your order experience** (isang beses kada delivered order) — lumalabas sa
+  Customers Feedback na may "Order #X" at ang mga produktong binili.
+- **Product Reviews** panel sa Customers Feedback (admin at superadmin).
+- Required na ang bituin sa lahat ng feedback (dating may tahimik na default na 5★).
 
-**Ang limitasyon na sasabihin sa panel:** ibang *port* lang ito, hindi ibang
-*domain*. Ang mga browser ay nagsasalita ng mga port bilang iisang origin, kaya
-hindi nito pinipigil ang XSS. Ang totoong proteksyon ay ang `auth:sanctum` +
-`superadmin` middleware at ang 2FA.
-
----
-
-## 3. ANO ANG SUSUNOD NA GAGAWIN
-
-### Immediate (gawin mo ito)
-
-1. **Kumpirmahin ang 2FA.** `Account Settings → Two-Factor Authentication →
-   Start Again` → i-scan → **mag-enter ng code** → i-save ang 8 recovery codes.
-2. Magdagdag ng staff: `/superadmin` → `Admin Accounts → ADD ADMIN ACCOUNT`.
-   Isang tao, isang account. Sabihin nilang palitan agad ang password.
-
-### Kapag tapos na ang defense
-
-Ang **AI try-on** ang capstone mo, hindi ang console. Ang susunod na oras ay
-dapat sa:
-
-1. **Tapusin ang try-on end-to-end** — upload → detect → sukat → render →
-   history. Walang maaapag na step.
-2. **Dokumentasyon** — README, architecture diagram, ERD, API docs.
-3. **Isang security case study sa papel** — ito ang pinakamalaking oportunidad
-   mo. Sabihin mo: *"may backdoor kami na naka-open sa URL, tinanggal namin ito at
-   ginawa naming two-factor. Na-verify sa 65 automated tests."*
-4. **Huwag ipakita ang port bilang security feature** — ito ay ergonomics, hindi
-   proteksyon. Ang totoo ay ang middleware at ang tests.
-
-### Artisan commands na available
-
-```bash
-php artisan hiraya:make-superadmin --email=... --name="..."   # bootstrap unang superadmin
-php artisan hiraya:make-admin --email=... --name="..."        # individual admin
-php artisan hiraya:twofactor:reset <email>                    # nawala ang phone
-```
-
-Pareho silang **nagpo-prompt ng password**, dala mo sa command line.
-
-### Verification scripts (naiwan)
-
-```bash
-php verify_security.php   # 65 tests — console auth, 2FA, individual accounts
-php verify_totp.php       # 45 tests — RFC 4226/6238 vectors
-```
-
-Ang `verify_security.php` ay may built-in cleanup sa simula kaya ito ay
-**re-runnable**.
+### Migrations na pinatakbo sa Supabase
+- `2026_10_23_000001_add_order_tracking_and_payment_qr` — mga timestamp ng order,
+  `system_settings.value` → TEXT.
+- `2026_10_23_000002_add_order_id_to_feedbacks`.
 
 ---
 
-## 4. MGA FILE NA BINAGO
+## 3. Susunod na gagawin
 
-### Backend (bago)
-- `app/Services/TotpService.php` — RFC 6238, native PHP
-- `app/Models/UserTwoFactor.php`
-- `app/Http/Controllers/Api/TwoFactorController.php`
-- `database/migrations/2026_10_15_000001_create_user_two_factors_table.php`
-- `app/Console/Commands/MakeSuperadminCommand.php`
-- `app/Console/Commands/MakeAdminCommand.php`
-- `app/Console/Commands/ResetTwoFactorCommand.php`
-- `verify_security.php`, `verify_totp.php`
-
-### Backend (binago)
-- `app/Http/Controllers/Api/AuthController.php` — 2FA exchange
-- `routes/api.php` — middleware naibalik, `/two-factor` routes
-- `app/Models/User.php` — hindi ginalaw
-
-### Frontend (bago)
-- `src/components/settings/TwoFactorSection.jsx`
-- `vite.config.console.js` — hiwalay na dev server para sa console (port 5174)
-- `src/components/console/ConsoleOnlyRoute.jsx` — ang port guard
-- `package.json` — `dev:console`, `build:console`
-
-### Frontend (binago)
-- `src/pages/Login.jsx` — 2FA step
-- `src/routes/ProtectedRoute.jsx` — `BYPASS_ADMIN_AUTH = false`
-- `src/api/axios.js` — auto-login binura
-- `src/context/AuthContext.jsx` — auto-login binura
-- `src/App.jsx` — QR routes binura
-- `src/components/superadmin/SuperAdmin.jsx` — `?role=` binura
-- `src/components/superadmin/tabs/AdminsTab.jsx` — individual accounts
-- `HANDOFF.md` (repo root) — itong dokumento
+1. **I-resume ang Render** at patakbuhin ang public smoke test (CORS, image rewrite,
+   SPA routes, customer API).
+2. **I-upload ang GCash QR** sa *System Settings → Payment QR*.
+3. Subukan nang mano-mano ang mga bahaging kailangan ng MFA (hindi kayang i-test
+   nang awtomatiko): Edit Product na may 3 kulay, Cancel order, Quick adjust,
+   Customers Feedback.
+4. Ayusin ang lumang test `tests/Feature/OrderVisibilityTest` — gumagamit pa ng
+   Sanctum para sa `/api/admin/orders` na Supabase aal2 na ngayon.
+5. (Opsyonal) Uptime pinger sa `https://hiraya-classicapparel.onrender.com/up`
+   kada 10 minuto para hindi matulog ang free plan.
 
 ---
 
-## 5. HUWAG GAGAWIN
+## 4. Mga paalala (huwag kalimutan)
 
-- **Huwag i-set ang `BYPASS_ADMIN_AUTH` pabalik sa `true`.** Ito ang pinakabulang
-  linya sa repo. Ang kailangan para makapasok ay laging tunay na sign-in.
-- **Huwag isulit ang QR login.** Sa 1–3 staff, isang QR = buong console, walang
-  factor.
-- **Huwag isama ang port bilang security feature** sa capstone defense.
-- **Huwag isama ang Supabase project ref** sa frontend bundle. Ang
-  `/supabase-storage` proxy sa `vite.config.js` ang dahilan kaya nandiyan pa rin
-  ang env var.
+- **Iisang database ang local at Render.** Ang test na order/try-on sa local ay
+  totoong data, at may bayad ang bawat try-on render.
+- **`src/api/axios.js` ay nagtatanggal ng `/` sa unahan ng URL** bago tumakbo ang
+  mga matcher. Anumang bagong URL rule ay dapat mag-normalize sa leading `/`.
+- **Raw SQL** (`selectRaw`, `DB::select`, `DB::raw`) ay dapat gumamit ng
+  `DB::getTablePrefix()` — `tbl_` ang prefix ng bawat table.
+- Ang local backend ay **`C:\php-8.3\php.exe`** (mula sa `start-backend.ps1`), hindi
+  ang PHP sa PATH. Iba ang `php.ini` nila.
+- Huwag i-run ang `vite build` sa local kapag mababa ang memory — namamatay pati
+  ang dev server.
+- Huwag ibalik ang `/clear-everything` o anumang public na maintenance route.
