@@ -610,7 +610,7 @@ const ProductDetail = () => {
             <div className="card px-5 py-1 sm:px-6">
               <AccordionItem
                 title={t('product.guidelines')}
-                subtitle="3:00 PM cutoff · 50% DP · non-refundable"
+                subtitle="3:00 PM cutoff · 50% DP or full payment"
                 icon={FileText}
                 defaultOpen={false}
               >
@@ -622,17 +622,18 @@ const ProductDetail = () => {
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>
-                    A <strong className="text-hiraya-ink">50% down payment</strong> is required to secure your
-                    order.
+                    Pay a <strong className="text-hiraya-ink">50% down payment</strong> to secure your order, or
+                    pay in full at checkout.
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>
-                    The remaining balance must be settled <strong className="text-hiraya-ink">before shipping</strong>.
+                    Any remaining balance must be settled <strong className="text-hiraya-ink">before courier
+                    pickup</strong> — orders with an unpaid balance may be cancelled.
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>
-                    Down payments are <strong className="text-hiraya-ink">non-refundable</strong>, and all sales
-                    are final once confirmed.
+                    Once payment is confirmed the order is <strong className="text-hiraya-ink">final</strong> — no
+                    cancellations or refunds.
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>

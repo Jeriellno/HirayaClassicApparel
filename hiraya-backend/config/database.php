@@ -104,6 +104,15 @@ return [
             'options' => array_filter([
                 // Seconds libpq waits for the TCP/auth handshake before aborting.
                 PDO::ATTR_TIMEOUT => (int) env('DB_CONNECT_TIMEOUT', 10),
+                /*
+                 * PERSISTENT CONNECTION. Opening a TLS connection to the Supabase
+                 * pooler costs 2-6 s on a weak link, and every request used to pay
+                 * it (a query on an open connection takes ~0.1 s). With this on,
+                 * each PHP process keeps one connection and reuses it; a dropped
+                 * one is detected by Laravel ("lost connection") and reopened, and
+                 * PHP rolls back any transaction left open at the end of a request.
+                 */
+                PDO::ATTR_PERSISTENT => (bool) env('DB_PERSISTENT', false),
             ], static fn ($v) => $v !== null),
 
             // libpq connect_timeout (seconds) — also applied to the raw DSN.

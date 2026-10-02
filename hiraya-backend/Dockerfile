@@ -35,6 +35,10 @@ ENV PHP_CLI_SERVER_WORKERS=4
 # own workers/watchdogs from web requests (see config/queue.php).
 ENV TRYON_WORKER_SUPERVISED=true
 
+# One reused Supabase connection per PHP process instead of a new TLS
+# handshake on every request (see config/database.php).
+ENV DB_PERSISTENT=true
+
 EXPOSE 10000
 
 # QUEUE_CONNECTION=database needs a worker draining the `tryon` queue, or every

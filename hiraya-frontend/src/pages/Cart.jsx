@@ -360,8 +360,8 @@ const Cart = () => {
 
                 <p className="text-[10px] text-hiraya-ink-muted leading-relaxed mb-5 flex gap-2">
                   <AlertTriangle size={13} className="text-hiraya-accent shrink-0 mt-0.5" />
-                  A 50% down payment secures your order. The balance must be settled before shipping.
-                  Down payments are non-refundable.
+                  Pay a 50% down payment to secure your order (balance due before courier pickup), or pay
+                  in full at checkout. Confirmed payments are final.
                 </p>
 
                 <button

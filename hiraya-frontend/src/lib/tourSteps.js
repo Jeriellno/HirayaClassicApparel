@@ -231,7 +231,7 @@ const CHECKOUT_STEPS = [
         element: anchor('checkout-payment'),
         placement: 'top',
         title: '3 · Payment',
-        text: 'Review the items and the 50% down payment that secures them, then attach your proof of payment. The balance is settled before shipping.',
+        text: 'Review your items, choose a 50% down payment or full payment, scan the store QR to pay, then attach your receipt and its reference number. Any balance is settled before courier pickup.',
     },
     {
         element: anchor('checkout-submit'),
