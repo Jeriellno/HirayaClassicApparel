@@ -48,7 +48,7 @@ const ProductReviewsPanel = () => {
         </div>
       ) : reviews.length === 0 ? (
         <div className="p-8 text-center text-xs font-mono text-hiraya-sand uppercase tracking-widest bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80">
-          No product reviews yet
+          No product reviews yet — customers review each product from My Orders once it is delivered
         </div>
       ) : (
         <>

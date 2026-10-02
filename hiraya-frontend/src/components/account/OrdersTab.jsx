@@ -18,6 +18,7 @@ import Currency from '../common/Currency';
 import PaymentInstructions from '../common/PaymentInstructions';
 import LalamoveBookingForm from './LalamoveBookingForm';
 import OrderTracker from '../common/OrderTracker';
+import { RECONNECTED_EVENT } from '../common/ConnectionWatcher';
 import { describeProcessingDate } from '../../utils/orderPolicy';
 import ReviewProductModal from './ReviewProductModal';
 import OrderExperienceRating from './OrderExperienceRating';
@@ -123,6 +124,12 @@ const OrdersTab = () => {
             setFetching(false);
         }
     }, []);
+
+    // Reload by itself when the connection comes back after an outage.
+    useEffect(() => {
+        window.addEventListener(RECONNECTED_EVENT, fetchOrders);
+        return () => window.removeEventListener(RECONNECTED_EVENT, fetchOrders);
+    }, [fetchOrders]);
 
     // Re-fetches when a notification deep-links a different order, so a status
     // that just changed to Delivered shows up even if this page was already open.

@@ -121,14 +121,31 @@ class ConsoleController extends Controller
             ->with('user:id,full_name,email')
             ->latest()
             ->limit(300)
-            ->get()
-            ->map(fn (Feedback $f) => [
+            ->get();
+
+        // What was in each rated order, so staff can see which products the
+        // order-experience rating is about (name snapshot survives deletion).
+        $itemsByOrder = \App\Models\OrderItem::query()
+            ->whereIn('order_id', $rows->pluck('order_id')->filter()->unique())
+            ->get(['order_id', 'product_id', 'product_name_snapshot', 'selected_size', 'selected_color', 'quantity'])
+            ->groupBy('order_id');
+
+        $rows = $rows->map(fn (Feedback $f) => [
                 'id' => $f->id,
                 'customer_name' => $f->user?->full_name ?: $f->user_name,
                 'customer_email' => $f->user?->email ?: $f->user_email,
                 'rating' => $f->rating,
                 'comment' => $f->comment,
                 'order_id' => $f->order_id,
+                'order_products' => $f->order_id
+                    ? ($itemsByOrder[$f->order_id] ?? collect())->map(fn ($i) => [
+                        'name' => $i->product_name_snapshot,
+                        'size' => $i->selected_size,
+                        'color' => $i->selected_color,
+                        'quantity' => (int) $i->quantity,
+                        'in_shop' => $i->product_id !== null,
+                    ])->values()
+                    : [],
                 'created_at' => optional($f->created_at)->toIso8601String(),
             ]);
 

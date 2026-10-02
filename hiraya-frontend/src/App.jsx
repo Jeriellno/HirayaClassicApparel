@@ -25,6 +25,7 @@ import { roleHome } from './utils/consoleAccess';
 import Navbar from './components/common/Navbar';
 import TourButton from './components/common/TourButton';
 import Toaster from './components/common/Toaster';
+import ConnectionWatcher from './components/common/ConnectionWatcher';
 
 const ScrollToTop = () => {
     const { pathname } = useLocation();
@@ -85,6 +86,8 @@ const AppRoutes = () => {
             <ScrollToTop />
             {/* App-wide popup notices (utils/notify.js) — storefront and console. */}
             <Toaster />
+            {/* Recovers every screen after the internet / backend comes back. */}
+            <ConnectionWatcher />
             {showNavbar && (
                 /*
                  * Navbar only: it already renders the NotificationBell itself

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, MessageSquare, TrendingUp, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, MessageSquare, TrendingUp, Mail, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import ProductReviewsPanel from './ProductReviewsPanel';
 
 /** Responses per page; the sixth starts page two (matches the Inventory Catalog). */
@@ -183,6 +183,23 @@ const FeedbackTab = ({ feedbacks = [] }) => {
                    */}
                   {fb.comment || '(no comment)'}
                 </p>
+                {Array.isArray(fb.order_products) && fb.order_products.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {fb.order_products.map((item, i) => (
+                      <span
+                        key={`${item.name}-${i}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-hiraya-structure-line bg-cream-200/50 px-2 py-0.5 text-[10px] text-hiraya-ink"
+                      >
+                        <Package size={11} className="shrink-0" />
+                        {item.name}
+                        <span className="text-hiraya-sand">
+                          {[item.size, item.color].filter(Boolean).join(' · ')}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
+                        </span>
+                        {!item.in_shop && <span className="text-hiraya-sand">(no longer in shop)</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })

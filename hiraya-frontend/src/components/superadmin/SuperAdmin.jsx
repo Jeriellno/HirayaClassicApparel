@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios';
 import { invalidateCatalog } from '../../utils/invalidateCatalog';
 import { subscribeBackendHealth, isBackendReachable } from '../../utils/backendHealth';
+import { RECONNECTED_EVENT } from '../common/ConnectionWatcher';
 import { useAuth } from '../../context/AuthContext';
 import useConfirm from '../../hooks/useConfirm';
 import { supabase } from '../../services/supabase';
@@ -717,6 +718,20 @@ const SuperAdmin = ({ onLogout }) => {
    * exactly the datasets the visible tab renders — the same set the poll uses —
    * so recovering from an outage costs no more than one poll tick.
    */
+  // After an internet outage the reads often failed with server errors rather
+  // than "unreachable", so the health edge alone never fired: reload the
+  // visible tab and retry whatever failed when the connection comes back.
+  useEffect(() => {
+    const onReconnected = () => {
+      const wanted = TAB_DATASETS[activeTab] || [];
+      Promise.allSettled(wanted.map((key) => DATASET_LOADERS.current[key]?.()));
+      retryFailedDatasetsRef.current?.();
+    };
+    window.addEventListener(RECONNECTED_EVENT, onReconnected);
+    return () => window.removeEventListener(RECONNECTED_EVENT, onReconnected);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   useEffect(() => {
     const unsubscribe = subscribeBackendHealth((reachable) => {
       setBackendReachable(reachable);
