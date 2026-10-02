@@ -20,6 +20,10 @@ RUN composer install --no-dev --optimize-autoloader
 # built-in server forks this many workers so parallel API calls don't queue.
 ENV PHP_CLI_SERVER_WORKERS=4
 
+# The CMD loop below is the worker's supervisor, so the app must not spawn its
+# own workers/watchdogs from web requests (see config/queue.php).
+ENV TRYON_WORKER_SUPERVISED=true
+
 EXPOSE 10000
 
 # QUEUE_CONNECTION=database needs a worker draining the `tryon` queue, or every

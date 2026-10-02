@@ -16,6 +16,13 @@ return [
     'default' => env('QUEUE_CONNECTION', 'redis'),
 
     /*
+    | Set to true when the host already keeps a `tryon` worker alive (the Docker
+    | CMD loop on Render). EnsureTryOnWorker then trusts that supervisor instead
+    | of probing processes and spawning its own workers from web requests.
+    */
+    'tryon_worker_supervised' => (bool) env('TRYON_WORKER_SUPERVISED', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------

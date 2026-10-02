@@ -80,6 +80,16 @@ class EnsureTryOnWorker extends Command
             return self::SUCCESS;
         }
 
+        // The host supervises the worker itself (see config/queue.php); spawning
+        // more from here would only stack extra consumers in the container.
+        if (config('queue.tryon_worker_supervised')) {
+            if (! $quiet) {
+                $this->info('The try-on worker is supervised by the host — nothing to do.');
+            }
+
+            return self::SUCCESS;
+        }
+
         /*
          * START THE WATCHDOG, NOT A BARE WORKER — AND START IT EVEN WHEN A
          * WORKER IS ALREADY ALIVE.
@@ -166,6 +176,11 @@ class EnsureTryOnWorker extends Command
      */
     public function workerIsAlive(): bool
     {
+        // The host's supervisor loop restarts the worker within seconds of an exit.
+        if (config('queue.tryon_worker_supervised')) {
+            return true;
+        }
+
         // Primary: a real `queue:work` process the OS can see.
         if ($this->findWorkerProcesses() !== []) {
             return true;
