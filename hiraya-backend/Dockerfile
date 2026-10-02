@@ -1,13 +1,18 @@
 FROM php:8.2-cli
 
 # procps provides `ps`, which EnsureTryOnWorker uses to see the queue worker.
-# Without it the slim base image reports every render as `worker_offline`.
+# GD shrinks try-on renders into history thumbnails; without it /tryon/history
+# ships every full-size render (~1.8MB each) in one JSON response.
 RUN apt-get update && apt-get install -y \
     unzip \
     libpq-dev \
     libcurl4-openssl-dev \
     procps \
-    && docker-php-ext-install pdo pdo_pgsql pdo_mysql
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install pdo pdo_pgsql pdo_mysql gd
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
