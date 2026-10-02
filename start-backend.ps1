@@ -116,6 +116,10 @@ Write-Host 'NOTE: `php artisan serve` is SINGLE-THREADED on Windows (no pcntl),'
 Write-Host '      so concurrent admin requests queue. Expect the console to be slow;' -ForegroundColor DarkGray
 Write-Host '      that is the dev server, not a bug.' -ForegroundColor DarkGray
 
+# Raise PHP's upload limits (2M/8M defaults answer product saves with HTTP 413).
+# The server, and the try-on worker it spawns, inherit this environment.
+$env:PHP_INI_SCAN_DIR = Join-Path $backend 'php'
+
 Push-Location $backend
 try {
     Start-Process -FilePath $php `

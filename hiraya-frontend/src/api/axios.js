@@ -72,7 +72,9 @@ const needsSupabaseToken = (config = {}) =>
   isAdminPath(config?.url) || isCatalogWrite(config?.method, config?.url);
 
 const getTimeoutForUrl = (url = '') => {
-  const target = String(url);
+  // Same leading-slash restore as isCatalogWrite: every rule (and the auth
+  // list) starts with "/", so without it every request fell to the 15s default.
+  const target = `/${String(url).replace(/^\/+/, '')}`;
   if (isAuthEndpoint(target)) return TIMEOUTS.AUTH;
   const matchedRule = TIMEOUT_RULES.find((rule) => rule.pattern.test(target));
   return matchedRule ? matchedRule.timeout : TIMEOUTS.DEFAULT;

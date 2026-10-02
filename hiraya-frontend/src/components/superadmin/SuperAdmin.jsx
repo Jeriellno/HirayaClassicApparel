@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios';
 import { invalidateCatalog } from '../../utils/invalidateCatalog';
 import { subscribeBackendHealth, isBackendReachable } from '../../utils/backendHealth';
@@ -533,6 +533,34 @@ const SuperAdmin = ({ onLogout }) => {
     auditLogs: 'Audit logs',
   };
 
+  /*
+   * QUIET AUTO-RETRY. A failed read is usually the dev server or a cold
+   * backend being slow, not a real fault, so it is retried twice in the
+   * background before the owner sees anything. Details go to the console.
+   */
+  // Filled in once retryFailedDatasets is declared (it is defined further down).
+  const retryFailedDatasetsRef = useRef(null);
+  const autoRetryCountRef = useRef(0);
+  const [autoRetryDone, setAutoRetryDone] = useState(false);
+  useEffect(() => {
+    const failed = Object.keys(loadErrors);
+    if (failed.length === 0) {
+      autoRetryCountRef.current = 0;
+      setAutoRetryDone(false);
+      return undefined;
+    }
+    console.warn('SuperAdmin: some datasets failed to load', loadErrors);
+    if (autoRetryCountRef.current >= 2) {
+      setAutoRetryDone(true);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      autoRetryCountRef.current += 1;
+      retryFailedDatasetsRef.current?.();
+    }, 3000 * (autoRetryCountRef.current + 1));
+    return () => clearTimeout(timer);
+  }, [loadErrors]);
+
   const datasetErrors = Object.entries(loadErrors).map(([key, message]) => ({
     key,
     label: DATASET_LABELS[key] || key,
@@ -578,6 +606,7 @@ const SuperAdmin = ({ onLogout }) => {
       loadInFlightRef.current = false;
     }
   }, [loadErrors]);
+  retryFailedDatasetsRef.current = retryFailedDatasets;
 
   /*
    * `clearDemoAnalytics` is DESTRUCTIVE (it zeroes counters on every product),
@@ -1152,20 +1181,12 @@ const SuperAdmin = ({ onLogout }) => {
         * no stale banner) is needed.
         */}
       {!backendReachable && (
-        <div className="mb-6 p-4 bg-red-500/12 border-red-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
-          <AlertTriangle size={18} className="text-red-700 shrink-0 mt-0.5" />
+        <div role="status" className="mb-6 p-4 bg-amber-500/12 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-xs">
+          <Loader2 size={16} className="text-amber-700 shrink-0 mt-0.5 animate-spin" />
           <div className="min-w-0">
-            <p className="text-red-700 font-bold uppercase tracking-widest">
-              Backend unreachable
-            </p>
-            <p className="text-hiraya-ink normal-case tracking-normal mt-1">
-              The console cannot reach the API server, so the figures below may be
-              stale or empty. The tab will refresh automatically once the backend
-              responds again.
-            </p>
-            <p className="text-hiraya-sand normal-case tracking-normal mt-1.5">
-              Check that the Laravel server is running:{' '}
-              <code className="text-hiraya-ink">php artisan serve</code>
+            <p className="text-amber-800 font-semibold">Reconnecting…</p>
+            <p className="text-hiraya-ink mt-1">
+              We&apos;re having trouble reaching the store data right now. This page will update on its own as soon as the connection is back.
             </p>
           </div>
         </div>
@@ -1184,31 +1205,20 @@ const SuperAdmin = ({ onLogout }) => {
         * dataset may keep failing for a reason unrelated to transport (a 403, a
         * 500). The Retry button re-issues only the failed reads.
         */}
-      {datasetErrors.length > 0 && (
-        <div className="mb-6 p-4 bg-amber-500/15 border-amber-500/40 rounded-2xl flex items-start gap-3 font-mono text-xs">
-          <AlertTriangle size={18} className="text-amber-700 shrink-0 mt-0.5" />
-          <div className="min-w-0 flex-1">
-            <p className="text-amber-700 font-bold uppercase tracking-widest">
-              Some data could not be loaded
-            </p>
-            <p className="text-hiraya-ink normal-case tracking-normal mt-1">
-              Failed: {datasetErrors.map((e) => e.label).join(', ')}
-              {backendReachable
-                ? ' — the server is responding, so these panels may show stale or empty values.'
-                : ' — the server is unreachable.'}
-            </p>
-            <p className="text-hiraya-sand normal-case tracking-normal mt-1.5">
-              {datasetErrors[0].message}
-            </p>
-            <button
-              type="button"
-              onClick={retryFailedDatasets}
-              disabled={loading}
-              className="mt-3 px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-800 uppercase tracking-widest text-[10px] font-bold hover:bg-amber-500/15 disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed"
-            >
-              {loading ? 'Retrying…' : 'Retry failed'}
-            </button>
-          </div>
+      {datasetErrors.length > 0 && backendReachable && autoRetryDone && (
+        <div role="status" className="mb-6 p-4 bg-hiraya-surface border border-hiraya-structure-line rounded-2xl flex flex-wrap items-center gap-3 text-xs">
+          <AlertTriangle size={16} className="text-amber-700 shrink-0" />
+          <p className="min-w-0 flex-1 text-hiraya-ink">
+            Some information on this page is taking longer than usual to load.
+          </p>
+          <button
+            type="button"
+            onClick={retryFailedDatasets}
+            disabled={loading}
+            className="px-3 py-1.5 rounded-lg border border-hiraya-structure-line text-hiraya-ink text-[11px] font-semibold hover:bg-navy-900/5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {loading ? 'Loading…' : 'Try again'}
+          </button>
         </div>
       )}
 
