@@ -72,7 +72,7 @@ const ORDER_STATUS = {
 // `needsFullPayment` mirrors the server rule: nothing ships until fully paid.
 const STATUS_ACTIONS = [
   { id: 'pending', label: 'Pending', icon: Hourglass, className: 'border-hiraya-structure-line text-hiraya-ink hover:bg-hiraya-accent/12' },
-  { id: 'rejected', label: 'Rejected', icon: XCircle, className: 'border-red-600/40 text-red-700 hover:bg-red-500/12' },
+  { id: 'rejected', label: 'Cancel order', icon: XCircle, className: 'border-red-600/40 text-red-700 hover:bg-red-500/12' },
   { id: 'shipped', label: 'Shipped', icon: Truck, needsFullPayment: true, className: 'border-sky-600/35 text-sky-800 hover:bg-sky-500/12' },
   { id: 'delivered', label: 'Delivered', icon: CheckCircle2, needsFullPayment: true, className: 'border-emerald-600/35 text-emerald-700 hover:bg-emerald-500/12' },
 ];
@@ -114,6 +114,9 @@ const processingLabel = (order) => {
   if (!order.processing_date) return '—';
   return describeProcessingDate(order.processing_date) + (order.placed_after_cutoff ? ' (after cut-off)' : '');
 };
+
+/** Paid in full at checkout: the first receipt covers the whole order (no balance step). */
+const paidInFull = (order) => Number(order.balance_amount) <= 0;
 
 const isRejected = (order) => order.order_status === 'rejected' || order.payment_status === 'rejected';
 
@@ -348,7 +351,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
     // Rejecting returns the stock and cannot be undone, so it takes a second tap.
     if (status === 'rejected' && !confirmReject) {
       setConfirmReject(true);
-      setMessage({ type: 'warn', text: 'Tap Rejected again to confirm. This returns the stock and cannot be undone.' });
+      setMessage({ type: 'warn', text: 'Tap Cancel order again to confirm. This returns the stock, notifies the customer and cannot be undone.' });
       return;
     }
 
@@ -472,7 +475,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
               <PaymentStep
                 order={order}
                 type="dp"
-                title="1 · 50% Down Payment"
+                title={paidInFull(order) ? '1 · Full Payment' : '1 · 50% Down Payment'}
                 amount={order.dp_amount}
                 reference={order.dp_reference_number}
                 submittedAt={order.dp_submitted_at}
@@ -546,6 +549,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                 )}
               </PaymentStep>
 
+              {!paidInFull(order) && (
               <PaymentStep
                 order={order}
                 type="balance"
@@ -586,6 +590,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                   </p>
                 )}
               </PaymentStep>
+              )}
             </div>
           </section>
 
@@ -658,13 +663,19 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
 
           {locked ? (
             <p className="text-[11px] text-hiraya-sand">
-              This order was rejected and its stock returned. Its status can no longer change.
+              This order was cancelled and its stock returned. Its status can no longer change.
             </p>
           ) : (
             <>
             {order.payment_status !== 'fully_paid' && (
               <p className="text-[10px] text-hiraya-sand">
                 Shipped and Delivered unlock once the full payment is confirmed above.
+              </p>
+            )}
+            {order.payment_status === '50_paid' && (
+              <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-[10px] leading-relaxed text-amber-800">
+                Balance still unpaid when the courier is due? Use <strong>Cancel order</strong> — the stock returns to
+                inventory and the customer is told the balance was not settled before pickup (Order Guidelines §2).
               </p>
             )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

@@ -220,27 +220,31 @@ const ProductCard = ({
           </h3>
 
           {/* Verified-purchase rating (reviews_avg_rating / reviews_count from the catalog). */}
-          {Number(product?.reviews_count) > 0 ? (
-            <div
-              className="mt-1 flex items-center gap-1 text-[10px] text-hiraya-ink-muted"
-              aria-label={`Rated ${Number(product.reviews_avg_rating).toFixed(1)} out of 5 from ${product.reviews_count} reviews`}
-            >
-              <span className="flex items-center" aria-hidden="true">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <Star
-                    key={n}
-                    size={11}
-                    className={Number(product.reviews_avg_rating) >= n - 0.25 ? 'text-amber-500' : 'text-amber-500/40'}
-                    fill={Number(product.reviews_avg_rating) >= n - 0.25 ? 'currentColor' : 'none'}
-                  />
-                ))}
-              </span>
-              <span className="font-semibold text-hiraya-ink tabular-nums">{Number(product.reviews_avg_rating).toFixed(1)}</span>
-              <span>({product.reviews_count})</span>
-            </div>
-          ) : (
-            <p className="mt-1 text-[10px] text-hiraya-ink-muted">New · no reviews yet</p>
-          )}
+          {(() => {
+            // Every card shows its rating — "0.0 (0 reviews)" until the first
+            // verified-purchase review arrives — so the row never disappears.
+            const count = Number(product?.reviews_count) || 0;
+            const avg = count > 0 ? Number(product?.reviews_avg_rating) || 0 : 0;
+            return (
+              <div
+                className="mt-1 flex items-center gap-1 text-[10px] text-hiraya-ink-muted"
+                aria-label={count > 0 ? `Rated ${avg.toFixed(1)} out of 5 from ${count} reviews` : 'No reviews yet'}
+              >
+                <span className="flex items-center" aria-hidden="true">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      size={11}
+                      className={avg >= n - 0.25 ? 'text-amber-500' : 'text-amber-500/40'}
+                      fill={avg >= n - 0.25 ? 'currentColor' : 'none'}
+                    />
+                  ))}
+                </span>
+                <span className="font-semibold text-hiraya-ink tabular-nums">{avg.toFixed(1)}</span>
+                <span>({count} {count === 1 ? 'review' : 'reviews'})</span>
+              </div>
+            );
+          })()}
 
           {product?.attributes && typeof product.attributes === 'object' && Object.keys(product.attributes).length > 0 && (
             <div className="mt-2 flex-wrap gap-1">

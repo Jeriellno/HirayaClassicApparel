@@ -15,7 +15,7 @@ export const orderSteps = (order) => [
   { key: 'placed', label: 'Order placed', at: order.created_at, done: true },
   {
     key: 'dp',
-    label: 'Down payment verified',
+    label: Number(order.balance_amount) <= 0 ? 'Payment verified' : 'Down payment verified',
     at: order.dp_verified_at,
     done: PAID.includes(order.payment_status),
     hint: order.payment_status === 'pending'

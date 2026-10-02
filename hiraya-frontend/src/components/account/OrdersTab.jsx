@@ -283,10 +283,17 @@ const OrdersTab = () => {
             ) : (
                 <div className="space-y-5">
                     {visibleOrders.map((order) => {
-                        const step = PAYMENT_STEPS[order.payment_status] || {
+                        const paidInFull = Number(order.balance_amount) <= 0;
+                        const baseStep = PAYMENT_STEPS[order.payment_status] || {
                             label: order.payment_status,
                             tone: 'cream',
                         };
+                        // Paid in full at checkout: there is no "down payment" to speak of.
+                        const step = paidInFull && order.payment_status === 'pending'
+                            ? { ...baseStep, label: 'Full Payment Pending Verification' }
+                            : paidInFull && order.payment_status === 'rejected'
+                                ? { ...baseStep, label: 'Payment Rejected — Action Needed' }
+                                : baseStep;
                         const isDelivered = order.order_status === 'delivered';
                         const isFocused = order.id === focusOrderId;
 

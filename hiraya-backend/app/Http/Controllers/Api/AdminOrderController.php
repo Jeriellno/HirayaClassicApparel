@@ -111,6 +111,46 @@ class AdminOrderController extends Controller
             ], 422);
         }
 
+        /*
+         * PAID IN FULL AT CHECKOUT: the one receipt covers everything, so the
+         * order goes straight to fully paid and ready to ship — there is no
+         * balance step to wait for.
+         */
+        if ((float) $order->balance_amount <= 0) {
+            $order->update([
+                'payment_status'        => 'fully_paid',
+                'order_status'          => 'ready_for_shipping',
+                'rejection_reason'      => null,
+                'dp_verified_at'        => now(),
+                'fully_paid_at'         => now(),
+                'ready_for_shipping_at' => now(),
+            ]);
+
+            $this->writeAudit(
+                $request,
+                'APPROVE_FULL_PAYMENT',
+                'ORDERS',
+                'Verified the full payment of ₱' . number_format((float) $order->total_amount, 2)
+                    . ' for order #' . $order->id
+                    . ($order->dp_reference_number ? ' (ref. ' . $order->dp_reference_number . ')' : '')
+                    . '; ready to ship.',
+            );
+
+            $this->notifyCustomer(
+                $order,
+                'Payment Confirmed',
+                'Your full payment for order #' . $order->id . ' has been verified. Your order is ready to ship'
+                    . ($order->courier === 'lalamove'
+                        ? ' — please book your Lalamove rider and send us the booking details from My Orders.'
+                        : ' via LBC.')
+            );
+
+            return response()->json([
+                'message' => 'Full payment verified. The order is ready to ship.',
+                'order'   => $order->fresh(),
+            ]);
+        }
+
         $order->update([
             'payment_status'   => '50_paid',
             'order_status'     => 'processing',
@@ -139,7 +179,7 @@ class AdminOrderController extends Controller
         $this->notifyCustomer(
             $order,
             '50% Down Payment Approved',
-            'Your down payment has been verified and your order is now being prepared. Please settle the remaining balance of ₱' . number_format((float) $order->balance_amount, 2) . ' before shipping.'
+            'Your down payment has been verified and your order is now being prepared. Please settle the remaining balance of ₱' . number_format((float) $order->balance_amount, 2) . ' before courier pickup — orders with an unpaid balance may be cancelled.'
         );
 
         return response()->json([
@@ -359,6 +399,7 @@ class AdminOrderController extends Controller
     {
         $validated = $request->validate([
             'order_status' => 'required|in:pending,processing,ready_for_shipping,shipped,delivered,rejected',
+            'reason'       => 'nullable|string|max:255',
         ]);
 
         $previousStatus = $order->order_status;
@@ -422,7 +463,8 @@ class AdminOrderController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($order, $newStatus) {
+            $reason = $validated['reason'] ?? null;
+            DB::transaction(function () use ($order, $newStatus, $reason) {
                 $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
                 if ($locked->order_status === 'rejected') {
@@ -430,6 +472,18 @@ class AdminOrderController extends Controller
                 }
 
                 $changes = ['order_status' => $newStatus];
+                /*
+                 * Order Guidelines §2: an order whose balance is still unpaid
+                 * before courier pickup may be cancelled. The reason is kept on
+                 * the order and sent to the customer.
+                 */
+                if ($newStatus === 'rejected') {
+                    $changes['rejection_reason'] = trim((string) ($reason ?? '')) !== ''
+                        ? trim($reason)
+                        : ($locked->payment_status === '50_paid'
+                            ? 'The remaining balance was not settled before courier pickup.'
+                            : 'Cancelled by the store.');
+                }
                 // Tracker timestamps for the steps that have one.
                 if (in_array($newStatus, ['ready_for_shipping', 'shipped', 'delivered'], true)) {
                     $changes[$newStatus . '_at'] = now();
@@ -467,6 +521,7 @@ class AdminOrderController extends Controller
                 . ($newStatus === 'rejected' ? ' and its stock was returned to inventory' : '') . '.',
         );
 
+        $order->refresh(); // the reason / timestamps written inside the transaction
         [$title, $body] = $this->statusMessage($order, $newStatus);
         // A delivered order carries the "Review Products" call-to-action.
         $this->notifyCustomer($order, $title, $body, $newStatus === 'delivered' ? 'review_products' : null);
@@ -492,7 +547,9 @@ class AdminOrderController extends Controller
             'ready_for_shipping' => ['Ready for Shipping', 'Order ' . $id . ' is packed and ready for shipping.'],
             'shipped' => ['Order Shipped', 'Good news — order ' . $id . ' has been shipped. Your courier details are on your orders page.'],
             'delivered' => ['Order Delivered', 'Your order ' . $id . ' has been delivered. You can now review the products you received.'],
-            'rejected' => ['Order Rejected', 'We are sorry — order ' . $id . ' has been rejected. Please contact Hiraya support for help or a refund of any payment made.'],
+            'rejected' => ['Order Cancelled', 'Order ' . $id . ' has been cancelled'
+                . ($order->rejection_reason ? ': ' . rtrim($order->rejection_reason, '.') . '.' : '.')
+                . ' Please contact Hiraya if you have questions.'],
             default => ['Order Update', 'Order ' . $id . ' is now ' . str_replace('_', ' ', $status) . '.'],
         };
     }

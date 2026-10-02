@@ -41,7 +41,22 @@ class CheckoutController extends Controller
                 'customer_name'    => 'required|string|min:2|max:255',
                 // PH mobile number: 09XXXXXXXXX or +639XXXXXXXXX, spaces/dashes allowed.
                 'contact_number'   => ['required', 'string', 'max:30', 'regex:/^(\+?63|0)9[\d\s-]{9,13}$/'],
-                'delivery_address' => 'required|string|min:10|max:500',
+                /*
+                 * DELIVERY DETAILS (Order Guidelines §4).
+                 *  - LBC: the store books the shipment, so the COMPLETE address is
+                 *    required as separate parts (street, barangay, city, province,
+                 *    ZIP) and composed into delivery_address here.
+                 *  - Lalamove: the customer books the rider, so only the drop-off
+                 *    address is asked for; booking details follow from My Orders.
+                 */
+                'delivery_address' => 'required_if:courier,lalamove|nullable|string|min:10|max:500',
+                'address_line'     => 'required_if:courier,lbc|nullable|string|min:3|max:200',
+                'barangay'         => 'required_if:courier,lbc|nullable|string|min:2|max:100',
+                'city'             => 'required_if:courier,lbc|nullable|string|min:2|max:100',
+                'province'         => 'required_if:courier,lbc|nullable|string|min:2|max:100',
+                'postal_code'      => ['required_if:courier,lbc', 'nullable', 'regex:/^\d{4}$/'],
+                // Order Guidelines §2: 50% down payment, or pay in full upfront.
+                'payment_option'   => 'nullable|in:down_payment,full',
                 'dp_proof_image'   => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
                 // The GCash / bank transaction reference the admin checks against.
                 'dp_reference_number' => 'required|string|min:4|max:64',
@@ -67,15 +82,27 @@ class CheckoutController extends Controller
             ], [
                 'contact_number.regex'         => 'Please enter a valid mobile number, e.g. 0917 123 4567.',
                 'delivery_address.min'         => 'Please enter your complete delivery address.',
+                'delivery_address.required_if' => 'Please enter the drop-off address for your Lalamove rider.',
+                'address_line.required_if'     => 'Enter your house no. and street for LBC.',
+                'barangay.required_if'         => 'Enter your barangay for LBC.',
+                'city.required_if'             => 'Enter your city or municipality for LBC.',
+                'province.required_if'         => 'Enter your province for LBC.',
+                'postal_code.required_if'      => 'Enter your 4-digit ZIP code for LBC.',
+                'postal_code.regex'            => 'The ZIP code must be 4 digits.',
             ]);
 
-            // LBC requires a complete delivery address to generate the shipment.
-            // Lalamove is booked by the client, so we only warn (handled in the UI).
-            if ($validated['courier'] === 'lbc' && strlen(trim($validated['delivery_address'])) < 10) {
-                return response()->json([
-                    'message' => 'A complete delivery address is required for LBC shipping.',
-                ], 422);
+            if ($validated['courier'] === 'lbc') {
+                $validated['delivery_address'] = sprintf(
+                    '%s, Brgy. %s, %s, %s %s',
+                    trim($validated['address_line']),
+                    trim($validated['barangay']),
+                    trim($validated['city']),
+                    trim($validated['province']),
+                    trim($validated['postal_code'])
+                );
             }
+
+            $payInFull = ($validated['payment_option'] ?? 'down_payment') === 'full';
 
             // One receipt, one order: a reference already on another order is refused.
             if ($usedBy = Order::referenceInUse($validated['dp_reference_number'])) {
@@ -109,7 +136,7 @@ class CheckoutController extends Controller
             }
 
             try {
-                $order = DB::transaction(function () use ($request, $validated, $lines, $fromCart, $ownedCartItems) {
+                $order = DB::transaction(function () use ($request, $validated, $lines, $fromCart, $ownedCartItems, $payInFull) {
                     // 1. Re-read every product inside the transaction and lock the
                     //    rows so two concurrent checkouts for the last item cannot
                     //    both pass the stock check.
@@ -159,8 +186,9 @@ class CheckoutController extends Controller
                     $dpProofPath = $request->file('dp_proof_image')
                         ->store('orders/dp-proofs', 'public');
 
-                    $dp = round($total / 2, 2);        // 50% down payment
-                    $balance = round($total - $dp, 2); // remaining balance
+                    // First payment: 50% (secures the stock) or the full amount.
+                    $dp = $payInFull ? round($total, 2) : round($total / 2, 2);
+                    $balance = round($total - $dp, 2); // remaining balance (0 when paid in full)
                     // 4. Create the order with the SERVER-COMPUTED total.
                     $order = Order::create([
                         'user_id'                  => $request->user()?->id,

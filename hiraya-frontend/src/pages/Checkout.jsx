@@ -25,6 +25,14 @@ const Checkout = () => {
     contact_number: '',
     delivery_address: '',
     courier: 'lbc',
+    // LBC needs the complete address in parts (Order Guidelines §4).
+    address_line: '',
+    barangay: '',
+    city: '',
+    province: '',
+    postal_code: '',
+    // Order Guidelines §2: 50% down payment (secures the stock) or pay in full.
+    payment_option: 'down_payment',
   });
 
   const [dpProof, setDpProof] = useState(null);
@@ -68,8 +76,9 @@ const Checkout = () => {
       : 0;
 
   const total = estimatedTotal || 0;
-  const dpAmount = total ? (total / 2).toFixed(2) : '0.00';
-  const balance = total ? (total / 2).toFixed(2) : '0.00';
+  const payInFull = formData.payment_option === 'full';
+  const dpAmount = total ? (payInFull ? total : total / 2).toFixed(2) : '0.00';
+  const balance = total ? (payInFull ? 0 : total - total / 2).toFixed(2) : '0.00';
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -89,8 +98,23 @@ const Checkout = () => {
       setErrorMessage('Please enter a valid mobile number, e.g. 0917 123 4567.');
       return;
     }
-    if (formData.delivery_address.trim().length < 10) {
-      setErrorMessage('Please enter your complete delivery address (house no., street, barangay, city).');
+    if (formData.courier === 'lbc') {
+      const missing = [
+        ['address_line', 'house no. and street'],
+        ['barangay', 'barangay'],
+        ['city', 'city or municipality'],
+        ['province', 'province'],
+      ].find(([key]) => formData[key].trim().length < 2);
+      if (missing) {
+        setErrorMessage(`Please enter your ${missing[1]} — LBC needs your complete delivery details.`);
+        return;
+      }
+      if (!/^\d{4}$/.test(formData.postal_code.trim())) {
+        setErrorMessage('Please enter your 4-digit ZIP code for LBC.');
+        return;
+      }
+    } else if (formData.delivery_address.trim().length < 10) {
+      setErrorMessage('Please enter the complete drop-off address for your Lalamove rider.');
       return;
     }
     if (!agreed) {
@@ -102,7 +126,7 @@ const Checkout = () => {
       return;
     }
     if (!dpProof) {
-      setErrorMessage('Please upload your 50% down payment receipt.');
+      setErrorMessage(payInFull ? 'Please upload your payment receipt.' : 'Please upload your 50% down payment receipt.');
       return;
     }
     if (dpReference.trim().length < 4) {
@@ -125,8 +149,14 @@ const Checkout = () => {
       const payload = new FormData();
       payload.append('customer_name', formData.customer_name);
       payload.append('contact_number', formData.contact_number);
-      payload.append('delivery_address', formData.delivery_address);
       payload.append('courier', formData.courier);
+      payload.append('payment_option', formData.payment_option);
+      if (formData.courier === 'lbc') {
+        ['address_line', 'barangay', 'city', 'province', 'postal_code'].forEach((key) =>
+          payload.append(key, formData[key].trim()));
+      } else {
+        payload.append('delivery_address', formData.delivery_address.trim());
+      }
       payload.append('dp_proof_image', dpProof);
       payload.append('dp_reference_number', dpReference.trim());
 
@@ -182,7 +212,7 @@ const Checkout = () => {
             status within the 3:00 PM same-day processing cutoff.
           </p>
 
-          <PaymentInstructions amount={dpAmount} amountLabel="Down payment sent" className="mb-8 mt-6 text-left" />
+          <PaymentInstructions amount={dpAmount} amountLabel={payInFull ? 'Payment sent' : 'Down payment sent'} className="mb-8 mt-6 text-left" />
 
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
             <button
@@ -311,20 +341,6 @@ const Checkout = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                    Complete Delivery Address
-                  </label>
-                  <textarea
-                    name="delivery_address"
-                    value={formData.delivery_address}
-                    onChange={handleChange}
-                    required
-                    rows={3}
-                    className="field resize-none"
-                    placeholder="House No., Street, Barangay, City, Province, ZIP"
-                  />
-                </div>
               </div>
             </div>
 
@@ -360,12 +376,61 @@ const Checkout = () => {
                 ))}
               </div>
 
-              {formData.courier === 'lalamove' && (
-                <div className="mt-4 flex items-start gap-2 rounded-xl border border-hiraya-accent/20 bg-hiraya-accent-wash px-4 py-3 text-[11px] text-hiraya-ink">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-hiraya-accent" />
-                  <span>
-                    Note: You will be responsible for booking the courier once the item is ready.
-                  </span>
+              {/* DELIVERY DETAILS — what each courier needs (Order Guidelines §4). */}
+              {formData.courier === 'lbc' ? (
+                <div className="mt-5 space-y-3">
+                  <p className="text-[11px] text-hiraya-ink-soft">
+                    We book your LBC shipment, so please give your <strong className="text-hiraya-ink">complete delivery details</strong>.
+                  </p>
+                  {[
+                    { name: 'address_line', label: 'House No. & Street', placeholder: '12 Riverside St' },
+                    { name: 'barangay', label: 'Barangay', placeholder: 'San Roque' },
+                    { name: 'city', label: 'City / Municipality', placeholder: 'Marikina City' },
+                    { name: 'province', label: 'Province', placeholder: 'Metro Manila' },
+                    { name: 'postal_code', label: 'ZIP Code', placeholder: '1801', inputMode: 'numeric', maxLength: 4 },
+                  ].map((field) => (
+                    <div key={field.name}>
+                      <label htmlFor={field.name} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                        {field.label}
+                      </label>
+                      <input
+                        id={field.name}
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleChange}
+                        required
+                        inputMode={field.inputMode}
+                        maxLength={field.maxLength}
+                        className="field"
+                        placeholder={field.placeholder}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-start gap-2 rounded-xl border border-hiraya-accent/20 bg-hiraya-accent-wash px-4 py-3 text-[11px] text-hiraya-ink">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-hiraya-accent" />
+                    <span>
+                      With Lalamove, <strong>you book the rider</strong>. Once your order is fully paid and ready, book a Lalamove
+                      pickup from our store and send us the booking / tracking details from <strong>My Orders</strong>.
+                    </span>
+                  </div>
+                  <div>
+                    <label htmlFor="delivery_address" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                      Drop-off Address
+                    </label>
+                    <textarea
+                      id="delivery_address"
+                      name="delivery_address"
+                      value={formData.delivery_address}
+                      onChange={handleChange}
+                      required
+                      rows={2}
+                      className="field resize-none"
+                      placeholder="Where the rider will deliver: unit / house no., street, barangay, city"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -428,23 +493,50 @@ const Checkout = () => {
                 </p>
               </div>
 
-              <div className="mb-5 grid grid-cols-2 gap-4 text-center">
-                <div className="rounded-2xl bg-navy-900 py-4 shadow-[0_12px_24px_-14px_rgba(21,32,54,0.8)]">
-                  <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-cream-400">
-                    50% Down Payment
-                  </p>
-                  <Currency amount={dpAmount} className="text-lg font-semibold text-cream-50" />
-                </div>
-                <div className="rounded-2xl bg-cream-200/60 py-4 shadow-neu-inset">
-                  <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                    Balance Before Shipping
-                  </p>
-                  <Currency amount={balance} className="text-lg font-semibold text-hiraya-ink" />
-                </div>
+              {/* HOW MUCH TO PAY NOW — Order Guidelines §2. */}
+              <div className="mb-5 grid grid-cols-2 gap-4" role="radiogroup" aria-label="How much to pay now">
+                {[
+                  { value: 'down_payment', title: '50% Down Payment', amount: total / 2, note: 'Secures your item. Pay the balance before courier pickup.' },
+                  { value: 'full', title: 'Full Payment', amount: total, note: 'Pay everything now — ready to ship once verified.' },
+                ].map((option) => {
+                  const active = formData.payment_option === option.value;
+                  return (
+                    <label
+                      key={option.value}
+                      className={`cursor-pointer rounded-2xl px-4 py-4 text-center transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-hiraya-focus ${active
+                        ? 'border border-hiraya-accent-deep bg-hiraya-accent text-hiraya-on-accent shadow-[0_12px_24px_-14px_rgba(21,32,54,0.8)]'
+                        : 'border border-cream-50/80 bg-hiraya-surface text-hiraya-ink shadow-neu-sm hover:-translate-y-0.5'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="payment_option"
+                        value={option.value}
+                        checked={active}
+                        onChange={handleChange}
+                        className="sr-only"
+                      />
+                      <p className={`mb-1 text-[9px] uppercase tracking-[0.16em] ${active ? 'opacity-80' : 'text-hiraya-ink-muted'}`}>{option.title}</p>
+                      <Currency amount={(option.amount || 0).toFixed(2)} className="text-lg font-semibold" />
+                      <p className={`mt-1 text-[9px] leading-snug ${active ? 'opacity-80' : 'text-hiraya-ink-muted'}`}>{option.note}</p>
+                    </label>
+                  );
+                })}
               </div>
+              {!payInFull && (
+                <p className="-mt-2 mb-5 text-center text-[10px] text-hiraya-ink-muted">
+                  Balance before courier pickup: <Currency amount={balance} className="font-semibold text-hiraya-ink" /> — orders with an unpaid balance before pickup may be cancelled.
+                </p>
+              )}
+
+              <PaymentInstructions
+                amount={dpAmount}
+                amountLabel={payInFull ? 'Send now (full payment)' : 'Send now (50% down payment)'}
+                className="mb-5"
+              />
 
               <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                Upload Down Payment Receipt
+                {payInFull ? 'Upload Payment Receipt' : 'Upload Down Payment Receipt'}
               </label>
               {/*
                 * THE FILE INPUT STILL USES THE NATIVE `file:` BUTTON, because a

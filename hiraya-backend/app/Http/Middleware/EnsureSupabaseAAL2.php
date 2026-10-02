@@ -167,44 +167,50 @@ class EnsureSupabaseAAL2
             return false;
         }
 
-        // Only positive results are cached, so a lookup that failed for a
-        // transient reason is retried on the next request instead of sticking.
-        return cache()->remember(
-            'supabase.email_confirmed.' . hash('sha256', $sub),
-            now()->addSeconds((int) config('services.supabase.email_confirmed_cache_seconds', 300)),
-            function () use ($sub): bool {
-                $url = rtrim((string) config('services.supabase.admin_api_url'), '/') . '/' . rawurlencode($sub);
-                $key = (string) config('services.supabase.service_role_key');
+        // Only POSITIVE results are cached (remember() used to cache `false`
+        // too, so one slow lookup locked the account out for five minutes).
+        // A lookup that fails for a transient reason falls back to the last
+        // time this address was confirmed — an email cannot become unconfirmed.
+        $cacheKey = 'supabase.email_confirmed.' . hash('sha256', $sub);
+        if (cache()->get($cacheKey) === true) {
+            return true;
+        }
 
-                if ($url === '/' . rawurlencode($sub) || $key === '') {
-                    Log::error('SUPABASE_SERVICE_ROLE_KEY is not set; email confirmation cannot be verified for /api/admin/*.');
+        $url = rtrim((string) config('services.supabase.admin_api_url'), '/') . '/' . rawurlencode($sub);
+        $key = (string) config('services.supabase.service_role_key');
 
-                    return false;
+        if ($url === '/' . rawurlencode($sub) || $key === '') {
+            Log::error('SUPABASE_SERVICE_ROLE_KEY is not set; email confirmation cannot be verified for /api/admin/*.');
+
+            return false;
+        }
+
+        try {
+            $response = Http::timeout(6)
+                ->retry(1, 300, throw: false)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                    'apikey' => $key,
+                ])
+                ->get($url);
+
+            if ($response->successful()) {
+                $confirmed = ! empty($response->json('email_confirmed_at'));
+                if ($confirmed) {
+                    cache()->put($cacheKey, true, now()->addSeconds((int) config('services.supabase.email_confirmed_cache_seconds', 300)));
+                    cache()->forever($cacheKey . '.ever', true);
                 }
 
-                try {
-                    $response = Http::timeout(5)
-                        ->acceptJson()
-                        ->withHeaders([
-                            'Authorization' => 'Bearer ' . $key,
-                            'apikey' => $key,
-                        ])
-                        ->get($url);
-
-                    if (! $response->successful()) {
-                        Log::error('Supabase Admin API user lookup failed with HTTP ' . $response->status() . '; /api/admin/* cannot confirm this address.');
-
-                        return false;
-                    }
-
-                    return ! empty($response->json('email_confirmed_at'));
-                } catch (Throwable $e) {
-                    Log::error('Supabase Admin API user lookup error: ' . $e->getMessage());
-
-                    return false;
-                }
+                return $confirmed;
             }
-        );
+
+            Log::error('Supabase Admin API user lookup failed with HTTP ' . $response->status() . '; using the last known confirmation.');
+        } catch (Throwable $e) {
+            Log::error('Supabase Admin API user lookup error: ' . $e->getMessage() . '; using the last known confirmation.');
+        }
+
+        return cache()->get($cacheKey . '.ever') === true;
     }
 
     /**
@@ -217,6 +223,23 @@ class EnsureSupabaseAAL2
      */
     private function jwks(): array
     {
+        /*
+         * CACHE FIRST, LAST-KNOWN-GOOD ON FAILURE.
+         *
+         * This used to fetch the JWKS over the network on EVERY admin request
+         * (the fetched keys were passed into cache()->remember(), so the cache
+         * was written but never read first). On a slow connection the 5s fetch
+         * timed out and a perfectly valid aal2 session was answered "Invalid or
+         * expired session token" — e.g. Save in Edit Product. The keys only
+         * change on a manual rotation, so: serve the cached copy; on a miss,
+         * fetch (one retry); if the fetch fails, fall back to the last copy that
+         * ever verified instead of locking every staff member out.
+         */
+        $cached = cache()->get('supabase.jwks');
+        if (is_array($cached) && $cached !== []) {
+            return $cached;
+        }
+
         $url = (string) config('services.supabase.jwks_url');
 
         if ($url === '') {
@@ -224,24 +247,29 @@ class EnsureSupabaseAAL2
         }
 
         try {
-            $response = Http::timeout(5)
+            $response = Http::timeout(6)
+                ->retry(1, 300, throw: false)
                 ->acceptJson()
                 ->get($url);
 
-            if (! $response->successful()) {
-                Log::error('Supabase JWKS fetch failed with HTTP ' . $response->status() . '; /api/admin/* cannot be authorized.');
+            if ($response->successful()) {
+                $keys = (array) ($response->json('keys') ?? []);
+                if ($keys !== []) {
+                    cache()->put('supabase.jwks', $keys, now()->addHours(6));
+                    cache()->forever('supabase.jwks.last_good', $keys);
 
-                return [];
+                    return $keys;
+                }
             }
 
-            $keys = (array) ($response->json('keys') ?? []);
-
-            return cache()->remember('supabase.jwks', now()->addHour(), fn () => $keys);
+            Log::error('Supabase JWKS fetch failed with HTTP ' . $response->status() . '; using the last known keys.');
         } catch (Throwable $e) {
-            Log::error('Supabase JWKS fetch error: ' . $e->getMessage());
-
-            return [];
+            Log::error('Supabase JWKS fetch error: ' . $e->getMessage() . '; using the last known keys.');
         }
+
+        $lastGood = cache()->get('supabase.jwks.last_good');
+
+        return is_array($lastGood) ? $lastGood : [];
     }
 
     /**

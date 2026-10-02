@@ -22,7 +22,7 @@ class OrderController extends Controller
     {
         try {
             $orders = Order::where('user_id', $request->user()->id)
-                ->with('orderItems')
+                ->with('orderItems.product')
                 ->latest()
                 ->get();
 
@@ -49,7 +49,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order not found.'], 404);
         }
 
-        return response()->json($order->load('orderItems'));
+        return response()->json($order->load('orderItems.product'));
     }
 
     /**
