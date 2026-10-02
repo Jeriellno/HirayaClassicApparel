@@ -686,7 +686,7 @@
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2 rounded-md font-sans font-semibold uppercase
            transition-all duration-200 cursor-pointer focus-visible:outline-none
-           bg-red-800 text-hiraya-on-accent border border-red-900 px-7 py-3 text-[11px]
+           bg-red-800 text-white border border-red-900 px-7 py-3 text-[11px]
            hover:bg-red-900 active:translate-y-px
            disabled:cursor-not-allowed disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:border-hiraya-disabled-bg;
     letter-spacing: 0.14em;
