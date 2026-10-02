@@ -147,7 +147,7 @@ const Feedback = () => {
                      */}
                     <Star
                       size={26}
-                      className={(hovered || rating) >= n ? 'text-amber-500' : 'text-hiraya-structure-line'}
+                      className={(hovered || rating) >= n ? 'text-amber-500' : 'text-amber-500/40'}
                       fill={(hovered || rating) >= n ? 'currentColor' : 'none'}
                     />
                   </button>

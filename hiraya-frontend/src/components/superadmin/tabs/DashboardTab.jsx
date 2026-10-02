@@ -258,7 +258,7 @@ const StarBars = ({ data, noun }) => {
         <span className="text-2xl font-semibold leading-none tabular-nums text-navy-900">{data.average?.toFixed(1)}</span>
         <span className="flex items-center gap-0.5" aria-label={`${data.average} out of 5`}>
           {[1, 2, 3, 4, 5].map((n) => (
-            <Star key={n} size={12} className={data.average >= n - 0.25 ? 'text-amber-500' : 'text-hiraya-structure-line'} fill={data.average >= n - 0.25 ? 'currentColor' : 'none'} />
+            <Star key={n} size={12} className={data.average >= n - 0.25 ? 'text-amber-500' : 'text-amber-500/40'} fill={data.average >= n - 0.25 ? 'currentColor' : 'none'} />
           ))}
         </span>
         <span className="ml-auto text-[10px] text-charcoal-500">{data.total} {noun}</span>

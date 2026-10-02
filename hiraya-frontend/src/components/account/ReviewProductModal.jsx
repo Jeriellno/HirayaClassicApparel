@@ -36,6 +36,8 @@ const toCompressedDataUri = (file) =>
         reader.readAsDataURL(file);
     });
 
+const RATING_LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' };
+
 const StarRow = ({ value, hovered = 0, onHover, onSelect, size = 22 }) => (
     <div className="flex items-center gap-1" onMouseLeave={() => onHover?.(0)}>
         {[1, 2, 3, 4, 5].map((n) => {
@@ -43,7 +45,7 @@ const StarRow = ({ value, hovered = 0, onHover, onSelect, size = 22 }) => (
             const star = (
                 <Star
                     size={size}
-                    className={lit ? 'text-amber-500' : 'text-hiraya-structure-line'}
+                    className={lit ? 'text-amber-500' : 'text-amber-500/40'}
                     fill={lit ? 'currentColor' : 'none'}
                 />
             );
@@ -230,9 +232,11 @@ const ReviewProductModal = ({ line, existingReview = null, onClose }) => {
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
                                 Your rating
                             </p>
-                            <div className="flex items-center gap-2">
-                                <StarRow value={rating} hovered={hovered} onHover={setHovered} onSelect={setRating} />
-                                <span className="text-sm text-hiraya-ink-muted">{hovered || rating || 0} / 5</span>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <StarRow value={rating} hovered={hovered} onHover={setHovered} onSelect={setRating} size={32} />
+                                <span className="text-sm font-semibold text-hiraya-ink">
+                                    {(hovered || rating) ? `${hovered || rating} / 5 · ${RATING_LABELS[hovered || rating]}` : 'Tap a star to rate'}
+                                </span>
                             </div>
                         </div>
 

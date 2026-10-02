@@ -230,7 +230,7 @@ const ProductCard = ({
                   <Star
                     key={n}
                     size={11}
-                    className={Number(product.reviews_avg_rating) >= n - 0.25 ? 'text-amber-500' : 'text-hiraya-structure-line'}
+                    className={Number(product.reviews_avg_rating) >= n - 0.25 ? 'text-amber-500' : 'text-amber-500/40'}
                     fill={Number(product.reviews_avg_rating) >= n - 0.25 ? 'currentColor' : 'none'}
                   />
                 ))}
