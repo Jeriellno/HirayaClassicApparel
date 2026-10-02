@@ -29,6 +29,35 @@ class ProductReviewController extends Controller
      * Every review the signed-in customer has written, so My Orders can swap
      * "Review Product" for "View Review" on lines that are already done.
      */
+    /**
+     * GET /api/admin/product-reviews — every product review, newest first, for
+     * the staff Customers Feedback screen (who, which product, which order).
+     */
+    public function adminIndex(Request $request)
+    {
+        $limit = (int) min(max((int) $request->query('limit', 200), 1), 500);
+
+        $reviews = ProductReview::query()
+            ->with(['product:id,name', 'user:id,full_name,email'])
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(fn (ProductReview $r) => [
+                'id' => $r->id,
+                'product_id' => $r->product_id,
+                'product_name' => $r->product?->name,
+                'order_id' => $r->order_id,
+                'customer_name' => $r->user?->full_name,
+                'customer_email' => $r->user?->email,
+                'rating' => $r->rating,
+                'comment' => $r->comment,
+                'image' => $r->image,
+                'created_at' => optional($r->created_at)->toIso8601String(),
+            ]);
+
+        return response()->json($reviews);
+    }
+
     public function mine(Request $request)
     {
         $reviews = ProductReview::where('user_id', $request->user()->id)

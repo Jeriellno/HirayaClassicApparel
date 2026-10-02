@@ -128,6 +128,7 @@ class ConsoleController extends Controller
                 'customer_email' => $f->user?->email ?: $f->user_email,
                 'rating' => $f->rating,
                 'comment' => $f->comment,
+                'order_id' => $f->order_id,
                 'created_at' => optional($f->created_at)->toIso8601String(),
             ]);
 

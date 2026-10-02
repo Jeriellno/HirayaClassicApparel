@@ -216,6 +216,19 @@ class AnalyticsController extends Controller
      * dashboard's "Recent User Responses". Replaces the Supabase `feedbacks`
      * read that had no writer.
      */
+    /**
+     * GET /api/feedback/mine — the signed-in customer's own feedback, so My
+     * Orders can show the rating they gave each delivered order.
+     */
+    public function myFeedback(Request $request)
+    {
+        return response()->json([
+            'feedback' => Feedback::where('user_id', $request->user()->id)
+                ->latest()
+                ->get(['id', 'order_id', 'rating', 'comment', 'created_at']),
+        ]);
+    }
+
     public function feedbacks(Request $request)
     {
         try {
@@ -253,17 +266,38 @@ class AnalyticsController extends Controller
         }
 
         $validated = $request->validate([
-            'rating'  => ['nullable', 'integer', 'min:1', 'max:5'],
+            // Every feedback carries a 1-5 star rating (the column is NOT NULL).
+            'order_id' => ['nullable', 'integer'],
+            'rating'  => ['required', 'integer', 'min:1', 'max:5'],
             'comment' => ['required', 'string', 'max:2000'],
         ]);
+
+        /*
+         * ORDER EXPERIENCE FEEDBACK — once per delivered order, own orders only.
+         * Mirrors the product-review rule (reviews open on delivery).
+         */
+        $orderId = $validated['order_id'] ?? null;
+        if ($orderId !== null) {
+            $order = \App\Models\Order::whereKey($orderId)->where('user_id', $user->id)->first();
+            if (! $order) {
+                return response()->json(['message' => 'Order not found.'], 404);
+            }
+            if ($order->order_status !== 'delivered') {
+                return response()->json(['message' => 'You can rate your order once it has been delivered.'], 422);
+            }
+            if (Feedback::where('order_id', $order->id)->exists()) {
+                return response()->json(['message' => 'You already rated this order. Thank you!'], 422);
+            }
+        }
 
         try {
             $feedback = Feedback::create([
                 'user_id'   => $user->id,
                 'user_name' => $user->full_name ?: $user->email,
                 'user_email'=> $user->email,
-                'rating'    => $validated['rating'] ?? 5,
+                'rating'    => $validated['rating'],
                 'comment'   => $validated['comment'],
+                'order_id'  => $orderId,
             ]);
 
             return response()->json([

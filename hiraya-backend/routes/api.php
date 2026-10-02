@@ -202,6 +202,7 @@ Route::middleware('throttle:60,1')->group(function () {
  * the sender's real account name and email.
  */
 Route::middleware('auth:sanctum')->post('/feedback', [AnalyticsController::class, 'submitFeedback']);
+Route::middleware('auth:sanctum')->get('/feedback/mine', [AnalyticsController::class, 'myFeedback']);
 
 /*
  * Public system status.
@@ -347,6 +348,7 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
     Route::post('/console/{event}', [\App\Http\Controllers\Api\ConsoleController::class, 'signInEvent'])
         ->where('event', 'signed-in|signed-out')->middleware('throttle:30,1');
     Route::get('/customer-feedback', [\App\Http\Controllers\Api\ConsoleController::class, 'customerFeedback']);
+    Route::get('/product-reviews', [ProductReviewController::class, 'adminIndex']);
     Route::get('/support', [\App\Http\Controllers\Api\ConsoleController::class, 'supportIndex']);
     Route::post('/support', [\App\Http\Controllers\Api\ConsoleController::class, 'supportStore'])
         ->middleware('throttle:10,1');

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Star, MessageSquare, TrendingUp, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import ProductReviewsPanel from './ProductReviewsPanel';
 
 /** Responses per page; the sixth starts page two (matches the Inventory Catalog). */
 const PAGE_SIZE = 5;
@@ -161,6 +162,11 @@ const FeedbackTab = ({ feedbacks = [] }) => {
                       <Mail size={11} className="shrink-0" />
                       <span className="truncate">{fb.customer_email}</span>
                     </span>
+                    {fb.order_id && (
+                      <span className="mt-1 inline-block rounded bg-navy-900/5 px-1.5 py-0.5 font-mono text-[10px] text-hiraya-ink">
+                        Order #{fb.order_id} · order experience
+                      </span>
+                    )}
                   </div>
                   <span className="text-hiraya-ink font-mono flex items-center gap-1 text-[11px] bg-hiraya-accent/10 px-2 py-0.5 rounded border border-hiraya-accent/20">
                     <Star size={12} fill="#541A1A" />
@@ -218,6 +224,8 @@ const FeedbackTab = ({ feedbacks = [] }) => {
           </div>
         </div>
       )}
+
+      <ProductReviewsPanel />
     </div>
   );
 };

@@ -23,6 +23,7 @@ class Feedback extends Model
         'user_email',
         'rating',
         'comment',
+        'order_id',
     ];
 
     protected $casts = [

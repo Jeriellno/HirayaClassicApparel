@@ -20,6 +20,7 @@ import LalamoveBookingForm from './LalamoveBookingForm';
 import OrderTracker from '../common/OrderTracker';
 import { describeProcessingDate } from '../../utils/orderPolicy';
 import ReviewProductModal from './ReviewProductModal';
+import OrderExperienceRating from './OrderExperienceRating';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
 import { productForColor } from '../../utils/productVariant';
@@ -79,6 +80,20 @@ const OrdersTab = () => {
         },
         staleTime: 60 * 1000,
     });
+    // The order-experience rating the customer already gave, keyed by order.
+    const feedbackQuery = useQuery({
+        queryKey: ['my-feedback'],
+        queryFn: async () => {
+            const res = await api.get('/feedback/mine');
+            return Array.isArray(res.data?.feedback) ? res.data.feedback : [];
+        },
+        staleTime: 60 * 1000,
+    });
+    const feedbackByOrder = useMemo(
+        () => new Map((feedbackQuery.data || []).filter((f) => f.order_id).map((f) => [Number(f.order_id), f])),
+        [feedbackQuery.data]
+    );
+
     const reviewByItem = useMemo(
         () => new Map((reviewsQuery.data || []).map((r) => [r.order_item_id, r])),
         [reviewsQuery.data]
@@ -350,6 +365,13 @@ const OrdersTab = () => {
                                                     className="shrink-0 text-[11px] text-hiraya-ink"
                                                 />
 
+                                                {/* A line whose product was removed from the shop has nothing to review. */}
+                                                {isDelivered && !line.product_id && (
+                                                    <span className="ml-auto shrink-0 text-[9px] uppercase tracking-[0.14em] text-hiraya-ink-muted sm:ml-0">
+                                                        No longer in the shop · can&apos;t be reviewed
+                                                    </span>
+                                                )}
+
                                                 {/* One review per delivered line; never shown before delivery. */}
                                                 {isDelivered && line.product_id && (
                                                     reviewByItem.has(line.id) ? (
@@ -562,10 +584,16 @@ const OrdersTab = () => {
                                     )}
 
                                     {order.order_status === 'delivered' && (
-                                        <p className="flex items-center gap-2 text-[11px] text-emerald-700">
-                                            <CheckCircle2 size={13} className="shrink-0" />
-                                            Your order has been delivered. You can now review the products you received.
-                                        </p>
+                                        <div className="space-y-3">
+                                            <p className="flex items-center gap-2 text-[11px] text-emerald-700">
+                                                <CheckCircle2 size={13} className="shrink-0" />
+                                                Your order has been delivered. Review each product above and rate your order experience below.
+                                            </p>
+                                            <OrderExperienceRating
+                                                orderId={order.id}
+                                                existing={feedbackByOrder.get(order.id) || null}
+                                            />
+                                        </div>
                                     )}
 
                                     {order.order_status === 'rejected' && (
