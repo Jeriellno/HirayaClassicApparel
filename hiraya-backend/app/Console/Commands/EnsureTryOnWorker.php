@@ -276,7 +276,9 @@ class EnsureTryOnWorker extends Command
                     . 'Select-Object -ExpandProperty ProcessId';
             } else {
                 // POSIX: the bracket trick keeps grep from matching itself.
-                $script = "ps -eo pid,args | grep -E '[{$needle[0]}]{$needle}' | awk '{print \$1}'";
+                // '[q]ueue:work' — the bracketed first letter REPLACES it, never repeats it.
+                $pattern = '[' . $needle[0] . ']' . substr($needle, 1);
+                $script = "ps -eo pid,args | grep -E '{$pattern}' | awk '{print \$1}'";
             }
 
             $output = $this->runShell($script);
