@@ -19,6 +19,7 @@ const AiTryOn = () => {
     garmentsByCategory, selectedGarments, toggleGarment, clearLayer, clearAllStack, wishlistLoading,
     applySavedOutfit,
     userPhotoPreview, handlePhotoUpload, removeUserPhoto, canGenerate, isGenerating, generatedImage,
+    stackPlan, renderPass,
     handleGenerateFitting, handleRetryFitting, proceedToCheckout, addWornItemsToBag,
     cancelFitting,
     tryOnStatus, tryOnProgress, tryOnError, recommendedSize, aiFeedback, renderEngine, placedRegions,
@@ -144,6 +145,9 @@ const AiTryOn = () => {
           generatedImage={generatedImage}
           isGenerating={isGenerating}
           canGenerate={canGenerate}
+          /* Single / two-pass pair / unsupported (with the reason), and the running pass. */
+          stackPlan={stackPlan}
+          renderPass={renderPass}
           onPhotoUpload={handlePhotoUpload}
           onGenerate={handleGenerateFitting}
           /* Stop an in-flight render without discarding the customer's setup. */

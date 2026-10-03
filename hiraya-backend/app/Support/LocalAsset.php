@@ -118,6 +118,32 @@ class LocalAsset
      * `SUPABASE_URL` is not configured, so the caller can carry on with its other
      * resolution paths instead of being blocked by this one.
      */
+    /**
+     * The http(s) URL `toDataUri()` would download this reference from, or null
+     * when it resolves without the network (a data URI, a file on the public
+     * disk) or cannot be resolved. Lets a caller fetch several assets in
+     * parallel and fall back to `toDataUri()` for anything else.
+     */
+    public static function remoteUrlFor(?string $reference): ?string
+    {
+        $reference = trim((string) $reference);
+        if ($reference === '' || str_starts_with($reference, 'data:')) {
+            return null;
+        }
+
+        $diskPath = self::diskPathFor($reference);
+        if ($diskPath !== null && Storage::disk(self::DISK)->exists($diskPath)) {
+            return null;
+        }
+
+        $bucketUrl = self::supabaseUrlFor($reference);
+        if ($bucketUrl !== null) {
+            return $bucketUrl;
+        }
+
+        return str_starts_with($reference, 'http://') || str_starts_with($reference, 'https://') ? $reference : null;
+    }
+
     private static function supabaseUrlFor(string $reference): ?string
     {
         try {

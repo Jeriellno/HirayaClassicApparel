@@ -34,7 +34,9 @@ class FrontendUrl
             && in_array($scheme, ['http', 'https'], true)
             && $host !== ''
             && empty($parts['path'])
-            && ! isset($parts['query'], $parts['fragment'], $parts['user']);
+            && ! isset($parts['query'])
+            && ! isset($parts['fragment'])
+            && ! isset($parts['user']);
 
         if (! $isOrigin) {
             throw new RuntimeException(

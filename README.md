@@ -21,7 +21,7 @@ order to delivery.
 
 ### Customer (storefront)
 - **Shop & product pages** — colours (variants), sizes, live stock, star rating on every card (`0.0 (0 reviews)` until the first review).
-- **AI Try-On Studio** — upload a full-body photo, stack garments, render a fitting; history of past looks.
+- **AI Try-On Studio** — upload a full-body photo, stack garments, render a fitting; history of past looks. One piece renders in one provider job; a **top (or outerwear) + bottom** renders in **two** jobs (bottom first, then the top on that result — the Studio says so before Generate, and a retry never re-pays the first pass). Other multi-piece mixes (dress + another piece, footwear with other pieces, two tops, 3+ pieces) are refused with a reason before anything is charged.
 - **Bag & Checkout**
   - **Payment option:** *50% down payment* (secures the stock) or *Full payment*.
   - **Courier:** **LBC** (complete address required: street, barangay, city, province, 4-digit ZIP) or **Lalamove** (drop-off address; the customer books the rider).
@@ -149,4 +149,5 @@ start-backend.ps1               local backend launcher (Windows)
 | Staff bounced to `/login` after a reload | Fixed: verified (aal2) sessions resume. If it recurs, check the console for `[ProtectedRoute] assurance level check failed` |
 | *Reconnecting…* pill stays up | The API or Supabase is unreachable — check internet; locally make sure `start-backend.ps1` is running |
 | Try-on shows `worker_offline` | Locally: `php artisan tryon:ensure-worker`. On Render the Docker loop supervises the worker |
+| Where does try-on time go? | `storage/logs/laravel.log`: `TryOn request timings` (garment mattes, plan, DB insert, worker check) and `TryOn render timings` (queue wait, each provider pass: submit / provider wait / download, storing the result). In dev, the browser console logs `[Hiraya] try-on timings` |
 | Images missing on the deployed frontend | The `/supabase-storage/*` rewrite must be the first rule on the static site |

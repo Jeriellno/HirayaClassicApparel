@@ -179,9 +179,10 @@ try {
     echo "== Duplicate render reuse (no new paid render)\n";
     $fingerprintCall = (new ReflectionMethod(App\Http\Controllers\Api\TryOnController::class, 'renderFingerprint'));
     $controller = app(App\Http\Controllers\Api\TryOnController::class);
-    $fpA = $fingerprintCall->invoke($controller, $png, [$png], ['top'], [['product_id' => 1]], ['chest_bust' => 90]);
-    $fpB = $fingerprintCall->invoke($controller, $png, [$png], ['top'], [['product_id' => 1]], ['chest_bust' => 90]);
-    $fpC = $fingerprintCall->invoke($controller, $png, [$png], ['top'], [['product_id' => 2]], ['chest_bust' => 90]);
+    // (photo, garments, categories, index-aligned product ids, measurements)
+    $fpA = $fingerprintCall->invoke($controller, $png, [$png], ['top'], [1], ['chest_bust' => 90]);
+    $fpB = $fingerprintCall->invoke($controller, $png, [$png], ['top'], [1], ['chest_bust' => 90]);
+    $fpC = $fingerprintCall->invoke($controller, $png, [$png], ['top'], [2], ['chest_bust' => 90]);
     $check('same inputs -> same fingerprint', $fpA === $fpB);
     $check('different garment -> different fingerprint', $fpA !== $fpC);
     $session->forceFill(['render_fingerprint' => $fpA])->save();

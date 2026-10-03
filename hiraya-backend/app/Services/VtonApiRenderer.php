@@ -61,6 +61,10 @@ use App\Support\LocalAsset;
  * dress if present, else the outerwear, else the top — and reports which layers
  * it could not include. Claiming a six-layer outfit from a one-garment call
  * would be the same class of dishonesty as the old SVG placeholder.
+ *
+ * TOP + BOTTOM: ProcessTryOnJob runs a supported upper + lower pair as TWO
+ * single-garment calls (bottom, then top on that result) — see
+ * App\Support\TryOnGarmentPlan. This class still renders one garment per call.
  */
 class VtonApiRenderer
 {
@@ -100,6 +104,9 @@ class VtonApiRenderer
 
     /** Garments skipped by the size guard during the last `render()` call. */
     private array $oversizedGarments = [];
+
+    /** Time spent downloading the provider's finished image in the last `render()`. */
+    private float $downloadSeconds = 0.0;
 
     /**
      * How long to wait for an ASYNC job to finish before giving up.
@@ -249,6 +256,17 @@ class VtonApiRenderer
     }
 
     /**
+     * The garment family a catalogue label resolves to ('dress', 'outerwear',
+     * 'top', 'bottom', 'footwear') or null when unknown. Public so the pair
+     * planner (App\Support\TryOnGarmentPlan) classifies a stack with the SAME
+     * table this renderer uses to pick the vendor category.
+     */
+    public function familyOf(?string $category): ?string
+    {
+        return $this->resolveFamily($category);
+    }
+
+    /**
      * Render a try-on image through the configured VTON API.
      *
      * @param  string  $userPhoto   Data URI or raw base64 of the customer portrait.
@@ -297,6 +315,7 @@ class VtonApiRenderer
         // Reset the per-call record so a reused instance cannot report a garment
         // skipped by an earlier render.
         $this->oversizedGarments = [];
+        $this->downloadSeconds = 0.0;
 
         $personPart = $this->toDataUri($userPhoto);
         if ($personPart === null) {
@@ -365,6 +384,10 @@ class VtonApiRenderer
             ];
         }
 
+        // Stage timings (submit / provider wait / result download), returned with
+        // a successful render so the job can log where the time went.
+        $submitStarted = microtime(true);
+
         try {
             $response = Http::timeout(self::TIMEOUT_SECONDS)
                 ->acceptJson()
@@ -414,6 +437,8 @@ class VtonApiRenderer
         }
 
         $body = $response->json() ?? [];
+        $submitSeconds = microtime(true) - $submitStarted;
+        $waitStarted = microtime(true);
 
         /*
          * THE RESPONSE MAY BE SYNCHRONOUS OR ASYNCHRONOUS.
@@ -518,6 +543,12 @@ class VtonApiRenderer
             'image_base64' => $image,
             'feedback' => $this->feedback($category, count($garments)),
             'placed' => [$category],
+            'timings' => [
+                'submit_ms' => (int) round($submitSeconds * 1000),
+                // Provider queue + render + status polling, excluding the download.
+                'provider_wait_ms' => (int) round(max(0, microtime(true) - $waitStarted - $this->downloadSeconds) * 1000),
+                'download_ms' => (int) round($this->downloadSeconds * 1000),
+            ],
         ];
     }
 
@@ -975,8 +1006,11 @@ class VtonApiRenderer
             return null;
         }
 
+        $downloadStarted = microtime(true);
+
         try {
             $res = Http::timeout(self::TIMEOUT_SECONDS)->get($value);
+            $this->downloadSeconds += microtime(true) - $downloadStarted;
             if ($res->successful() && strlen($res->body()) > 0) {
                 $mime = $res->header('Content-Type') ?: 'image/png';
                 $mime = str_contains($mime, 'jpeg') || str_contains($mime, 'jpg') ? 'image/jpeg' : 'image/png';

@@ -10,6 +10,7 @@ use App\Services\SizeChart;
 use App\Services\TryOnPreProcessor;
 use App\Services\GeminiKeyPool;
 use App\Support\LocalAsset;
+use App\Support\TryOnGarmentPlan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Http\Request;
@@ -111,6 +112,9 @@ TXT;
      */
     private array $droppedNonWearables = [];
 
+    /** Request-stage durations (ms) for the "TryOn request timings" log line. */
+    private array $stageTimings = [];
+
     /**
      * Initiate a new virtual try-on session.
      *
@@ -143,6 +147,10 @@ TXT;
          * On a real queue this is a no-op (the request returns immediately).
          */
         @set_time_limit(0);
+
+        // Request-stage timings, logged as "TryOn request timings".
+        $requestStarted = microtime(true);
+        $this->stageTimings = [];
 
         // Validate request payload.
         //
@@ -207,7 +215,7 @@ TXT;
              * the product's prepared ghost-mannequin matte. The browser cannot
              * reliably fetch the catalog's absolute `127.0.0.1` asset URLs, so this
              * is what lets the backend supply a clean cut-out instead of the
-             * marketing card the client fell back to (see `ghostMatteForProduct`).
+             * marketing card the client fell back to (see `ghostMattesForProducts`).
              */
             'garments.*.product_id' => 'nullable|integer',
             'garment_photos_base64' => 'required_without:garments|nullable|array|min:1',
@@ -239,7 +247,9 @@ TXT;
         // always has real pixels to work with.
         $this->droppedNonWearables = [];
         $submittedGarments = $validated['garments'] ?? $validated['garment_photos_base64'] ?? [];
-        [$garmentPhotos, $garmentCategories] = $this->normaliseGarmentPhotos($submittedGarments);
+        $stageStarted = microtime(true);
+        [$garmentPhotos, $garmentCategories, $garmentProductIds] = $this->normaliseGarmentPhotos($submittedGarments);
+        $this->stageTimings['garments_ms'] = (int) round((microtime(true) - $stageStarted) * 1000);
         $garmentMetadata = collect(is_array($submittedGarments) ? $submittedGarments : [])
             ->filter(fn ($garment) => is_array($garment) && !empty($garment['image']))
             ->map(fn ($garment) => [
@@ -286,12 +296,31 @@ TXT;
             // categories stay unknown and the renderer falls back to a balanced
             // default look rather than mislabelling a piece.
             $garmentCategories = [];
+            $garmentProductIds = [];
         }
 
         if (empty($garmentPhotos)) {
             return response()->json([
                 'message' => 'At least one garment image is required.',
                 'errors' => ['garments' => ['Add a garment to My Bag or select one from your Style Stack.']],
+            ], 422);
+        }
+
+        /*
+         * WHICH GARMENTS ONE FITTING CAN WEAR.
+         *
+         * One top (or outerwear) + one bottom renders as a two-pass pair; any
+         * other multi-garment stack is refused HERE, before anything is charged,
+         * with a message the customer can act on — instead of rendering one piece
+         * and silently dropping the rest (see TryOnGarmentPlan).
+         */
+        $garmentPlan = TryOnGarmentPlan::plan($garmentCategories);
+        if ($garmentPlan['mode'] === TryOnGarmentPlan::MODE_UNSUPPORTED) {
+            return response()->json([
+                'message' => $garmentPlan['message'],
+                'code' => 'unsupported_garment_combination',
+                'reason' => $garmentPlan['code'],
+                'errors' => ['garments' => [$garmentPlan['message']]],
             ], 422);
         }
 
@@ -313,7 +342,8 @@ TXT;
          * can never be served to another. A lock stops a double-click from
          * starting two identical paid renders.
          */
-        $fingerprint = $this->renderFingerprint($userPhoto, $garmentPhotos, $garmentCategories, $garmentMetadata, $measurements);
+        $fingerprint = $this->renderFingerprint($userPhoto, $garmentPhotos, $garmentCategories, $garmentProductIds, $measurements,
+            $garmentPlan['mode'] === TryOnGarmentPlan::MODE_PAIR ? TryOnGarmentPlan::PAIR_PIPELINE : null);
         $lock = Cache::lock('tryon-fp:' . $user->id . ':' . $fingerprint, 15);
         if (! $lock->get()) {
             return response()->json([
@@ -326,8 +356,17 @@ TXT;
                 return $reused;
             }
 
-            return $this->startNewRender($user, $userPhoto, $garmentPhotos, $garmentCategories, $garmentMetadata,
-                $historyTitle, $measurements, $fingerprint, $assetWarnings);
+            $response = $this->startNewRender($user, $userPhoto, $garmentPhotos, $garmentCategories, $garmentMetadata,
+                $historyTitle, $measurements, $fingerprint, $assetWarnings, $garmentPlan);
+
+            Log::info('TryOn request timings', [
+                'session' => $response->getData(true)['session_id'] ?? null,
+                'mode' => $garmentPlan['mode'],
+                'garments' => count($garmentPhotos),
+                'total_ms' => (int) round((microtime(true) - $requestStarted) * 1000),
+            ] + $this->stageTimings);
+
+            return $response;
         } finally {
             $lock->release();
         }
@@ -338,8 +377,11 @@ TXT;
      * Unchanged apart from recording the fingerprint and vault-aware reads.
      */
     private function startNewRender($user, string $userPhoto, array $garmentPhotos, array $garmentCategories,
-        array $garmentMetadata, string $historyTitle, array $measurements, string $fingerprint, array $assetWarnings): JsonResponse
+        array $garmentMetadata, string $historyTitle, array $measurements, string $fingerprint, array $assetWarnings,
+        array $garmentPlan = ['mode' => TryOnGarmentPlan::MODE_SINGLE]): JsonResponse
     {
+        $isPair = $garmentPlan['mode'] === TryOnGarmentPlan::MODE_PAIR;
+
         // Create unique session ID
         $sessionId = 'tryon_' . Str::uuid()->toString();
 
@@ -361,6 +403,7 @@ TXT;
          * between a flat overlay and a fitted render.
          */
         $renderPlan = null;
+        $stageStarted = microtime(true);
         try {
             $renderPlan = app(TryOnPreProcessor::class)->buildRenderPlan(
                 $measurements,
@@ -373,8 +416,21 @@ TXT;
             // the previous prompt-only render rather than refusing the request.
             Log::warning('TryOn pre-processing failed, falling back to prompt-only: ' . $e->getMessage());
         }
+        $this->stageTimings['plan_ms'] = (int) round((microtime(true) - $stageStarted) * 1000);
+
+        /*
+         * Freeze the render pipeline on the session: a top + bottom pair renders
+         * in two passes in this order (ProcessTryOnJob::renderPair). Sessions
+         * without this key render a single garment exactly as before.
+         */
+        $storedPlan = $renderPlan;
+        if ($isPair) {
+            $storedPlan = (array) ($renderPlan ?? []);
+            $storedPlan['pipeline'] = ['mode' => TryOnGarmentPlan::MODE_PAIR, 'order' => $garmentPlan['order'], 'first_pass' => null];
+        }
 
         // Create session record
+        $stageStarted = microtime(true);
         $session = TryOnSession::create([
             'session_id' => $sessionId,
             'user_id' => $user->id,
@@ -384,11 +440,12 @@ TXT;
             'garment_metadata_json' => $garmentMetadata ?: null,
             'history_title' => $historyTitle ?: null,
             'measurements_json' => $measurements,
-            'render_plan_json' => $renderPlan,
+            'render_plan_json' => $storedPlan,
             'status' => TryOnSession::STATUS_QUEUED,
             'is_favorite' => false,
             'render_fingerprint' => $fingerprint,
         ]);
+        $this->stageTimings['store_ms'] = (int) round((microtime(true) - $stageStarted) * 1000);
 
         /*
          * GUARANTEE A WORKER IS DRAINING THE `tryon` QUEUE BEFORE DISPATCHING.
@@ -423,6 +480,7 @@ TXT;
          * rather than a 500 from this call. The whole block is therefore guarded,
          * and a failure leaves the normal `worker_offline` path intact.
          */
+        $stageStarted = microtime(true);
         if (config('queue.default') !== 'sync') {
             try {
                 \Illuminate\Support\Facades\Artisan::call('tryon:ensure-worker', [
@@ -432,6 +490,7 @@ TXT;
                 Log::warning('Could not ensure a try-on worker is running: ' . $e->getMessage());
             }
         }
+        $this->stageTimings['ensure_worker_ms'] = (int) round((microtime(true) - $stageStarted) * 1000);
 
         /*
          * Dispatch the render.
@@ -459,6 +518,12 @@ TXT;
             'status' => $session->status ?: 'queued',
             'progress' => $completedInline ? 100 : 10,
             'garment_count' => count($garmentPhotos),
+            /*
+             * HOW MANY PROVIDER RENDERS THIS FITTING USES. A top + bottom pair is
+             * two (one per piece) and takes about twice as long — the Studio says
+             * so before Generate and scales its wait to match.
+             */
+            'render_passes' => $isPair ? 2 : 1,
             // Pieces the customer selected that a VTON render cannot wear.
             'excluded_non_wearables' => $this->droppedNonWearables,
             // Let the Studio label the render honestly: a fitting is only an AI
@@ -500,7 +565,9 @@ TXT;
                 ? 'Virtual try-on render complete.'
                 : ($isSync
                     ? 'Virtual try-on render did not produce an image.'
-                    : 'Virtual try-on session initiated. Processing started.'),
+                    : ($isPair
+                        ? 'Rendering your top and bottom together: two renders, one per piece.'
+                        : 'Virtual try-on session initiated. Processing started.')),
         ];
 
         if ($completedInline) {
@@ -534,7 +601,7 @@ TXT;
      * renderer is given, and `tryon.render_version`.
      */
     private function renderFingerprint(string $userPhoto, array $garmentPhotos, array $garmentCategories,
-        array $garmentMetadata, array $measurements): string
+        array $garmentProductIds, array $measurements, ?string $pipeline = null): string
     {
         $contentHash = function (string $value): string {
             $payload = str_starts_with($value, 'data:') && str_contains($value, ',')
@@ -549,19 +616,32 @@ TXT;
             $garments[] = [
                 'image' => $contentHash((string) $photo),
                 'category' => $garmentCategories[$i] ?? null,
-                'product_id' => $garmentMetadata[$i]['product_id'] ?? null,
+                // Index-aligned with the kept images (a dropped accessory cannot shift it).
+                'product_id' => $garmentProductIds[$i] ?? null,
             ];
         }
 
         $measurementsSorted = $measurements;
         ksort($measurementsSorted);
 
-        return hash('sha256', json_encode([
+        $parts = [
             'v' => (string) config('tryon.render_version', 'v1'),
             'photo' => $contentHash($userPhoto),
             'garments' => $garments,
             'measurements' => $measurementsSorted,
-        ]));
+        ];
+
+        /*
+         * A two-pass pair is a different render from the old single-garment
+         * result of the same stack (which showed only one piece), so it must not
+         * reuse it. Added only for pairs: single-garment fingerprints — and the
+         * reuse of every existing single render — are unchanged.
+         */
+        if ($pipeline !== null) {
+            $parts['pipeline'] = $pipeline;
+        }
+
+        return hash('sha256', json_encode($parts));
     }
 
     /**
@@ -624,6 +704,7 @@ TXT;
                 'status' => $existing->status,
                 'progress' => 10,
                 'reused' => true,
+                'render_passes' => $existing->isPairRender() ? 2 : 1,
                 'asset_warnings' => [],
                 'excluded_non_wearables' => $this->droppedNonWearables,
                 'message' => 'This exact fitting is already rendering. Showing its progress.',
@@ -758,13 +839,23 @@ TXT;
      * alignment is what allows the renderer to say "IMAGE 3 is the footwear"
      * instead of assigning regions by guesswork.
      *
+     * A third array carries each kept garment's product id (index-aligned), for
+     * the render fingerprint.
+     *
      * @param  array<int, mixed>  $garments
-     * @return array{0: array<int, string>, 1: array<int, string|null>}
+     * @return array{0: array<int, string>, 1: array<int, string|null>, 2: array<int, int|null>}
      */
      private function normaliseGarmentPhotos(array $garments): array
     {
         $images = [];
         $categories = [];
+        $productIds = [];
+
+        // Every product's matte resolved up front: one query, cached, fetched in parallel.
+        $mattes = $this->ghostMattesForProducts(array_map(
+            fn ($garment) => is_array($garment) ? ($garment['product_id'] ?? null) : null,
+            $garments,
+        ));
 
         foreach ($garments as $garment) {
             $clientImage = is_array($garment)
@@ -792,11 +883,9 @@ TXT;
              * own image is used exactly as before.
              */
             $image = $clientImage;
-            if (is_array($garment) && isset($garment['product_id'])) {
-                $upgraded = $this->ghostMatteForProduct($garment['product_id']);
-                if ($upgraded !== '') {
-                    $image = $upgraded;
-                }
+            $productId = is_array($garment) && is_numeric($garment['product_id'] ?? null) ? (int) $garment['product_id'] : null;
+            if ($productId !== null && ($mattes[$productId] ?? '') !== '') {
+                $image = $mattes[$productId];
             }
 
             if (!is_string($image) || trim($image) === '') {
@@ -838,16 +927,25 @@ TXT;
 
             $images[] = $image;
             $categories[] = $category;
+            $productIds[] = $productId;
         }
 
-        return [$images, $categories];
+        return [$images, $categories, $productIds];
     }
 
     /**
-     * Resolve a product's prepared ghost-mannequin matte as a Base64 data URI.
+     * Resolve the prepared ghost-mannequin mattes of several products as Base64
+     * data URIs, keyed by product id. A product with no matte, not found, or whose
+     * asset cannot be read is simply absent, so the caller keeps the image it had.
      *
-     * Returns an empty string when the product has no matte, was not found, or the
-     * asset cannot be read, so the caller keeps whatever image it already had.
+     * LATENCY (measured locally, 2026-10-03): fetching the two mattes of a top +
+     * bottom one after another took 0.9–1.6 s EACH, on every Generate — even when
+     * the same pieces were rendered a minute earlier. Now:
+     *   - one query loads every product's matte URL;
+     *   - a matte fetched in the last 10 minutes is reused from the cache (it is
+     *     a public catalogue image, identical for every customer, keyed by URL so
+     *     a replaced matte is never served stale under a new URL);
+     *   - the remaining downloads run in parallel.
      *
      * WHY THE SERVER DOES THIS AND NOT THE BROWSER
      * --------------------------------------------
@@ -858,39 +956,74 @@ TXT;
      * STYLE" headline ended up printed across a customer's rendered blouse.
      * PHP has no origin restriction, so the matte is fetched here instead.
      *
-     * @param  mixed  $productId
+     * @param  array<int, mixed>  $productIds
+     * @return array<int, string>
      */
-    private function ghostMatteForProduct($productId): string
+    private function ghostMattesForProducts(array $productIds): array
     {
-        if (!is_numeric($productId)) {
-            return '';
+        $ids = array_values(array_unique(array_map('intval', array_filter($productIds, 'is_numeric'))));
+        if ($ids === []) {
+            return [];
         }
 
         try {
-            $product = \App\Models\Product::find((int) $productId);
-            if (!$product) {
-                return '';
-            }
-
-            $ghost = trim((string) $product->ghost_mannequin_url);
-            if ($ghost === '') {
-                return '';
-            }
-
-            /*
-             * A real matte must be transparent; a URL that merely EXISTS proves
-             * nothing. Guard against an opaque stand-in so a product whose "matte"
-             * is actually a composed card is not blindly preferred over the
-             * client's own (possibly segmented) image. The byte-level alpha probe
-             * lives in the Job/Renderer path, so here we only require that the asset
-             * resolves — `toBase64DataUri` already returns '' on any failure.
-             */
-            return $this->toBase64DataUri($ghost);
+            $urls = Product::whereIn('id', $ids)->pluck('ghost_mannequin_url', 'id')
+                ->map(fn ($url) => trim((string) $url))
+                ->filter()
+                ->all();
         } catch (\Throwable $e) {
             Log::warning('TryOn ghost-matte upgrade skipped: ' . $e->getMessage());
 
-            return '';
+            return [];
         }
+
+        $cacheKey = fn (string $url) => 'tryon-ghost-matte:' . sha1($url);
+        $mattes = [];
+        $remote = [];
+
+        foreach ($urls as $id => $url) {
+            $cached = Cache::get($cacheKey($url));
+            if (is_string($cached) && $cached !== '') {
+                $mattes[$id] = $cached;
+
+                continue;
+            }
+
+            $fetchUrl = LocalAsset::remoteUrlFor($url);
+            if ($fetchUrl === null) {
+                $mattes[$id] = $this->toBase64DataUri($url); // data URI / local disk: no network
+            } else {
+                $remote[$id] = $fetchUrl;
+            }
+        }
+
+        if ($remote !== []) {
+            try {
+                $responses = Http::pool(fn (\Illuminate\Http\Client\Pool $pool) => array_map(
+                    fn ($id) => $pool->as((string) $id)->timeout(20)->get($remote[$id]),
+                    array_keys($remote),
+                ));
+            } catch (\Throwable $e) {
+                $responses = [];
+            }
+
+            foreach ($remote as $id => $fetchUrl) {
+                $res = $responses[(string) $id] ?? null;
+                if ($res instanceof \Illuminate\Http\Client\Response && $res->successful() && $res->body() !== '') {
+                    $mime = explode(';', $res->header('Content-Type') ?: 'image/png')[0];
+                    $mattes[$id] = 'data:' . $mime . ';base64,' . base64_encode($res->body());
+                } else {
+                    // Same resolver as before, one at a time, for anything the pool missed.
+                    $mattes[$id] = $this->toBase64DataUri($urls[$id]);
+                }
+
+                if ($mattes[$id] !== '') {
+                    Cache::put($cacheKey($urls[$id]), $mattes[$id], now()->addMinutes(10));
+                }
+            }
+        }
+
+        return array_filter($mattes, fn ($uri) => is_string($uri) && $uri !== '');
     }
 
     /**
@@ -1023,6 +1156,14 @@ TXT;
             'status' => $session->status,
         ];
 
+        // A top + bottom pair: which of its two renders is running.
+        $pairPass = null;
+        if ($session->isPairRender()) {
+            $pairPass = empty($session->pipeline()['first_pass']['path']) ? 1 : 2;
+            $response['render_passes'] = 2;
+            $response['render_pass'] = $session->status === TryOnSession::STATUS_COMPLETED ? 2 : $pairPass;
+        }
+
         if ($session->status === TryOnSession::STATUS_QUEUED) {
             // The renderer can sit behind other jobs on the 'tryon' queue, so
             // report indeterminate progress rather than a frozen 0%.
@@ -1066,6 +1207,15 @@ TXT;
         } elseif ($session->status === TryOnSession::STATUS_PROCESSING) {
             $response['progress'] = $this->estimateProgress($session);
             $response['message'] = 'Mapping garment drape to your body frame.';
+
+            if ($pairPass !== null) {
+                // Each pass ramps through its own half of the bar (20–55%, 55–90%).
+                $half = ($this->estimateProgress($session) - 20) / 2;
+                $response['progress'] = (int) round(($pairPass === 1 ? 20 : 55) + $half);
+                $response['message'] = $pairPass === 1
+                    ? 'Rendering piece 1 of 2 (the bottom).'
+                    : 'Rendering piece 2 of 2 (the top).';
+            }
         } elseif ($session->status === TryOnSession::STATUS_COMPLETED) {
             $response['progress'] = 100;
             // Decrypted from the private vault for the OWNER only (query above

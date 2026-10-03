@@ -107,6 +107,9 @@ class ProcessTryOnJob implements ShouldQueue
 
     protected int $sessionId;
 
+    /** Stage timings of the current attempt (logged as "TryOn render timings"). */
+    protected array $timings = [];
+
     public function __construct(int $sessionId)
     {
         $this->sessionId = $sessionId;
@@ -125,18 +128,45 @@ class ProcessTryOnJob implements ShouldQueue
         // Mark as processing
         $session->markProcessing();
 
+        $attemptStarted = microtime(true);
+        $pushedAt = $this->pushedAt();
+        $this->timings = [
+            'queue_wait_ms' => $pushedAt ? max(0, (int) round(($attemptStarted - $pushedAt->getTimestamp()) * 1000)) : null,
+        ];
+
         try {
-            // Call external VTON API (Replicate with IDM-VTON model)
-            $result = $this->callVtonApi($session);
+            /*
+             * A top + bottom look renders in two passes (see renderPair); every
+             * other session is the single-garment render it always was.
+             */
+            $result = $session->isPairRender()
+                ? $this->renderPair($session)
+                : $this->timedRender($session, null, 'single');
+
+            if (! empty($result['handed_off'])) {
+                // Pass 1 is stored and pass 2 was queued as its own job.
+                $this->logTimings($session, $attemptStarted, $result);
+
+                return;
+            }
 
             if ($result['success']) {
                 // Generate AI fit feedback based on body metrics
                 $aiFeedback = $this->generateAiFitFeedback($session, $result);
 
+                $storeStarted = microtime(true);
                 $session->markCompleted($result['image_base64'], $aiFeedback);
+                $this->timings['store_ms'] = (int) round((microtime(true) - $storeStarted) * 1000);
+
+                if ($session->isPairRender()) {
+                    // The intermediate (first-pass) image is no longer needed.
+                    \App\Support\RenderVault::delete($session->pipeline()['first_pass']['path'] ?? null);
+                    $session->updatePipeline(['first_pass' => null, 'completed' => true]);
+                }
 
                 // Clear any non-retryable mark now that the render succeeded.
                 Cache::forget('tryon-noretry-' . $this->sessionId);
+                $this->logTimings($session, $attemptStarted, $result);
             } elseif ($this->isRetryableFailure($result) && $this->attemptsLeft()) {
                 /*
                  * TRANSIENT FAILURE WITH ATTEMPTS LEFT — PUT IT BACK ON THE QUEUE.
@@ -178,6 +208,8 @@ class ProcessTryOnJob implements ShouldQueue
                     'error_message' => $result['error'] ?? 'The try-on service is still rendering this fitting.',
                 ]);
 
+                $this->logTimings($session, $attemptStarted, $result);
+
                 // Releases with the job's own `$backoff`, then re-picks it.
                 $this->release($this->backoff);
 
@@ -190,6 +222,7 @@ class ProcessTryOnJob implements ShouldQueue
                  */
 
                 $session->markFailed($result['error'] ?? 'VTON processing failed.', $result['feedback'] ?? null);
+                $this->logTimings($session, $attemptStarted, $result);
             }
         } catch (\Exception $e) {
             Log::error("TryOn job failed for session {$this->sessionId}: " . $e->getMessage());
@@ -259,6 +292,152 @@ class ProcessTryOnJob implements ShouldQueue
     }
 
     /**
+     * TOP + BOTTOM IN ONE IMAGE — two single-garment passes on the same photo.
+     *
+     * The providers dress ONE garment per job, so a supported pair (one upper +
+     * one lower, see App\Support\TryOnGarmentPlan) is rendered as:
+     *
+     *   pass 1: the customer's photo  + the BOTTOM  -> intermediate image
+     *   pass 2: the intermediate image + the TOP    -> the final fitting
+     *
+     * CREDIT SAFETY. Each pass is exactly one provider job (the customer is told
+     * up front that this look uses two renders). Pass 1's image is stored in the
+     * encrypted RenderVault and recorded on the session BEFORE pass 2 starts, so a
+     * busy/failed pass 2 — retried by the queue or by the customer — resumes at
+     * pass 2 and never pays for pass 1 twice.
+     *
+     * ONE PROVIDER RENDER PER JOB ATTEMPT. Pass 2 runs as a fresh job, so each
+     * attempt stays inside the per-attempt timeout and retry budget that were
+     * sized for a single render. If the vault cannot store pass 1, pass 2 runs
+     * here instead so the paid first pass is not lost.
+     */
+    protected function renderPair(TryOnSession $session): array
+    {
+        $input = $this->renderInputFor($session);
+        $pipeline = $session->pipeline();
+        [$firstIndex, $secondIndex] = array_map('intval', (array) ($pipeline['order'] ?? [0, 1]));
+
+        if (! isset($input['garments'][$firstIndex], $input['garments'][$secondIndex])) {
+            return [
+                'success' => false,
+                'error' => 'This fitting is missing one of its two garments. Please select them again.',
+                'code' => 'bad_garment',
+            ];
+        }
+
+        $pick = fn (int $i, string $person) => [
+            'person' => $person,
+            'garments' => [$input['garments'][$i]],
+            'categories' => [$input['categories'][$i] ?? null],
+        ];
+
+        $firstPass = $pipeline['first_pass'] ?? null;
+        $person = null;
+
+        if (! empty($firstPass['path'])) {
+            // Resume: pass 1 was already rendered (and paid for).
+            $person = \App\Support\RenderVault::get($firstPass['path']);
+            if (! $person) {
+                $session->updatePipeline(['first_pass' => null]);
+
+                return [
+                    'success' => false,
+                    'error' => 'The first half of this two-piece fitting could not be read back. Please try again.',
+                    'code' => 'pair_resume_failed',
+                ];
+            }
+        } else {
+            $first = $this->timedRender($session, $pick($firstIndex, $input['person']), 'pair-1');
+            if (empty($first['success'])) {
+                return $first;
+            }
+
+            $path = null;
+            try {
+                $path = \App\Support\RenderVault::put($first['image_base64']);
+            } catch (\Throwable $e) {
+                Log::warning("TryOn session {$this->sessionId}: first pass could not be vaulted; continuing in this attempt.");
+            }
+
+            if ($path) {
+                $session->updatePipeline(['first_pass' => [
+                    'path' => $path,
+                    'engine' => $first['engine'] ?? null,
+                    'category' => $input['categories'][$firstIndex] ?? null,
+                ]]);
+
+                // Pass 2 gets its own job (own timeout, own retry budget).
+                self::dispatch($session->id);
+
+                return ['success' => false, 'handed_off' => true, 'code' => 'pair_first_pass_done'];
+            }
+
+            $person = $first['image_base64'];
+        }
+
+        $second = $this->timedRender($session, $pick($secondIndex, $person), 'pair-2');
+        if (empty($second['success'])) {
+            return $second;
+        }
+
+        $second['pair'] = true;
+        $second['placed'] = [$input['categories'][$firstIndex] ?? null, $input['categories'][$secondIndex] ?? null];
+
+        return $second;
+    }
+
+    /**
+     * The person image, garments and categories a render is given — the
+     * session's own inputs, index-aligned.
+     */
+    protected function renderInputFor(TryOnSession $session): array
+    {
+        $garments = array_values((array) ($session->garment_photos_json ?? []));
+        $categories = array_values((array) ($session->garment_categories_json ?? []));
+        $categories = array_slice(array_pad($categories, count($garments), null), 0, count($garments));
+
+        return [
+            'person' => (string) $session->user_photo_base64,
+            'garments' => $garments,
+            'categories' => $categories,
+        ];
+    }
+
+    /** One provider render (the full tier chain), with its duration recorded. */
+    protected function timedRender(TryOnSession $session, ?array $input, string $stage): array
+    {
+        $started = microtime(true);
+        $result = $this->callVtonApi($session, $input);
+
+        $this->timings['passes'][] = [
+            'stage' => $stage,
+            'engine' => $result['engine'] ?? null,
+            'ok' => ! empty($result['success']),
+            'code' => $result['code'] ?? null,
+            'provider_ms' => (int) round((microtime(true) - $started) * 1000),
+        ] + (array) ($result['timings'] ?? []);
+
+        return $result;
+    }
+
+    /**
+     * Where the time went, per attempt: queue wait, each provider pass (submit /
+     * provider wait / result download), storing the result, and the total since
+     * the customer pressed Generate. Image data never reaches the log.
+     */
+    protected function logTimings(TryOnSession $session, float $attemptStarted, array $result): void
+    {
+        Log::info('TryOn render timings', [
+            'session' => $session->session_id,
+            'mode' => $session->isPairRender() ? 'pair' : 'single',
+            'outcome' => ! empty($result['handed_off']) ? 'first-pass-stored' : (! empty($result['success']) ? 'completed' : ($result['code'] ?? 'failed')),
+            'attempt' => $this->job ? $this->attempts() : null,
+            'attempt_ms' => (int) round((microtime(true) - $attemptStarted) * 1000),
+            'since_request_ms' => $session->created_at ? (int) round((microtime(true) - $session->created_at->getTimestamp()) * 1000) : null,
+        ] + $this->timings);
+    }
+
+    /**
      * Select and call a VTON provider.
      *
      * PROVIDERS ARE TRIED IN ORDER AND WE FALL THROUGH ON FAILURE.
@@ -272,7 +451,7 @@ class ProcessTryOnJob implements ShouldQueue
      * Now a provider failure is logged and the chain continues, so the Studio
      * always returns SOMETHING renderable instead of a dead end.
      */
-    protected function callVtonApi(TryOnSession $session): array
+    protected function callVtonApi(TryOnSession $session, ?array $input = null): array
     {
         /*
          * THREE TIERS, IN PRIORITY ORDER — FASHN, THEN PIXELAPI, THEN HUGGING FACE.
@@ -340,7 +519,7 @@ class ProcessTryOnJob implements ShouldQueue
                 continue;
             }
 
-            $result = $this->callVtonApiRenderer($session, $slot);
+            $result = $this->callVtonApiRenderer($session, $slot, $input);
 
             if (! empty($result['success'])) {
                 $result['engine'] = $tier['engine'];
@@ -373,7 +552,7 @@ class ProcessTryOnJob implements ShouldQueue
         $hfResult = null;
 
         if (config('services.huggingface.vton_space') || config('services.huggingface.vton_base')) {
-            $hfResult = $this->callHuggingFaceSpaceVton($session);
+            $hfResult = $this->callHuggingFaceSpaceVton($session, $input);
 
             if (! empty($hfResult['success'])) {
                 $hfResult['engine'] = 'HuggingFace';
@@ -442,22 +621,19 @@ class ProcessTryOnJob implements ShouldQueue
      * is CC BY-NC-SA 4.0. Renders from this Space are for development/demo use;
      * commercial production must run the paid VtonApiRenderer path.
      */
-    protected function callHuggingFaceSpaceVton(TryOnSession $session): array
+    protected function callHuggingFaceSpaceVton(TryOnSession $session, ?array $input = null): array
     {
         $measurements = $session->measurements_json ?? [];
-        $garments = $session->garment_photos_json ?? [];
-        $categories = $session->garment_categories_json ?? [];
-        $categories = array_values((array) $categories);
-        $categories = array_pad($categories, count($garments), null);
-        $categories = array_slice($categories, 0, count($garments));
+        // `$input` carries ONE pass of a two-piece look; null = the session's own inputs.
+        $input ??= $this->renderInputFor($session);
 
         return app(HuggingFaceVtonRenderer::class)->render(
-            (string) $session->user_photo_base64,
-            (array) $garments,
+            $input['person'],
+            $input['garments'],
             (array) $measurements,
             null,
             $session->render_plan_json,
-            $categories,
+            $input['categories'],
         );
     }
 
@@ -655,22 +831,19 @@ class ProcessTryOnJob implements ShouldQueue
      *
      * @param  string  $slot  `'fashn'` or `'vton'` — a config slot name.
      */
-    protected function callVtonApiRenderer(TryOnSession $session, string $slot = 'vton'): array
+    protected function callVtonApiRenderer(TryOnSession $session, string $slot = 'vton', ?array $input = null): array
     {
         $measurements = $session->measurements_json ?? [];
-        $garments = $session->garment_photos_json ?? [];
-        $categories = $session->garment_categories_json ?? [];
-        $categories = array_values((array) $categories);
-        $categories = array_pad($categories, count($garments), null);
-        $categories = array_slice($categories, 0, count($garments));
+        // `$input` carries ONE pass of a two-piece look; null = the session's own inputs.
+        $input ??= $this->renderInputFor($session);
 
         return app(VtonApiRenderer::class)->render(
-            (string) $session->user_photo_base64,
-            (array) $garments,
+            $input['person'],
+            $input['garments'],
             (array) $measurements,
             null,
             $session->render_plan_json,
-            $categories,
+            $input['categories'],
             $slot,
         );
     }
@@ -966,6 +1139,19 @@ class ProcessTryOnJob implements ShouldQueue
         $feedback .= "**AI Size Recommendation:** Size {$sizeRecommendation}\n\n";
         $feedback .= "**Fit Analysis:** {$fitAnalysis}\n\n";
         $feedback .= "**Body Metrics:** Chest {$chest}cm | Waist {$waist}cm" . ($hips ? " | Hips {$hips}cm" : '') . "\n\n";
+
+        /*
+         * SAY WHICH PIECES WERE ACTUALLY RENDERED. The renderer's own note about
+         * omitted layers used to be discarded here, so a multi-piece stack that
+         * rendered one garment said nothing about the others.
+         */
+        $names = collect((array) ($session->garment_metadata_json ?? []))->pluck('name')->filter()->values();
+        if (! empty($vtonResult['pair'])) {
+            $feedback .= '**Rendered pieces:** ' . ($names->count() >= 2 ? $names->join(' + ') : 'top + bottom') . " (one pass each)\n\n";
+        } elseif (count((array) ($session->garment_photos_json ?? [])) > 1 && ! empty($vtonResult['feedback'])) {
+            $feedback .= '**Note:** ' . $vtonResult['feedback'] . "\n\n";
+        }
+
         $feedback .= "💡 *Tip: For best results, ensure your portrait is front-facing with good lighting.*";
 
         return $feedback;
@@ -1171,7 +1357,8 @@ class ProcessTryOnJob implements ShouldQueue
     {
         try {
             $payload = $this->job?->payload();
-            $pushed = is_array($payload) ? ($payload['pushedAt'] ?? null) : null;
+            // Laravel's payload key is `createdAt` (older releases: `pushedAt`).
+            $pushed = is_array($payload) ? ($payload['pushedAt'] ?? $payload['createdAt'] ?? null) : null;
 
             return $pushed ? \Illuminate\Support\Carbon::createFromTimestamp((int) $pushed) : null;
         } catch (\Throwable $e) {

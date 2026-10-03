@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { normalizeCartPayload } from '../utils/cartShape';
 import { prepareVtonGarments } from '../utils/prepareVtonGarment';
+import { planStack } from '../utils/tryOnStackPlan';
 import { prepareUserPhoto } from '../utils/prepareUserPhoto';
 import { validateBodyPhoto } from '../utils/validateBodyPhoto';
 import { runFitCheck } from '../utils/fitCheck';
@@ -793,6 +794,8 @@ export const useTryOnState = () => {
   // canvas can render a real progress bar instead of a fake spinner.
   const [tryOnStatus, setTryOnStatus] = useState(null);   // queued | processing | completed | failed
   const [tryOnProgress, setTryOnProgress] = useState(0);  // 0 - 100
+  // { pass, passes } while a top + bottom pair renders (two passes); else null.
+  const [renderPass, setRenderPass] = useState(null);
   const [tryOnError, setTryOnError] = useState(null);     // { message, code }
   const [recommendedSize, setRecommendedSize] = useState(null);
   const [aiFeedback, setAiFeedback] = useState(null);
@@ -1343,6 +1346,14 @@ export const useTryOnState = () => {
    * which is a separate, non-blocking feature — gating the render on them meant a
    * customer who wanted to see the outfit first could not, which is backwards.
    */
+  /*
+   * WHAT ONE FITTING CAN WEAR (utils/tryOnStackPlan.js, mirroring the backend):
+   * one piece, or a top/outerwear + bottom pair rendered in two passes. Any
+   * other multi-piece stack is explained under Generate instead of being
+   * rendered with pieces silently missing.
+   */
+  const stackPlan = useMemo(() => planStack(selectedGarments), [selectedGarments]);
+
   const canGenerate = useMemo(() => {
     const hasPhoto = !!userPhotoBase64;
     /*
@@ -1355,8 +1366,8 @@ export const useTryOnState = () => {
      */
     const hasGarment = Object.entries(selectedGarments)
       .some(([key, value]) => key !== 'accessories' && !!value);
-    return hasPhoto && hasGarment;
-  }, [userPhotoBase64, selectedGarments]);
+    return hasPhoto && hasGarment && stackPlan.mode !== 'unsupported';
+  }, [userPhotoBase64, selectedGarments, stackPlan]);
 
   // 4. CHATBOT LOGIC
   const [chatMessages, setChatMessages] = useState([
@@ -1470,7 +1481,11 @@ export const useTryOnState = () => {
        * the result is a real cut-out (`extracted`) so the UI can warn instead of
        * silently sending a poster of a dress.
        */
+      // Stage timings (dev console only): garment prep, upload, wait for the render.
+      const startedAt = performance.now();
+      setRenderPass(null);
       const prepared = await prepareVtonGarments(garments);
+      const preparedAt = performance.now();
 
       if (prepared.length === 0) return { ok: false, reason: 'no_garment_asset' };
 
@@ -1547,6 +1562,24 @@ export const useTryOnState = () => {
 
       const activeSessionId = res.data?.session_id || res.data?.id;
       if (!activeSessionId) return { ok: false, reason: 'no_session' };
+
+      // A top + bottom pair is two provider renders, so it gets twice the wait.
+      const passes = Number(res.data?.render_passes) > 1 ? Number(res.data.render_passes) : 1;
+      if (passes > 1) setRenderPass({ pass: 1, passes });
+
+      const submittedAt = performance.now();
+      const logTimings = (outcome, polls) => {
+        if (!import.meta.env.DEV) return;
+        console.info('[Hiraya] try-on timings', {
+          outcome,
+          prepare_ms: Math.round(preparedAt - startedAt),
+          submit_ms: Math.round(submittedAt - preparedAt),
+          render_wait_ms: Math.round(performance.now() - submittedAt),
+          total_ms: Math.round(performance.now() - startedAt),
+          polls,
+          render_passes: passes,
+        });
+      };
 
       setSessionId(activeSessionId);
 
@@ -1648,7 +1681,7 @@ export const useTryOnState = () => {
        * The old 165s expired DURING a legitimate render, which is exactly why a
        * real fitting was reported as a provider fault.
        */
-      const MAX_ATTEMPTS = 100;
+      const MAX_ATTEMPTS = 100 * passes;
       const INTERVAL_MS = 3000;
       /*
        * QUEUED GRACE WINDOW.
@@ -1717,6 +1750,9 @@ export const useTryOnState = () => {
         const data = statusRes.data || {};
         if (typeof data.progress === 'number') setTryOnProgress(data.progress);
         setTryOnStatus(data.status || null);
+        if (Number(data.render_passes) > 1) {
+          setRenderPass({ pass: Number(data.render_pass) || 1, passes: Number(data.render_passes) });
+        }
 
         /*
          * A QUEUED SESSION IS ONLY A FAILURE WHEN NO CONSUMER EXISTS.
@@ -1804,6 +1840,7 @@ export const useTryOnState = () => {
             return { ok: false, reason: 'no_ai_engine' };
           }
 
+          logTimings('completed', attempt + 1);
           return {
             ok: true,
             image,
@@ -2388,6 +2425,8 @@ export const useTryOnState = () => {
     // compatibility — it now reflects the bag feed being ready.
     wishlistLoading: cartLoading,
     userPhotoPreview, handlePhotoUpload, setUserPhoto, canGenerate, isGenerating, generatedImage,
+    // What the selected stack renders as: single, a two-pass pair, or unsupported (+ why).
+    stackPlan, renderPass,
     handleGenerateFitting, handleRetryFitting, proceedToCheckout, addWornItemsToBag,
     // Canvas controls: cancel an in-flight render, and clear ONLY the body photo.
     cancelFitting, removeUserPhoto,

@@ -41,6 +41,13 @@ export const TryOnCanvas = ({
   generatedImage,
   isGenerating,
   canGenerate,
+  /*
+   * What the selected stack renders as (utils/tryOnStackPlan.js): a single
+   * piece, a top + bottom pair (two renders), or an unsupported mix with the
+   * reason. `renderPass` is { pass, passes } while a pair is rendering.
+   */
+  stackPlan = null,
+  renderPass = null,
   onPhotoUpload,
   onGenerate,
   /*
@@ -146,6 +153,14 @@ export const TryOnCanvas = ({
 
   const wornGarments = Object.values(selectedGarments || {}).filter(Boolean);
   const hasError = tryOnStatus === 'failed' && !!tryOnError;
+
+  // The note under Generate: why a mix cannot render, or that a pair is two renders.
+  const stackNote =
+    stackPlan?.mode === 'unsupported'
+      ? { tone: 'warn', text: stackPlan.message }
+      : stackPlan?.mode === 'pair'
+        ? { tone: 'info', text: 'Top and bottom render together in two passes — this look uses 2 renders and takes about twice as long.' }
+        : null;
   const progress = Math.min(100, Math.max(0, Number(tryOnProgress) || 0));
 
   /*
@@ -647,7 +662,12 @@ export const TryOnCanvas = ({
                     />
                   </div>
                   <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.18em]">
-                    <span className="flex items-center gap-2 text-hiraya-nav-ink"><Loader2 size={11} className="animate-spin" /> Rendering your fitting</span>
+                    <span className="flex items-center gap-2 text-hiraya-nav-ink" role="status">
+                      <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+                      {renderPass?.passes > 1
+                        ? `Rendering piece ${Math.min(renderPass.pass, renderPass.passes)} of ${renderPass.passes}`
+                        : 'Rendering your fitting'}
+                    </span>
                     <span className="text-hiraya-nav-muted">{progress}%</span>
                   </div>
                 </div>
@@ -1009,6 +1029,7 @@ export const TryOnCanvas = ({
         onClick={onGenerate}
         disabled={!canGenerate || isGenerating}
         data-tour="generate-fitting"
+        aria-describedby={stackNote ? 'generate-stack-note' : undefined}
         className="btn-primary w-full rounded-full py-4 text-xs"
       >
         {isGenerating ? (
@@ -1031,7 +1052,31 @@ export const TryOnCanvas = ({
        * The list is ordered the way the flow is actually meant to be done, with
        * the BODY PHOTO first — it is the canvas the garments are drawn onto.
        */}
-      {!canGenerate && !isGenerating && !hasError && (
+      {/*
+       * WHAT THIS STACK WILL RENDER — said BEFORE Generate. An unsupported mix
+       * explains what to remove (Generate stays disabled); a top + bottom pair
+       * says it uses two renders and takes about twice as long, so the extra
+       * render is never a surprise. Referenced by the button's aria-describedby
+       * and announced politely when it changes.
+       */}
+      {stackNote && !isGenerating && (
+        <p
+          id="generate-stack-note"
+          role="status"
+          className={`flex items-start justify-center gap-2 rounded-xl px-4 py-2.5 text-center text-xs leading-relaxed ${
+            stackNote.tone === 'warn'
+              ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-200'
+              : 'bg-hiraya-surface text-hiraya-ink ring-1 ring-hiraya-structure-line'
+          }`}
+        >
+          {stackNote.tone === 'warn'
+            ? <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+            : <Layers size={14} className="mt-0.5 shrink-0" aria-hidden="true" />}
+          <span>{stackNote.text}</span>
+        </p>
+      )}
+
+      {!canGenerate && !isGenerating && !hasError && stackPlan?.mode !== 'unsupported' && (
         <p className="text-center text-[9px] font-semibold uppercase tracking-[0.18em] text-hiraya-ink-muted">
           Required: 1) your full-body photo · 2) at least one garment from the stack
         </p>

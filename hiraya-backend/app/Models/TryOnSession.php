@@ -78,8 +78,38 @@ class TryOnSession extends Model
         static::forceDeleted(function (TryOnSession $session) {
             // After commit, so a rolled-back delete never loses the stored file.
             $path = $session->result_image_path;
-            \Illuminate\Support\Facades\DB::afterCommit(fn () => \App\Support\RenderVault::delete($path));
+            $firstPass = $session->pipeline()['first_pass']['path'] ?? null;
+            \Illuminate\Support\Facades\DB::afterCommit(function () use ($path, $firstPass) {
+                \App\Support\RenderVault::delete($path);
+                \App\Support\RenderVault::delete($firstPass);
+            });
         });
+    }
+
+    /*
+     * RENDER PIPELINE STATE — `render_plan_json['pipeline']`.
+     *
+     * A top + bottom look renders in two provider passes (App\Support\TryOnGarmentPlan).
+     * The mode and pass order are frozen here when the session is created, and the
+     * finished first pass is recorded as an opaque RenderVault reference, so a retry
+     * resumes at pass 2 instead of paying for pass 1 again. Kept inside the existing
+     * JSON column (no schema change); the renderers never read this key.
+     */
+    public function pipeline(): array
+    {
+        return (array) (($this->render_plan_json ?? [])['pipeline'] ?? []);
+    }
+
+    public function isPairRender(): bool
+    {
+        return ($this->pipeline()['mode'] ?? null) === \App\Support\TryOnGarmentPlan::MODE_PAIR;
+    }
+
+    public function updatePipeline(array $changes): void
+    {
+        $plan = $this->render_plan_json ?? [];
+        $plan['pipeline'] = array_merge($this->pipeline(), $changes);
+        $this->update(['render_plan_json' => $plan]);
     }
 
     /** The render as a data URI — from the private vault, or a legacy Base64 row. */

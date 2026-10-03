@@ -602,6 +602,18 @@ export const PHRASE_ROWS = [
   ['Full payment verified', 'Beripikado ang buong bayad', '全額のお支払い確認済み'],
   ['50% down payment verified (legacy order)', 'Beripikado ang 50% down payment (lumang order)', '50%頭金確認済み（旧方式の注文）'],
   ['Balance paid — fully paid (legacy order)', 'Bayad na ang balanse — buo nang bayad (lumang order)', '残金支払済 — 全額支払済（旧方式の注文）'],
+  // Shop rows for categories that previously had no row (utils/shopRows.js).
+  ['Formal Wear', 'Pormal na Kasuotan', 'フォーマルウェア'],
+  ['Full Outfits', 'Buong Kasuotan', 'フルコーディネート'],
+  ['More Pieces', 'Iba Pang Piraso', 'その他のアイテム'],
+  // Try-on: two-piece renders and unsupported stacks (utils/tryOnStackPlan.js).
+  ['Rendering piece 1 of 2', 'Ginagawa ang piraso 1 sa 2', '2点中1点目を生成中'],
+  ['Rendering piece 2 of 2', 'Ginagawa ang piraso 2 sa 2', '2点中2点目を生成中'],
+  ['Top and bottom render together in two passes — this look uses 2 renders and takes about twice as long.', 'Sabay na ire-render ang pang-itaas at pang-ibaba sa dalawang pasada — gagamit ang look na ito ng 2 render at mga dalawang beses ang tagal.', 'トップスとボトムスを2回に分けて一緒に生成します — このコーディネートは2回分の生成を使い、時間も約2倍かかります。'],
+  ['A dress already covers the top and the bottom, so it can’t be tried on together with another piece. Remove one of them to render your fitting.', 'Sakop na ng dress ang pang-itaas at pang-ibaba, kaya hindi ito maisusukat kasama ng ibang piraso. Alisin ang isa para ma-render ang fitting.', 'ワンピースはトップスとボトムスの両方を覆うため、他のアイテムと一緒には試着できません。どちらかを外してから生成してください。'],
+  ['Footwear can’t be rendered together with other pieces yet. Remove the footwear to render the rest of your look.', 'Hindi pa maire-render ang sapatos kasama ng ibang piraso. Alisin ang sapatos para ma-render ang natitirang look.', '靴はまだ他のアイテムと一緒に生成できません。靴を外すと残りのコーディネートを生成できます。'],
+  ['The AI try-on can wear one upper-body piece at a time. Keep either the top or the outerwear, and add a bottom if you like.', 'Isang pang-itaas lang ang kayang isuot ng AI try-on sa bawat render. Piliin ang top o ang outerwear, at magdagdag ng pang-ibaba kung gusto mo.', 'AI試着で着用できる上半身のアイテムは一度に1点です。トップスかアウターのどちらかを残し、必要ならボトムスを追加してください。'],
+  ['The AI try-on renders up to two pieces together: one top (or outerwear) and one bottom. Remove the extra pieces and try again.', 'Hanggang dalawang piraso lang ang sabay na nire-render ng AI try-on: isang top (o outerwear) at isang pang-ibaba. Alisin ang sobrang piraso at subukan ulit.', 'AI試着で一緒に生成できるのは2点までです（トップスまたはアウター1点とボトムス1点）。余分なアイテムを外してもう一度お試しください。'],
   ['Receipt received — verify the full payment in the store’s payment records', 'Natanggap ang resibo — i-verify ang buong bayad sa payment records ng tindahan', '領収書を受領 — 店舗の入金記録で全額の入金を確認してください'],
   ['Flagged for review — verify or mark it failed', 'Naka-flag para suriin — i-verify o markahang bigo', '要確認 — 確認するか確認不可にしてください'],
   ['Verification failed — waiting for the customer’s new receipt', 'Hindi na-verify — hinihintay ang bagong resibo ng customer', '確認不可 — お客様の新しい領収書を待っています'],
