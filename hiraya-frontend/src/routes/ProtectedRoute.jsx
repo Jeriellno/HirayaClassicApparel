@@ -25,15 +25,13 @@ export const normalizeRole = (raw) =>
 
 const resolveRole = (user) => {
     if (!user || typeof user !== 'object') return '';
-
     const raw =
         user.app_metadata?.role ??
         user.user_metadata?.role ??
         user.role_name ??
         (Array.isArray(user.roles) ? user.roles[0] : user.roles) ??
-        (isHirayaRole(user.role) ? user.role : null) ??
-        (user.is_admin || user.isAdmin ? 'admin' : '');
-
+        (user.is_admin || user.isAdmin ? 'admin' : '') ??
+        (isHirayaRole(user.role) ? user.role : '');
     return normalizeRole(raw);
 };
 
