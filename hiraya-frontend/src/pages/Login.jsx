@@ -202,7 +202,16 @@ const Login = () => {
                     console.warn('Could not clear previous staff session:', err);
                 }
 
-                navigate(redirectTo || roleHome(body.user), { replace: true });
+                const customerRole = body.user?.role || 'user';
+
+                const safeRedirect =
+                    redirectTo &&
+                    !redirectTo.startsWith('/admin') &&
+                    !redirectTo.startsWith('/superadmin')
+                        ? redirectTo
+                        : roleHome(customerRole);
+
+                navigate(safeRedirect, { replace: true });
                 return;
             }
 
