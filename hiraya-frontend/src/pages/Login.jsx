@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿﻿import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -118,7 +118,18 @@ const Login = () => {
             try {
                 const { data } = await supabase.auth.getSession();
                 const user = data?.session?.user;
-                if (!user) return;
+                /*
+                 * NO SESSION: SHOW THE FORM NOW.
+                 * This branch used to `return` before `setResuming(false)`, so a
+                 * browser with nothing saved sat on "Verifying Session..." for the
+                 * full 5s timeout before the sign-in form appeared. A plain visitor
+                 * with no staff session is the common case, and it should cost one
+                 * paint, not five seconds.
+                 */
+                if (!user) {
+                    setResuming(false);
+                    return;
+                }
                 const levels = await getAssuranceLevels();
                 if (cancelled || levels.currentLevel !== 'aal2') return;
                 const staffRole = await fetchAuthoritativeRole(user);
