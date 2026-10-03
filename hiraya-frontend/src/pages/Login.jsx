@@ -194,6 +194,14 @@ const Login = () => {
              * already persisted it, and there is nothing left to prove.
              */
             if (!body.mfa_required) {
+                // A normal customer login must not keep an old Admin/Superadmin
+                // Supabase session from a previous account in this browser.
+                try {
+                    await signOutSupabase();
+                } catch (err) {
+                    console.warn('Could not clear previous staff session:', err);
+                }
+
                 navigate(redirectTo || roleHome(body.user), { replace: true });
                 return;
             }
