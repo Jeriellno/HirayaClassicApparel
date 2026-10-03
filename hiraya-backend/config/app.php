@@ -62,6 +62,10 @@ return [
      */
     'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
 
+    // Whether FRONTEND_URL is set explicitly. Production refuses to e-mail links
+    // built from the APP_URL fallback (the API host does not serve the SPA).
+    'frontend_url_configured' => filled(env('FRONTEND_URL')),
+
     /*
      * DEV AUTH BYPASS — OPT-IN, OFF BY DEFAULT.
      *

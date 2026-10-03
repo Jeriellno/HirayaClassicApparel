@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Layers, Camera, Loader2, Download, ImageIcon, Wand2, ShieldCheck, AlertTriangle, Info, XCircle,
-  ChevronDown, RefreshCw, Share2, ShoppingBag, Check, Square, Trash2, MinusCircle, History,
+  ChevronDown, RefreshCw, Share2, ShoppingBag, Check, Square, Trash2, MinusCircle, Images,
 } from 'lucide-react';
 import { PhotoGuide } from './PhotoGuide';
 
@@ -362,12 +362,12 @@ export const TryOnCanvas = ({
               type="button"
               onClick={onOpenHistory}
               data-tour="history-toggle"
-              aria-label={`Open try-on history${newLooks > 0 ? ` — ${newLooks} new` : ''}`}
-              title="Try-On History"
-              className="btn-secondary relative cursor-pointer rounded-full px-3 py-2.5 sm:px-4"
+              aria-label={`Open your try-on Gallery${newLooks > 0 ? ` — ${newLooks} new` : ''}`}
+              title="Gallery"
+              className="btn-secondary relative min-h-[40px] cursor-pointer rounded-full px-3 py-2.5 sm:px-4"
             >
-              <History size={12} />
-              <span className="hidden sm:inline">History</span>
+              <Images size={12} />
+              <span className="hidden sm:inline">Gallery</span>
               {newLooks > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-navy-900 px-1 text-[9px] font-semibold leading-none text-cream-100 ring-2 ring-hiraya-surface">
                   {newLooks}

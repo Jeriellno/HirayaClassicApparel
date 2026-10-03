@@ -7,6 +7,7 @@ import { invalidateCatalog } from '../../utils/invalidateCatalog';
 import { subscribeBackendHealth, isBackendReachable } from '../../utils/backendHealth';
 import { RECONNECTED_EVENT } from '../common/ConnectionWatcher';
 import { useAuth } from '../../context/AuthContext';
+import { useStaffSession } from '../../context/StaffSessionContext';
 import useConfirm from '../../hooks/useConfirm';
 import { supabase } from '../../services/supabase';
 import { roleOf as supabaseRoleOf, signOutSupabase, fetchAuthoritativeRole } from '../../services/supabaseMfa';
@@ -19,7 +20,7 @@ import {
 } from '../../utils/consoleAccess';
 
 import SuperadminLayout from './SuperadminLayout';
-import { superAdminNavLinks, SECTION_SUBTABS } from './SuperadminLayout';
+import { superAdminNavLinks, subtabsFor } from './SuperadminLayout';
 
 import DashboardTab from './tabs/DashboardTab';
 import StaffDashboard from './tabs/StaffDashboard';
@@ -92,9 +93,13 @@ const SuperAdmin = ({ onLogout }) => {
    * reads through `useSupabaseIdentity`. This component now reads it too, so the
    * door and the room agree on who is inside.
    */
-  const [supabaseRole, setSupabaseRole] = useState('');
+  // The route guard already verified the role; start from it (no `admin`
+  // flash, no second lookup). The lookup below only runs without a guard.
+  const guardedRole = useStaffSession()?.role || '';
+  const [supabaseRole, setSupabaseRole] = useState(guardedRole);
 
   useEffect(() => {
+    if (guardedRole) return undefined;
     let cancelled = false;
 
     supabase.auth
@@ -122,7 +127,7 @@ const SuperAdmin = ({ onLogout }) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [guardedRole]);
 
   /*
    * ROLE RESOLUTION ORDER:
@@ -147,6 +152,9 @@ const SuperAdmin = ({ onLogout }) => {
   void pathname;
 
   const allowedSections = useMemo(() => sectionsForRole(role), [role]);
+  // Read by loaders that are stable useCallbacks (see fetchAuditLogs).
+  const roleRef = useRef(role);
+  roleRef.current = role;
   const navLinks = useMemo(
     () => superAdminNavLinks.filter((link) => allowedSections.includes(link.id)),
     [allowedSections],
@@ -236,11 +244,12 @@ const SuperAdmin = ({ onLogout }) => {
   );
 
   useEffect(() => {
-    const subs = SECTION_SUBTABS[activeTab] || [];
+    // Role-aware: an admin's Audit Logs offers Stock History only.
+    const subs = subtabsFor(activeTab, role);
     setActiveSubTab((current) =>
       subs.some((s) => s.id === current) ? current : (subs[0]?.id ?? ''),
     );
-  }, [activeTab]);
+  }, [activeTab, role]);
 
   /*
    * KEEP THE HASH IN STEP WITH THE ACTIVE SECTION, so a link the operator copies
@@ -295,7 +304,6 @@ const SuperAdmin = ({ onLogout }) => {
   const [products, setProducts] = useState([]);
   const [, setActiveSessions] = useState(0);
   const [analyticsLogs, setAnalyticsLogs] = useState([]);
-  const [feedbacks, setFeedbacks] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
 
   const [systemSettings, setSystemSettings] = useState({
@@ -386,7 +394,7 @@ const SuperAdmin = ({ onLogout }) => {
     inventory: ['products'],
     orders: [],            // OrdersTab self-fetches (read-only, its own endpoint).
     customers: [],         // CustomersTab self-fetches.
-    feedback: ['feedbacks'],
+    feedback: [],          // FeedbackTab self-fetches the unified /admin/reviews list.
     admins: [],            // AdminsTab self-fetches.
     manual: [],
     support: [],           // ContactSupportTab self-fetches.
@@ -529,7 +537,6 @@ const SuperAdmin = ({ onLogout }) => {
     products: 'Products',
     liveSessions: 'Active sessions',
     analyticsLogs: 'Try-on activity',
-    feedbacks: 'Feedback',
     systemSettings: 'System settings',
     auditLogs: 'Audit logs',
   };
@@ -908,23 +915,15 @@ const SuperAdmin = ({ onLogout }) => {
     }
   }, []);
 
-  const fetchFeedbacks = useCallback(async () => {
-    try {
-      // Named feedback only (tied to a customer account); admins can read it too.
-      const res = await api.get('/admin/customer-feedback');
-      const rows = Array.isArray(res.data)
-        ? res.data
-        : (res.data?.data || []);
-
-      setFeedbacks(rows);
-    } catch (err) {
-      console.error('SuperAdmin: failed to load customer feedback', err);
-      throw err;
-    }
-  }, []);
 
 
   const fetchAuditLogs = useCallback(async () => {
+    // The Activity Log is a Super Admin panel; an admin's console never shows
+    // it, so it does not request it either.
+    if (roleRef.current !== 'superadmin') {
+      setAuditLogs([]);
+      return;
+    }
     try {
       const res = await api.get('/admin/audit-logs');
       const rows = Array.isArray(res.data) ? res.data : (res.data?.data || []);
@@ -956,7 +955,6 @@ const SuperAdmin = ({ onLogout }) => {
     products: fetchProducts,
     liveSessions: fetchLiveSessions,
     analyticsLogs: fetchAnalyticsLogs,
-    feedbacks: fetchFeedbacks,
     systemSettings: fetchSystemSettings,
     auditLogs: fetchAuditLogs,
   };
@@ -1289,6 +1287,7 @@ const SuperAdmin = ({ onLogout }) => {
           onDeleteProduct={handleDeleteProduct}
           onAnalyzeImage={analyzeProductImage}
           onAdjustStock={handleAdjustStock}
+          canManageProducts={role === 'superadmin'}
         />
       )}
       {activeTab === 'orders' && (
@@ -1301,12 +1300,13 @@ const SuperAdmin = ({ onLogout }) => {
         />
       )}
       {activeTab === 'customers' && <CustomersTab role={role} onViewOrders={viewCustomerOrders} />}
-      {activeTab === 'feedback' && <FeedbackTab feedbacks={feedbacks} />}
+      {/* Feedback + Product Reviews are ONE review system now (FeedbackTab loads /admin/reviews). */}
+      {activeTab === 'feedback' && <FeedbackTab />}
       {activeTab === 'manual' && <UserManualTab role={role} />}
       {activeTab === 'support' && <ContactSupportTab role={role} />}
       {activeTab === 'admins' && <AdminsTab />}
-      {activeTab === 'audit-logs' && activeSubTab === 'stock' && <StockHistoryTab />}
-      {activeTab === 'audit-logs' && activeSubTab !== 'stock' && <AuditLogsTab auditLogs={auditLogs} role={role} />}
+      {activeTab === 'audit-logs' && (activeSubTab === 'stock' || role !== 'superadmin') && <StockHistoryTab />}
+      {activeTab === 'audit-logs' && activeSubTab !== 'stock' && role === 'superadmin' && <AuditLogsTab auditLogs={auditLogs} role={role} />}
       {activeTab === 'settings' && (
         <SettingsTab
           settings={systemSettings}

@@ -14,8 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
-  Sparkles,
-  RotateCcw,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import useConfirm from '../../../hooks/useConfirm';
@@ -195,9 +193,8 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
   const [customerOrders, setCustomerOrders] = useState(null);
   // This customer's account activity (audit rows): same null/false/[] contract.
   const [activity, setActivity] = useState(null);
-  // Their try-on history, INCLUDING looks they deleted: same contract.
-  const [tryOns, setTryOns] = useState(null);
-  const [restoringId, setRestoringId] = useState(null);
+  // Try-on renders are PRIVATE to the customer: no try-on history is loaded
+  // or shown in a staff-visible profile.
 
   /*
    * The backend supports server-side search + status filtering, but the list
@@ -230,12 +227,6 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
     setDetail({ id: customer.id, loading: true });
     setCustomerOrders(null);
     setActivity(null);
-    setTryOns(null);
-
-    api
-      .get(`/admin/customers/${customer.id}/try-ons`)
-      .then((r) => setTryOns(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setTryOns(false));
 
     // The activity trail loads on its own so a slow read never holds the profile.
     api
@@ -327,25 +318,6 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
       setError(err?.response?.data?.message || 'Failed to reactivate the customer.');
     } finally {
       setBusyId(null);
-    }
-  };
-
-  /** Puts a look the customer deleted back into their history and notifies them. */
-  const restoreTryOn = async (look) => {
-    const ok = await confirm({
-      title: 'Restore this try-on?',
-      message: `"${look.title}" will return to ${detail?.full_name || 'the customer'}'s try-on history, and they will be notified by e-mail and in the app.`,
-      confirmText: 'Restore & notify',
-    });
-    if (!ok) return;
-    setRestoringId(look.session_id);
-    try {
-      await api.post(`/admin/customers/${detail.id}/try-ons/${look.session_id}/restore`);
-      setTryOns((list) => (Array.isArray(list) ? list.map((t) => (t.session_id === look.session_id ? { ...t, deleted_at: null, restored: true } : t)) : list));
-    } catch (err) {
-      setError(err?.response?.data?.message || 'The try-on could not be restored.');
-    } finally {
-      setRestoringId(null);
     }
   };
 
@@ -617,7 +589,7 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
 
                   return (
                     <>
-                      {/* IDENTITY — name, email, status */}
+                      {/* IDENTITY — name, email (the Active/Inactive status label was removed from the profile) */}
                       <div className="space-y-2">
                         <p className="text-hiraya-ink text-lg font-semibold leading-tight">
                           {detail.full_name || 'Unnamed Customer'}
@@ -625,14 +597,6 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
                         <p className="text-hiraya-sand flex items-center gap-1.5">
                           <Mail size={12} /> {detail.email}
                         </p>
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${detail.suspended_at
-                              ? 'bg-red-500/12 text-red-700 border-red-600/40'
-                              : 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
-                            }`}
-                        >
-                          {detail.suspended_at ? 'Suspended' : 'Active'}
-                        </span>
                       </div>
 
                       {/* SUMMARY — Orders / Total Spent / Last Seen, one card each */}
@@ -714,53 +678,6 @@ const CustomersTab = ({ role = 'superadmin', onViewOrders } = {}) => {
                               </li>
                             ))}
                           </ol>
-                        )}
-                      </div>
-
-                      {/* TRY-ON HISTORY — including looks the customer deleted */}
-                      <div>
-                        <p className="text-[10px] uppercase tracking-widest text-hiraya-ink font-bold mb-2 flex items-center gap-1.5">
-                          <Sparkles size={12} /> Try-on History
-                        </p>
-                        {tryOns === null ? (
-                          <div className="py-4 text-center text-hiraya-sand">
-                            <Loader2 size={16} className="animate-spin mx-auto mb-1.5" />
-                            <span className="uppercase tracking-widest text-[9px]">Loading try-ons…</span>
-                          </div>
-                        ) : tryOns === false ? (
-                          <p className="text-[11px] text-hiraya-sand">Could not load this customer&apos;s try-ons.</p>
-                        ) : tryOns.length === 0 ? (
-                          <p className="text-[11px] text-hiraya-sand">No completed try-ons yet.</p>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-2">
-                            {tryOns.map((look) => (
-                              <div key={look.session_id} className={`overflow-hidden rounded-xl border bg-hiraya-cream/30 ${look.deleted_at ? 'border-red-600/40' : 'border-hiraya-structure-line/80'}`}>
-                                <div className="relative aspect-[3/4] bg-cream-200/60">
-                                  {look.thumbnail && <img src={look.thumbnail} alt={look.title} className={`h-full w-full object-cover ${look.deleted_at ? 'opacity-50' : ''}`} />}
-                                  {look.deleted_at && (
-                                    <span className="absolute left-1 top-1 rounded bg-red-700 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">Deleted</span>
-                                  )}
-                                  {look.restored && (
-                                    <span className="absolute left-1 top-1 rounded bg-emerald-700 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white">Restored</span>
-                                  )}
-                                </div>
-                                <div className="p-1.5">
-                                  <p className="truncate text-[10px] font-semibold text-hiraya-ink" title={look.title}>{look.title}</p>
-                                  <p className="text-[9px] text-hiraya-sand">{formatDate(look.created_at)}</p>
-                                  {look.deleted_at && (
-                                    <button
-                                      type="button"
-                                      onClick={() => restoreTryOn(look)}
-                                      disabled={restoringId === look.session_id}
-                                      className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg bg-navy-900 py-1 text-[9px] font-bold uppercase tracking-wider text-cream-100 hover:bg-navy-800 disabled:opacity-60 cursor-pointer"
-                                    >
-                                      {restoringId === look.session_id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />} Restore
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
                         )}
                       </div>
 

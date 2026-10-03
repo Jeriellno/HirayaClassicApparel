@@ -58,6 +58,11 @@ use App\Http\Controllers\Api\ProductReviewController;
  */
 Route::post('/register', [AuthController::class, 'register'])
     ->middleware('throttle:5,1');
+// Verified-Gmail sign-up: the account is created only when the mailed code returns.
+Route::post('/register/verify', [AuthController::class, 'verifyRegistration'])
+    ->middleware('throttle:10,1');
+Route::post('/register/resend', [AuthController::class, 'resendRegistrationCode'])
+    ->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:10,1');
 Route::post('/check-email', [AuthController::class, 'checkEmail'])
@@ -117,7 +122,8 @@ Route::get('/size-chart', [SizeChartController::class, 'show']);
  * Save button needs, so the Auto-fill button carries it too. Rate-limited so a
  * stuck retry loop cannot burn through the key.
  */
-Route::middleware(['supabase.aal2', 'supabase.user', 'admin', 'throttle:30,1'])
+// SUPERADMIN-ONLY since admins can no longer add/edit products.
+Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin', 'throttle:30,1'])
     ->post('/products/analyze-image', [ProductImageAnalysisController::class, 'analyze']);
 
 /*
@@ -163,7 +169,12 @@ Route::middleware('throttle:20,1')->post('/tryon/verify-person', [PersonVerifica
  * Declared BEFORE the GET /products/{product} route below, exactly as before —
  * the only change is the middleware, and the reads above it are unaffected.
  */
-Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
+/*
+ * ADD / EDIT / DELETE PRODUCT — SUPERADMIN ONLY.
+ * Admin > Inventory Management is read + stock-adjust only; the restriction is
+ * enforced here (403 for an admin), not just by hiding the buttons.
+ */
+Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
     ->group(function () {
         Route::post('/products', [ProductController::class, 'store']);
         Route::post('/products/{product}', [ProductController::class, 'update']);
@@ -331,14 +342,15 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
      * audit rows only); the super admin, as owner, gets everything. Suspend /
      * reactivate stay in the superadmin-only group below.
      */
-    Route::get('/customers', [AdminCustomerController::class, 'index']);
-    Route::get('/customers/{user}', [AdminCustomerController::class, 'show']);
+    // Customer Management is SUPERADMIN-ONLY now (see the superadmin group below).
     Route::get('/audit-logs', [SuperAdminController::class, 'auditLogs']);
 
-    // Customer try-on history (incl. deleted looks) and restoring one.
-    Route::get('/customers/{user}/try-ons', [AdminCustomerController::class, 'tryOns']);
-    Route::post('/customers/{user}/try-ons/{sessionId}/restore', [AdminCustomerController::class, 'restoreTryOn'])
-        ->middleware('throttle:30,1');
+    /*
+     * Customer try-on renders are PRIVATE: staff no longer list or restore a
+     * customer's try-on history (the former /customers/{user}/try-ons routes
+     * were removed for privacy). Customers manage their own Gallery and
+     * Recently Deleted from the Studio.
+     */
 
     // Console-wide: section-view audit, named customer feedback, Contact Support.
     Route::post('/console/section-view', [\App\Http\Controllers\Api\ConsoleController::class, 'sectionView'])
@@ -349,6 +361,9 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
         ->where('event', 'signed-in|signed-out')->middleware('throttle:30,1');
     Route::get('/customer-feedback', [\App\Http\Controllers\Api\ConsoleController::class, 'customerFeedback']);
     Route::get('/product-reviews', [ProductReviewController::class, 'adminIndex']);
+    // Unified reviews (product reviews + legacy order feedback) and on-demand photos.
+    Route::get('/reviews', [ProductReviewController::class, 'adminUnified']);
+    Route::get('/product-reviews/{review}/image', [ProductReviewController::class, 'adminImage'])->whereNumber('review');
     Route::get('/support', [\App\Http\Controllers\Api\ConsoleController::class, 'supportIndex']);
     Route::post('/support', [\App\Http\Controllers\Api\ConsoleController::class, 'supportStore'])
         ->middleware('throttle:10,1');
@@ -365,8 +380,13 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'admin'])
     Route::get('/orders/{order}', [AdminOrderController::class, 'show']);
     Route::get('/orders/{order}/proof/{type}', [AdminOrderController::class, 'proof'])
         ->whereIn('type', ['dp', 'balance']);
-    Route::patch('/orders/{order}/approve-dp', [AdminOrderController::class, 'approveDownPayment']);
-    Route::patch('/orders/{order}/reject-dp', [AdminOrderController::class, 'rejectDownPayment']);
+    // Payment verification (full payment). Route names kept; "approve-dp" verifies
+    // the FULL payment against a trusted record, "reject-dp" = Verification Failed.
+    Route::patch('/orders/{order}/approve-dp', [AdminOrderController::class, 'approveDownPayment'])->middleware('throttle:60,1');
+    Route::patch('/orders/{order}/reject-dp', [AdminOrderController::class, 'rejectDownPayment'])->middleware('throttle:60,1');
+    Route::patch('/orders/{order}/flag-payment', [AdminOrderController::class, 'flagPayment'])->middleware('throttle:60,1');
+    Route::post('/orders/{order}/receipt-check', [AdminOrderController::class, 'recheckReceipt'])->middleware('throttle:10,1');
+    // LEGACY: settle the balance of a historical 50/50 order.
     Route::post('/orders/{order}/confirm-full-payment', [AdminOrderController::class, 'confirmFullPayment']);
     Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
     Route::patch('/orders/{order}/tracking', [AdminOrderController::class, 'updateTracking']);
@@ -649,6 +669,9 @@ Route::middleware(['supabase.aal2', 'supabase.user', 'superadmin'])
      * Inside the `superadmin` group, so they inherit the same gate as the rest
      * of this console-only surface.
      */
+    // Customer Management (removed from the Admin panel): list, profile, suspend.
+    Route::get('/customers', [AdminCustomerController::class, 'index']);
+    Route::get('/customers/{user}', [AdminCustomerController::class, 'show']);
     Route::patch('/customers/{user}/suspend', [AdminCustomerController::class, 'suspend']);
     Route::patch('/customers/{user}/reactivate', [AdminCustomerController::class, 'reactivate']);
 });
@@ -754,7 +777,13 @@ foreach (['tryon', 'try-on'] as $tryOnPrefix) {
         Route::post('/retry/{sessionId}', [TryOnController::class, 'retry']);
         Route::get('/history', [TryOnController::class, 'history']);
         Route::patch('/history/{sessionId}/favorite', [TryOnController::class, 'updateFavorite']);
+        // Gallery: delete = SOFT delete into "Recently Deleted".
         Route::delete('/history/{sessionId}', [TryOnController::class, 'destroyHistory']);
+        // Recently Deleted: list, restore, permanent delete, empty (owner-scoped).
+        Route::get('/history-trash', [TryOnController::class, 'trash']);
+        Route::delete('/history-trash', [TryOnController::class, 'emptyTrash'])->middleware('throttle:10,1');
+        Route::post('/history/{sessionId}/restore', [TryOnController::class, 'restoreHistory'])->middleware('throttle:60,1');
+        Route::delete('/history/{sessionId}/permanent', [TryOnController::class, 'forceDestroyHistory'])->middleware('throttle:60,1');
         Route::get('/history/{sessionId}/outfit', [TryOnController::class, 'reusableOutfit']);
         // One look in full (render + before photo), opened from the Studio's history drawer.
         Route::get('/history/{sessionId}', [TryOnController::class, 'historyDetail']);

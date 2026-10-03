@@ -4,7 +4,7 @@ import api from '../../api/axios';
 import Currency from './Currency';
 
 /**
- * Renders where the customer should send their payment (down payment or the
+ * Renders where the customer should send their payment (the full order amount, or the
  * remaining balance). Fetches the store's payout accounts from the backend so
  * the account details live in one place instead of being hard-coded per page.
  *
@@ -132,7 +132,7 @@ const PaymentInstructions = ({ amount = null, amountLabel = 'Amount to send', cl
       )}
 
       <p className="mt-3 text-[10px] leading-relaxed text-hiraya-ink-muted">
-        After paying, upload your receipt below and type the <strong className="text-hiraya-ink">reference number</strong> shown on it — the store matches that number in its GCash or bank app to confirm your payment.
+        After paying the <strong className="text-hiraya-ink">full amount</strong>, upload a clear screenshot of your receipt. The store confirms every payment in its own GCash / bank transaction history before your order is prepared.
       </p>
     </div>
   );

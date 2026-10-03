@@ -87,8 +87,6 @@ export const useCart = () => {
     cartItems: items,
     cartCount: normalized.count || items.reduce((a, i) => a + (i.quantity || 1), 0),
     total,
-    dpAmount: Number((total / 2).toFixed(2)),
-    balanceAmount: Number((total / 2).toFixed(2)),
     isLoading: isLoading && !!user,
     isError,
 

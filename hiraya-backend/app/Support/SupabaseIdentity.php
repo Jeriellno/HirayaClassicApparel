@@ -97,6 +97,51 @@ class SupabaseIdentity
      * A missing identity is NOT an error. It is the normal state of a customer
      * account, and the state `createWithPassword()` exists to fix for a staff account.
      */
+    /**
+     * The REAL authenticator state from GoTrue: canonical email => true when the
+     * identity holds at least one VERIFIED MFA factor, false when it has none.
+     * Null when Supabase cannot be reached (callers fall back to the stored
+     * column). One admin-API request covers every account.
+     *
+     * @return array<string, bool>|null
+     */
+    public static function verifiedFactorMap(): ?array
+    {
+        $conn = self::connection();
+        if (!$conn) {
+            return null;
+        }
+
+        [$base, $key] = $conn;
+
+        try {
+            $response = Http::withToken($key)
+                ->withHeaders(['apikey' => $key])
+                ->timeout(10)
+                ->get($base . '/auth/v1/admin/users', ['per_page' => 1000]);
+
+            if ($response->failed()) {
+                return null;
+            }
+
+            $map = [];
+            foreach ((array) $response->json('users') as $row) {
+                if (!is_array($row) || empty($row['email'])) {
+                    continue;
+                }
+                $verified = collect((array) ($row['factors'] ?? []))
+                    ->contains(fn ($f) => is_array($f) && ($f['status'] ?? null) === 'verified');
+                $map[self::canonicalEmail($row['email'])] = $verified;
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            Log::warning('SupabaseIdentity: factor lookup threw', ['reason' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public static function findAuthId(string $email): ?string
     {
         $conn = self::connection();

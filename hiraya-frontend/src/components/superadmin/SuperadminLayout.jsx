@@ -52,7 +52,7 @@ export const superAdminNavLinks = [
   { id: 'inventory', name: 'Inventory Management', icon: Shirt, group: 'MAIN' },
   { id: 'orders', name: 'Orders Management', icon: Package, group: 'MAIN' },
   { id: 'customers', name: 'Customers Management', icon: Users, group: 'MAIN' },
-  { id: 'feedback', name: 'Customers Feedback', icon: MessageSquare, group: 'MAIN' },
+  { id: 'feedback', name: 'Product Reviews', icon: MessageSquare, group: 'MAIN' },
   { id: 'admins', name: 'Admin Management', icon: UserCog, group: 'ADMINISTRATION' },
   { id: 'audit-logs', name: 'Audit Logs', icon: History, group: 'ADMINISTRATION' },
   { id: 'settings', name: 'System Settings', icon: Sliders, group: 'ADMINISTRATION' },
@@ -78,6 +78,20 @@ export const SECTION_SUBTABS = {
     { id: 'activity', name: 'Activity Log' },
     { id: 'stock', name: 'Stock History' },
   ],
+};
+
+/*
+ * Sub-tabs a ROLE is offered. The Admin console keeps Audit Logs > Stock History
+ * only: the Activity Log panel is a Super Admin view. (Audit logging itself and
+ * its stored history are unchanged — this only decides what is shown.)
+ */
+const SUBTABS_HIDDEN_FOR_ROLE = {
+  admin: { 'audit-logs': ['activity'] },
+};
+
+export const subtabsFor = (section, role) => {
+  const hidden = SUBTABS_HIDDEN_FOR_ROLE[role]?.[section] || [];
+  return (SECTION_SUBTABS[section] || []).filter((sub) => !hidden.includes(sub.id));
 };
 
 /** The group headings and their order. */
@@ -147,7 +161,7 @@ const SuperadminLayout = ({
   const ORDER = [...NAV_GROUPS].reduce((acc, key, index) => ({ ...acc, [key]: index }), {});
   groupedNav.sort((a, b) => (ORDER[a.key] ?? 99) - (ORDER[b.key] ?? 99));
 
-  const subtabs = SECTION_SUBTABS[activeTab] || [];
+  const subtabs = subtabsFor(activeTab, role);
 
   /*
    * WHICH GROUP OWNS THE ACTIVE SECTION — the ONLY group allowed to show its

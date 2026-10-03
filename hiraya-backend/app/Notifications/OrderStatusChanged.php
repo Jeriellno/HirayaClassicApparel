@@ -67,8 +67,12 @@ class OrderStatusChanged extends Notification
             return $mail->action('Review Products', url('/orders?order=' . $this->order->id));
         }
 
-        return $mail
-            ->line('Balance due before shipping: ₱' . number_format((float) $this->order->balance_amount, 2))
-            ->action('Track My Order', url('/orders'));
+        // Orders are paid in full now; only a legacy 50/50 order still awaiting
+        // its balance gets the "balance due" line.
+        if ($this->order->payment_status === '50_paid' && (float) $this->order->balance_amount > 0) {
+            $mail->line('Balance due before shipping: ₱' . number_format((float) $this->order->balance_amount, 2));
+        }
+
+        return $mail->action('Track My Order', url('/orders'));
     }
 }

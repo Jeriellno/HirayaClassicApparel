@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\PasswordStrength;
 use App\Services\PasswordResetService;
+use App\Services\RegistrationVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,13 +16,22 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    /** New sign-ups must use a real Gmail address (ownership is proven by a mailed code). */
+    public const GMAIL_PATTERN = '/^[a-z0-9](?:[a-z0-9.+_-]{0,62}[a-z0-9])?@gmail\.com$/i';
+
     /**
-     * Register User with their sizing profile.
+     * Register User with their sizing profile — STEP 1 of 2.
      *
-     * Contract: 201 + { message, token, user } on success,
-     *           422 + { message, errors: { field: [msg] } on validation failure.
+     * The form is validated exactly as before, plus: the address must be an
+     * @gmail.com address and the password needs a special character. No account
+     * is created yet: a one-time code is mailed to the address and the sign-up
+     * waits (RegistrationVerificationService) until /register/verify returns it.
+     *
+     * Contract: 202 + { message, verification_required, email, expires_in_minutes },
+     *           422 + { message, errors: { field: [msg] } on validation failure,
+     *           503 when the code e-mail could not be sent.
      */
-    public function register(Request $request)
+    public function register(Request $request, RegistrationVerificationService $verification)
     {
         // System Settings -> "Customer sign-ups". Enforced here, not only in the UI.
         if (! \App\Models\SystemSetting::isOn('registrations_open')) {
@@ -32,7 +42,7 @@ class AuthController extends Controller
 
         $validator = Validator::make($request->all(), [
             'full_name'      => 'required|string|max:255',
-            'email'          => 'required|string|email|max:255|unique:users,email',
+            'email'          => ['required', 'string', 'email:rfc', 'max:255', 'regex:' . self::GMAIL_PATTERN, 'unique:users,email'],
             /*
              * `confirmed` requires a matching `password_confirmation` field,
              * which the registration form always sends. Without it, a typo in
@@ -76,9 +86,10 @@ class AuthController extends Controller
         ], [
             'email.unique'                => 'That email address is already registered.',
             'email.email'                 => 'Please enter a valid email address.',
+            'email.regex'                 => 'Please sign up with a Gmail address (name@gmail.com).',
             'password.confirmed'          => 'The password confirmation does not match.',
             'password.min'                => 'Your password must be at least 8 characters.',
-            'password.regex'              => 'Your password must contain at least 1 uppercase letter and 1 number.',
+            'password.regex'              => 'Your password must contain at least 1 uppercase letter, 1 number and 1 special character.',
             'full_name.required'          => 'Your full name is required.',
             'upper_body_size.required'     => 'Please choose your upper body size.',
             'upper_body_size.in'           => 'Please choose a valid upper body size.',
@@ -97,17 +108,92 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $email = strtolower(trim($request->email));
+        $sent = $verification->start([
+            'full_name'       => trim($request->full_name),
+            'email'           => $email,
+            // Hashed now: the plain password is never parked anywhere.
+            'password_hash'   => Hash::make($request->password),
+            'upper_body_size' => $request->upper_body_size,
+            'lower_body_size' => $request->lower_body_size,
+            'preferred_fit'   => $request->preferred_fit,
+            'gender'          => $request->gender,
+        ]);
+
+        if (! $sent) {
+            return response()->json([
+                'message' => 'We could not send the verification code to that address right now. Please try again in a moment.',
+                'errors'  => ['email' => ['The verification email could not be sent.']],
+            ], 503);
+        }
+
+        return response()->json([
+            'message' => 'We sent a 6-digit code to ' . $email . '. Enter it to finish creating your account.',
+            'verification_required' => true,
+            'email' => $email,
+            'expires_in_minutes' => RegistrationVerificationService::TTL_MINUTES,
+        ], 202);
+    }
+
+    /**
+     * POST /register/verify — STEP 2: the mailed code comes back and the
+     * account is created (already verified) and signed in.
+     *
+     * Contract: 201 + { message, token, user } (what /register used to return).
+     */
+    public function verifyRegistration(Request $request, RegistrationVerificationService $verification)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|max:255',
+            'code'  => 'required|string|max:12',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Please enter the 6-digit code from your email.',
+                'errors'  => $validator->errors(),
+            ], 422);
+        }
+
+        $result = $verification->verify((string) $request->email, (string) $request->code);
+
+        if ($result['status'] !== 'ok') {
+            $message = match ($result['status']) {
+                'invalid' => 'That code is not correct. ' . ($result['attempts_left'] ?? 0) . ' attempt(s) left.',
+                'locked'  => 'Too many wrong codes. Please sign up again to get a new code.',
+                default   => 'This code has expired. Please sign up again or request a new code.',
+            };
+
+            return response()->json([
+                'message' => $message,
+                'reason'  => $result['status'],
+                'errors'  => ['code' => [$message]],
+            ], 422);
+        }
+
+        $data = $result['data'];
+
+        // The address could have been registered while the code was pending.
+        if (User::where('email', $data['email'])->exists()) {
+            return response()->json([
+                'message' => 'That email address is already registered.',
+                'errors'  => ['email' => ['That email address is already registered.']],
+            ], 422);
+        }
+
         try {
             $user = User::create([
-                'full_name'      => trim($request->full_name),
-                'email'          => strtolower(trim($request->email)),
-                'password'       => Hash::make($request->password),
-                'role'           => 'user',
-                'upper_body_size' => $request->upper_body_size,
-                'lower_body_size' => $request->lower_body_size,
-                'preferred_fit'   => $request->preferred_fit,
-                'gender'          => $request->gender,
+                'full_name'       => $data['full_name'],
+                'email'           => $data['email'],
+                // Already a bcrypt hash (made in step 1).
+                'password'        => $data['password_hash'],
+                'role'            => 'user',
+                'upper_body_size' => $data['upper_body_size'],
+                'lower_body_size' => $data['lower_body_size'],
+                'preferred_fit'   => $data['preferred_fit'],
+                'gender'          => $data['gender'],
             ]);
+            $user->forceFill(['email_verified_at' => now()])->save();
         } catch (\Throwable $e) {
             Log::error('Registration failed: ' . $e->getMessage());
 
@@ -121,13 +207,29 @@ class AuthController extends Controller
         // on the shop without a second login round-trip.
         $token = $user->createToken('auth_token', ['*'], now()->addDays(30))->plainTextToken;
 
-        AccountAudit::record($user, 'USER_REGISTERED', 'Account created for ' . $user->full_name . '.', $request);
+        AccountAudit::record($user, 'USER_REGISTERED', 'Account created and Gmail address verified for ' . $user->full_name . '.', $request);
 
         return response()->json([
             'message' => 'User registered successfully.',
             'token'   => $token,
             'user'    => $user->fresh(),
         ], 201);
+    }
+
+    /** POST /register/resend — a fresh code for a sign-up that is still pending. */
+    public function resendRegistrationCode(Request $request, RegistrationVerificationService $verification)
+    {
+        $validator = Validator::make($request->all(), ['email' => 'required|email|max:255']);
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Please enter a valid email address.'], 422);
+        }
+
+        return match ($verification->resend((string) $request->email)) {
+            'sent'     => response()->json(['message' => 'A new code is on its way.']),
+            'cooldown' => response()->json(['message' => 'Please wait a minute before requesting another code.'], 429),
+            'failed'   => response()->json(['message' => 'We could not send the code right now. Please try again.'], 503),
+            default    => response()->json(['message' => 'This sign-up has expired. Please fill in the form again.', 'reason' => 'expired'], 422),
+        };
     }
 
     /**
@@ -444,7 +546,7 @@ class AuthController extends Controller
         ], [
             'password.confirmed' => 'The password confirmation does not match.',
             'password.min' => 'Your password must be at least 8 characters.',
-            'password.regex' => 'Your password must contain at least 1 uppercase letter and 1 number.',
+            'password.regex' => 'Your password must contain at least 1 uppercase letter, 1 number and 1 special character.',
         ]);
 
         if ($validator->fails()) {

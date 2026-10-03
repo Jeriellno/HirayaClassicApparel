@@ -7,6 +7,7 @@ use App\Support\ReceiptStorage;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Services\ReceiptInspector;
 use App\Support\ProductVariants;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,8 +21,11 @@ class CheckoutController extends Controller
         /**
          * POST /api/checkout
          *
-         * Creates a new order for the strict 2-step payment flow:
-         * 50% down payment (PAYO) to secure, balance before shipping.
+         * Creates a new order paid in FULL with ONE payment. The former 50% down
+         * payment / remaining-balance flow was removed: the uploaded receipt must
+         * cover the whole order total. The order starts as `pending`
+         * (Pending Verification) and is only marked paid by staff after they
+         * match the payment in the store's trusted transaction record.
          *
          * PRICING IS SERVER-AUTHORITATIVE: the client-supplied `total_amount` is
          * deliberately ignored. Every unit price is read from the products table
@@ -56,11 +60,11 @@ class CheckoutController extends Controller
                 'city'             => 'required_if:courier,lbc|nullable|string|min:2|max:100',
                 'province'         => 'required_if:courier,lbc|nullable|string|min:2|max:100',
                 'postal_code'      => ['required_if:courier,lbc', 'nullable', 'regex:/^\d{4}$/'],
-                // Order Guidelines §2: 50% down payment, or pay in full upfront.
-                'payment_option'   => 'nullable|in:down_payment,full',
+                // Full payment only. `full` is still accepted from older clients;
+                // the removed `down_payment` option is refused.
+                'payment_option'   => 'nullable|in:full',
+                // The receipt of the FULL payment (field name kept for compatibility).
                 'dp_proof_image'   => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-                // The GCash / bank transaction reference the admin checks against.
-                'dp_reference_number' => 'required|string|min:4|max:64',
 
                 // Accepted for backwards-compatibility, but never used for pricing.
                 'total_amount'     => 'nullable|numeric',
@@ -90,6 +94,7 @@ class CheckoutController extends Controller
                 'province.required_if'         => 'Enter your province for LBC.',
                 'postal_code.required_if'      => 'Enter your 4-digit ZIP code for LBC.',
                 'postal_code.regex'            => 'The ZIP code must be 4 digits.',
+                'payment_option.in'            => 'Down payments are no longer offered. Please pay the full order amount.',
             ]);
 
             if ($validated['courier'] === 'lbc') {
@@ -103,14 +108,20 @@ class CheckoutController extends Controller
                 );
             }
 
-            $payInFull = ($validated['payment_option'] ?? 'down_payment') === 'full';
+            /*
+             * RECEIPT FILE SAFETY + ONE RECEIPT, ONE ORDER.
+             * The bytes must be a real image of an allowed type, and the exact
+             * same receipt file can never be submitted for a second order.
+             */
+            $inspector = app(ReceiptInspector::class);
+            if ($reason = $inspector->rejectReason($request->file('dp_proof_image'))) {
+                return response()->json(['message' => $reason, 'errors' => ['dp_proof_image' => [$reason]]], 422);
+            }
+            $fingerprints = $inspector->fingerprints($request->file('dp_proof_image'));
+            if ($inspector->exactDuplicateOf($fingerprints['sha256'])) {
+                $message = 'This receipt was already submitted for another order. Please upload the receipt for this payment.';
 
-            // One receipt, one order: a reference already on another order is refused.
-            if ($usedBy = Order::referenceInUse($validated['dp_reference_number'])) {
-                return response()->json([
-                    'message' => 'This reference number was already used for another payment. Please check your receipt.',
-                    'errors' => ['dp_reference_number' => ['This reference number was already used.']],
-                ], 422);
+                return response()->json(['message' => $message, 'errors' => ['dp_proof_image' => [$message]]], 422);
             }
 
             // Normalise both paths into one list of requested lines.
@@ -137,7 +148,7 @@ class CheckoutController extends Controller
             }
 
             try {
-                $order = DB::transaction(function () use ($request, $validated, $lines, $fromCart, $ownedCartItems, $payInFull) {
+                $order = DB::transaction(function () use ($request, $validated, $lines, $fromCart, $ownedCartItems, $fingerprints) {
                     // 1. Re-read every product inside the transaction and lock the
                     //    rows so two concurrent checkouts for the last item cannot
                     //    both pass the stock check.
@@ -183,18 +194,18 @@ class CheckoutController extends Controller
                         throw new \RuntimeException('Order total could not be computed.');
                     }
 
-                    // 3. Store the down-payment proof.
+                    // 3. Store the payment receipt in the PRIVATE receipts bucket.
                     $dpProofPath = ReceiptStorage::store($request->file('dp_proof_image'), 'dp-proofs');
 
-                    // First payment: 50% (secures the stock) or the full amount.
-                    $dp = $payInFull ? round($total, 2) : round($total / 2, 2);
-                    $balance = round($total - $dp, 2); // remaining balance (0 when paid in full)
-                    // 4. Create the order with the SERVER-COMPUTED total.
+                    // 4. Create the order with the SERVER-COMPUTED total. One full
+                    //    payment: the paid amount is the total, nothing remains.
+                    //    (dp_amount / balance_amount are kept as columns so
+                    //    historical 50/50 orders stay readable.)
                     $order = Order::create([
                         'user_id'                  => $request->user()?->id,
                         'total_amount'             => $total,
-                        'dp_amount'                => $dp,
-                        'balance_amount'           => $balance,
+                        'dp_amount'                => $total,
+                        'balance_amount'           => 0,
                         'payment_status'           => 'pending',
                         'order_status'             => 'pending',
                         'courier'                  => $validated['courier'],
@@ -203,8 +214,9 @@ class CheckoutController extends Controller
                         'delivery_address'         => $validated['delivery_address'],
                         'tracking_booking_details' => null,
                         'dp_proof_image_path'      => $dpProofPath,
-                        'dp_reference_number'      => trim($validated['dp_reference_number']),
                         'dp_submitted_at'          => now(),
+                        'receipt_sha256'           => $fingerprints['sha256'],
+                        'receipt_phash'            => $fingerprints['phash'],
                     ]);
 
                     // 5. Persist the line items + 6. reserve stock.
@@ -238,8 +250,12 @@ class CheckoutController extends Controller
                     return $order->load('orderItems');
                 });
 
+                // Advisory OCR / fraud-risk check, after the customer is answered.
+                $orderId = $order->id;
+                dispatch(fn () => app(ReceiptInspector::class)->analyseAndStore($orderId))->afterResponse();
+
                 return response()->json([
-                    'message' => 'Checkout submitted. Please wait for admin verification of your down payment.',
+                    'message' => 'Checkout submitted. Your payment is pending verification — we will confirm it against our payment records.',
                     'order'   => $order,
                 ], 201);
 

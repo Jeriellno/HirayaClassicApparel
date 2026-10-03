@@ -33,6 +33,10 @@ const ACTION_LABELS = {
   USER_REGISTERED: 'Registered',
   VIEW_CUSTOMER_PROFILE: 'Viewed customer',
   EXPORT_DATABASE: 'Exported database',
+  APPROVE_FULL_PAYMENT: 'Verified payment',
+  REJECT_PAYMENT: 'Payment verification failed',
+  FLAG_PAYMENT_REVIEW: 'Flagged payment for review',
+  RECHECK_PAYMENT_RECEIPT: 'Re-ran receipt check',
 };
 const actionLabel = (a) =>
   ACTION_LABELS[a] || String(a || 'ACTION').toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());

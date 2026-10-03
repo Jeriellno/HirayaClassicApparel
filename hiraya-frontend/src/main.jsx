@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.jsx'
 import { PreferencesProvider } from './context/PreferencesContext.jsx'
+import LiveTranslator from './i18n/LiveTranslator.jsx'
 import ErrorBoundary from './components/common/ErrorBoundary.jsx'
 import { installRuntimeGuards } from './utils/runtimeGuards.js'
 
@@ -24,6 +25,8 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <PreferencesProvider>
+      {/* Applies the selected language app-wide (customer, admin, superadmin). */}
+      <LiveTranslator />
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>

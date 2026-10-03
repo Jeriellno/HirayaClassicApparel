@@ -79,8 +79,14 @@ StarRow.propTypes = {
 /**
  * Review one delivered order line — or, when `existingReview` is given, show
  * the review already submitted for it (read-only; one line = one review).
+ *
+ * ONE UNIFIED REVIEW: the star rating, the written review and the optional
+ * photo are a single form posted once to /order-items/{id}/review. The former
+ * separate "order experience" Feedback rating was merged into Product Reviews,
+ * so there is no second rating flow. An order-experience rating given before
+ * the merge is still shown read-only (`orderFeedback`).
  */
-/** The order-experience rating already given for this order. */
+/** A legacy order-experience rating given before Feedback was merged. */
 const OrderRatingSummary = ({ feedback }) => (
     <div className="rounded-xl border border-hiraya-structure-line bg-hiraya-surface p-3">
         <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">Your order experience rating</p>
@@ -99,17 +105,6 @@ OrderRatingSummary.propTypes = {
 const ReviewProductModal = ({ line, existingReview = null, orderFeedback = null, onClose }) => {
     const queryClient = useQueryClient();
     const [rating, setRating] = useState(0);
-    /*
-     * ORDER EXPERIENCE, IN THE SAME FORM. One delivered order is rated once
-     * (delivery, packaging, service). It used to be a separate form under the
-     * order; it now rides along with the first product review of that order,
-     * and later reviews of the same order just show what was given.
-     */
-    const [orderRating, setOrderRating] = useState(0);
-    const [orderHovered, setOrderHovered] = useState(0);
-    const [orderComment, setOrderComment] = useState('');
-    const [orderSaved, setOrderSaved] = useState(null);
-    const needsOrderRating = !orderFeedback && !orderSaved;
     const [hovered, setHovered] = useState(0);
     const [comment, setComment] = useState('');
     const [image, setImage] = useState(null);
@@ -131,22 +126,9 @@ const ReviewProductModal = ({ line, existingReview = null, orderFeedback = null,
     }, [onClose]);
 
     const submitMutation = useMutation({
-        mutationFn: async ({ order, ...payload }) => {
-            const res = await api.post(`/order-items/${line.id}/review`, payload);
-            if (order) {
-                try {
-                    const fb = await api.post('/feedback', order);
-                    setOrderSaved(fb.data?.feedback || { rating: order.rating, comment: order.comment });
-                } catch (orderErr) {
-                    // The product review is saved; only the order rating failed.
-                    setError(orderErr.response?.data?.message || 'Your review was posted, but the order rating could not be saved.');
-                }
-            }
-            return res;
-        },
+        mutationFn: (payload) => api.post(`/order-items/${line.id}/review`, payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
-            queryClient.invalidateQueries({ queryKey: ['my-feedback'] });
             queryClient.invalidateQueries({ queryKey: ['product-reviews', String(line.product_id)] });
         },
         onError: (err) => {
@@ -184,17 +166,10 @@ const ReviewProductModal = ({ line, existingReview = null, orderFeedback = null,
             setError('Please choose a star rating for the product.');
             return;
         }
-        if (needsOrderRating && orderRating < 1) {
-            setError('Please also rate your order experience (delivery, packaging and service).');
-            return;
-        }
         submitMutation.mutate({
             rating,
             comment: comment.trim() || null,
             image,
-            order: needsOrderRating
-                ? { order_id: line.order_id, rating: orderRating, comment: orderComment.trim() || null }
-                : null,
         });
     };
 
@@ -271,9 +246,7 @@ const ReviewProductModal = ({ line, existingReview = null, orderFeedback = null,
                         <p className="text-[9px] text-hiraya-ink-muted">
                             Reviewed {new Date(review.created_at).toLocaleDateString()}
                         </p>
-                        {(orderFeedback || orderSaved) && (
-                            <OrderRatingSummary feedback={orderFeedback || orderSaved} />
-                        )}
+                        {orderFeedback && <OrderRatingSummary feedback={orderFeedback} />}
                         <div className="flex justify-end">
                             <button type="button" onClick={onClose} className="btn-secondary cursor-pointer">
                                 Close
@@ -356,37 +329,7 @@ const ReviewProductModal = ({ line, existingReview = null, orderFeedback = null,
                             </p>
                         )}
 
-                        <div className="space-y-3 border-t border-hiraya-structure-line pt-5">
-                            {needsOrderRating ? (
-                                <>
-                                    <div>
-                                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink-muted">
-                                            Rate your order experience
-                                        </p>
-                                        <p className="mb-2 text-[11px] text-hiraya-ink-muted">Delivery, packaging and service for order #{line.order_id}.</p>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <StarRow value={orderRating} hovered={orderHovered} onHover={setOrderHovered} onSelect={setOrderRating} size={26} />
-                                            <span className="text-sm font-semibold text-hiraya-ink">
-                                                {(orderHovered || orderRating) ? `${orderHovered || orderRating} / 5 · ${RATING_LABELS[orderHovered || orderRating]}` : 'Tap a star to rate'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <textarea
-                                        value={orderComment}
-                                        onChange={(e) => setOrderComment(e.target.value)}
-                                        maxLength={2000}
-                                        rows={2}
-                                        placeholder="How was the delivery and service? (optional)"
-                                        aria-label="Comment about your order experience"
-                                        className="field resize-none"
-                                    />
-                                </>
-                            ) : (
-                                <OrderRatingSummary feedback={orderFeedback || orderSaved} />
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end gap-3 border-t border-hiraya-structure-line pt-5">
                             <button type="button" onClick={onClose} className="btn-secondary cursor-pointer">
                                 Cancel
                             </button>

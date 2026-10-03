@@ -20,6 +20,9 @@ import {
   ExternalLink,
   Check,
   Copy,
+  AlertTriangle,
+  RefreshCw,
+  Flag,
 } from 'lucide-react';
 import api from '../../../api/axios';
 import useConfirm from '../../../hooks/useConfirm';
@@ -35,13 +38,15 @@ import OrderTracker from '../../common/OrderTracker';
  * courier tracking field and the status actions (Pending, Rejected, Shipped,
  * Delivered).
  *
- * PAYMENT VERIFICATION (manual GCash / bank transfer):
- *   1. The customer pays 50% and uploads the receipt + reference number at
- *      checkout. The admin checks the reference against the store's GCash/bank
- *      app, then Approves (-> 50% paid, processing) or Rejects with a reason
- *      (-> stock returned, customer asked to re-upload).
- *   2. The customer pays the balance and uploads that receipt + reference. The
- *      admin Confirms it (-> fully paid, ready for shipping).
+ * PAYMENT VERIFICATION (manual GCash / bank transfer, ONE FULL PAYMENT):
+ *   The customer pays the whole order total and uploads the receipt. The
+ *   server runs an ADVISORY receipt check (OCR, amount/payee/date match,
+ *   duplicate and edit signals) and shows a risk level here — it is never
+ *   proof. Staff find the payment in the store's GCash / Maya / bank history,
+ *   then Verify (-> Verified / Paid, ready to ship), flag it Needs Review, or
+ *   mark Verification Failed with a reason (-> stock returned, customer asked
+ *   for the correct receipt).
+ *   Orders from the retired 50% down-payment flow keep their two-step view.
  *
  * Every action goes through the existing `/admin/orders/{id}/...` endpoints,
  * which write the audit entry and notify the customer.
@@ -49,15 +54,31 @@ import OrderTracker from '../../common/OrderTracker';
 
 /** Orders waiting on the admin to check a receipt. */
 const needsVerification = (order) =>
-  (order.payment_status === 'pending' && Boolean(order.dp_proof_image_path)) ||
+  (['pending', 'needs_review'].includes(order.payment_status) && Boolean(order.dp_proof_image_path)) ||
   (order.payment_status === '50_paid' && Boolean(order.full_payment_proof_image_path));
 
 const PAYMENT_STATUS = {
-  pending: { label: 'DP Pending', className: 'bg-hiraya-accent/12 text-hiraya-ink border-hiraya-structure-line' },
-  '50_paid': { label: '50% Paid', className: 'bg-navy-100 text-navy-800 border-navy-300/70' },
-  fully_paid: { label: 'Fully Paid', className: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30' },
-  rejected: { label: 'DP Rejected', className: 'bg-red-500/15 text-red-700 border-red-600/40' },
+  pending: { label: 'Pending Verification', className: 'bg-hiraya-accent/12 text-hiraya-ink border-hiraya-structure-line' },
+  needs_review: { label: 'Needs Review', className: 'bg-amber-500/15 text-amber-800 border-amber-600/40' },
+  '50_paid': { label: '50% Paid (legacy)', className: 'bg-navy-100 text-navy-800 border-navy-300/70' },
+  fully_paid: { label: 'Verified / Paid', className: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30' },
+  rejected: { label: 'Verification Failed', className: 'bg-red-500/15 text-red-700 border-red-600/40' },
 };
+
+const RISK_TONE = {
+  low: 'bg-emerald-500/12 text-emerald-800 border-emerald-600/35',
+  medium: 'bg-amber-500/12 text-amber-800 border-amber-600/40',
+  high: 'bg-red-500/12 text-red-700 border-red-600/40',
+};
+
+// The trusted records staff can verify a payment against (server enum).
+const VERIFY_METHODS = [
+  { id: 'gcash_history', label: 'GCash transaction history' },
+  { id: 'maya_history', label: 'Maya transaction history' },
+  { id: 'bank_statement', label: 'Bank statement / online banking' },
+  { id: 'merchant_dashboard', label: 'Merchant dashboard' },
+  { id: 'other_trusted_record', label: 'Other trusted record' },
+];
 
 const ORDER_STATUS = {
   pending: { label: 'Pending', className: 'bg-hiraya-accent/12 text-hiraya-ink border-hiraya-structure-line' },
@@ -88,7 +109,7 @@ const statusBlockReason = (order, target) => {
     return 'Orders cannot move back to an earlier step';
   }
   if (['ready_for_shipping', 'shipped', 'delivered'].includes(target) && order.payment_status !== 'fully_paid') {
-    return 'Confirm the full payment first';
+    return 'Verify the full payment first';
   }
   if (target === 'delivered' && order.order_status !== 'shipped') return 'Mark it shipped first';
   return '';
@@ -100,8 +121,8 @@ const peso = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
- * What the customer has actually paid on an order: the full total once fully
- * paid, the 50% down payment once it is verified, nothing before that.
+ * What the customer has actually paid on an order: the full total once
+ * verified; for a LEGACY 50/50 order, its verified down payment.
  */
 const paidAmount = (order) => {
   if (order.payment_status === 'fully_paid') return Number(order.total_amount || 0);
@@ -115,7 +136,7 @@ const processingLabel = (order) => {
   return describeProcessingDate(order.processing_date) + (order.placed_after_cutoff ? ' (after cut-off)' : '');
 };
 
-/** Paid in full at checkout: the first receipt covers the whole order (no balance step). */
+/** Every new order is paid in full; only legacy 50/50 orders carry a balance. */
 const paidInFull = (order) => Number(order.balance_amount) <= 0;
 
 const isRejected = (order) => order.order_status === 'rejected' || order.payment_status === 'rejected';
@@ -231,7 +252,9 @@ const PaymentStep = ({ order, type, title, amount, reference, submittedAt, hasPr
     )}
 
     <div className="grid grid-cols-2 gap-3">
-      <DetailRow label="Reference No.">
+      {/* Internal only: the transaction ID staff recorded from the trusted
+          record (or a legacy customer-typed reference). Never shown to customers. */}
+      <DetailRow label="Transaction ID (internal)">
         {reference && (
           <span className="inline-flex items-center gap-1.5">
             <span className="font-mono tracking-wide">{reference}</span>
@@ -242,21 +265,68 @@ const PaymentStep = ({ order, type, title, amount, reference, submittedAt, hasPr
       <DetailRow label="Submitted">{submittedAt && new Date(submittedAt).toLocaleString()}</DetailRow>
     </div>
 
-    {hasProof && (reference ? (
+    {hasProof && (
       <p className="rounded-lg bg-hiraya-surface px-3 py-2 text-[10px] leading-relaxed text-hiraya-ink ring-1 ring-hiraya-structure-line/70">
-        <strong>Before approving:</strong> open the store&apos;s GCash or bank app, search reference{' '}
-        <span className="font-mono">{reference}</span>, and check that <strong>{peso(amount)}</strong> was received.
-        A photo alone is not proof of payment.
+        <strong>Before verifying:</strong> open the store&apos;s GCash, Maya or bank history and find a received
+        payment of <strong>{peso(amount)}</strong> that matches this receipt. A receipt image — or the automatic
+        check below — is never proof of payment on its own.
       </p>
-    ) : (
-      <p className="rounded-lg bg-amber-500/12 px-3 py-2 text-[10px] leading-relaxed text-amber-800">
-        No reference number on this receipt. Ask the customer for it and match it in the store&apos;s GCash or bank app before approving.
-      </p>
-    ))}
+    )}
 
     {children}
   </div>
 );
+
+/** The ADVISORY receipt check (OCR + duplicate/anomaly signals). */
+const ReceiptRiskPanel = ({ order, onRecheck, busy }) => {
+  const analysis = order.receipt_analysis;
+  const level = order.receipt_risk_level;
+  const x = analysis?.extracted || {};
+  return (
+    <div className="rounded-2xl p-4 ring-1 ring-hiraya-structure-line/70 bg-hiraya-surface space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-hiraya-ink">
+          <AlertTriangle size={12} /> Automatic receipt check
+        </p>
+        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${RISK_TONE[level] || 'border-hiraya-structure-line text-hiraya-sand'}`}>
+          {level ? `${level} risk` : 'Not checked yet'}
+        </span>
+      </div>
+      <p className="text-[10px] leading-relaxed text-hiraya-sand">
+        Advisory only. AI/OCR can be fooled — approve only after you find this payment in a trusted record.
+      </p>
+      {analysis && (
+        <>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+            <div><dt className="text-[9px] uppercase tracking-widest text-hiraya-sand">Amount read</dt><dd className="text-hiraya-ink">{x.amount != null ? peso(x.amount) : '—'}</dd></div>
+            <div><dt className="text-[9px] uppercase tracking-widest text-hiraya-sand">Date read</dt><dd className="text-hiraya-ink break-words">{x.date_time || '—'}</dd></div>
+            <div><dt className="text-[9px] uppercase tracking-widest text-hiraya-sand">Recipient</dt><dd className="text-hiraya-ink break-words">{[x.recipient_name, x.recipient_account].filter(Boolean).join(' · ') || '—'}</dd></div>
+            <div><dt className="text-[9px] uppercase tracking-widest text-hiraya-sand">Provider</dt><dd className="text-hiraya-ink">{x.payment_provider || '—'}</dd></div>
+          </dl>
+          {Array.isArray(analysis.flags) && analysis.flags.length > 0 ? (
+            <ul className="space-y-1">
+              {analysis.flags.map((flag) => (
+                <li key={flag} className="flex gap-1.5 text-[10px] leading-relaxed text-amber-800">
+                  <AlertTriangle size={11} className="mt-0.5 shrink-0" /> {flag}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[10px] text-emerald-700">No anomalies detected.</p>
+          )}
+        </>
+      )}
+      <button
+        type="button"
+        onClick={onRecheck}
+        disabled={busy}
+        className="flex min-h-[36px] items-center gap-1.5 rounded-xl border border-hiraya-structure-line px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-hiraya-ink transition hover:bg-navy-900/5 cursor-pointer disabled:opacity-50"
+      >
+        {busy ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Re-run check
+      </button>
+    </div>
+  );
+};
 
 const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
   const [saving, setSaving] = useState('');
@@ -265,6 +335,13 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
   const [rejectingDp, setRejectingDp] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [tracking, setTracking] = useState(order.tracking_booking_details || '');
+  // Trusted-record verification form.
+  const [verifyMethod, setVerifyMethod] = useState('');
+  const [verifyConfirmed, setVerifyConfirmed] = useState(false);
+  const [verifyRef, setVerifyRef] = useState('');
+  const [riskAck, setRiskAck] = useState(false);
+  const [flagging, setFlagging] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
 
   /**
    * Runs one admin action against the order and merges the returned order in.
@@ -288,8 +365,45 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
     }
   };
 
-  const approveDp = () =>
-    runAction('approve-dp', () => api.patch(`/admin/orders/${order.id}/approve-dp`), 'Failed to approve the down payment.');
+  const approveDp = () => {
+    if (!verifyMethod || !verifyConfirmed) {
+      setMessage({ type: 'warn', text: 'Choose the trusted record you checked and confirm you found this payment in it.' });
+      return;
+    }
+    if (order.receipt_risk_level === 'high' && !riskAck) {
+      setMessage({ type: 'warn', text: 'This receipt is HIGH risk. Tick the acknowledgement after re-checking the transaction history.' });
+      return;
+    }
+    runAction(
+      'approve-dp',
+      () => api.patch(`/admin/orders/${order.id}/approve-dp`, {
+        verification_method: verifyMethod,
+        payment_confirmed_in_record: true,
+        transaction_reference: verifyRef.trim() || null,
+        risk_acknowledged: riskAck,
+      }),
+      'Failed to verify the payment.'
+    );
+  };
+
+  const flagPayment = async () => {
+    if (flagReason.trim().length < 4) {
+      setMessage({ type: 'warn', text: 'Add a short note on what needs review.' });
+      return;
+    }
+    const ok = await runAction(
+      'flag',
+      () => api.patch(`/admin/orders/${order.id}/flag-payment`, { reason: flagReason.trim() }),
+      'Failed to flag the payment.'
+    );
+    if (ok) {
+      setFlagging(false);
+      setFlagReason('');
+    }
+  };
+
+  const recheckReceipt = () =>
+    runAction('recheck', () => api.post(`/admin/orders/${order.id}/receipt-check`), 'The receipt check could not run.');
 
   const rejectDp = async () => {
     if (!rejectReason.trim()) {
@@ -299,7 +413,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
     const ok = await runAction(
       'reject-dp',
       () => api.patch(`/admin/orders/${order.id}/reject-dp`, { rejection_reason: rejectReason.trim() }),
-      'Failed to reject the down payment.'
+      'Failed to mark the payment as failed.'
     );
     if (ok) {
       setRejectingDp(false);
@@ -418,7 +532,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
         <div className="overflow-y-auto p-5 space-y-6">
           <section>
             <p className="mb-3 text-[9px] uppercase tracking-widest text-hiraya-sand">Order progress</p>
-            <OrderTracker order={order} />
+            <OrderTracker order={order} audience="staff" />
           </section>
 
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -468,20 +582,24 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
               <Receipt size={11} /> Payment verification
             </p>
             <p className="text-[11px] text-hiraya-olive">
-              Match the reference number and amount against the store&apos;s GCash or bank app before approving.
+              Find this payment in the store&apos;s GCash, Maya or bank transaction history before verifying it.
             </p>
+
+            {order.dp_proof_image_path && (
+              <ReceiptRiskPanel order={order} onRecheck={recheckReceipt} busy={saving === 'recheck'} />
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <PaymentStep
                 order={order}
                 type="dp"
-                title={paidInFull(order) ? '1 · Full Payment' : '1 · 50% Down Payment'}
+                title={paidInFull(order) ? 'Full Payment' : '1 · 50% Down Payment (legacy order)'}
                 amount={order.dp_amount}
                 reference={order.dp_reference_number}
                 submittedAt={order.dp_submitted_at}
                 hasProof={Boolean(order.dp_proof_image_path)}
               >
-                {order.payment_status === 'pending' && !locked && (
+                {['pending', 'needs_review'].includes(order.payment_status) && !locked && (
                   rejectingDp ? (
                     <div className="space-y-2">
                       <label htmlFor={`reject-reason-${order.id}`} className="block text-[9px] uppercase tracking-widest text-hiraya-sand">
@@ -494,7 +612,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                         maxLength={500}
                         rows={2}
                         className="w-full rounded-xl border border-hiraya-structure-line bg-hiraya-cream-deep px-3 py-2 text-[11px] text-hiraya-ink focus:border-hiraya-accent focus:outline-none"
-                        placeholder="e.g. Reference number does not match any received payment."
+                        placeholder="e.g. No matching payment was received in our GCash history."
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -512,35 +630,104 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                           className="flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition hover:bg-red-700 cursor-pointer disabled:opacity-50"
                         >
                           {saving === 'reject-dp' ? <Loader2 size={13} className="animate-spin" /> : <Ban size={13} />}
-                          Reject
+                          Mark failed
                         </button>
                       </div>
-                      <p className="text-[10px] text-hiraya-sand">Rejecting returns the reserved stock to inventory.</p>
+                      <p className="text-[10px] text-hiraya-sand">Verification Failed returns the reserved stock to inventory.</p>
+                    </div>
+                  ) : flagging ? (
+                    <div className="space-y-2">
+                      <label htmlFor={`flag-reason-${order.id}`} className="block text-[9px] uppercase tracking-widest text-hiraya-sand">
+                        What needs review? (internal note)
+                      </label>
+                      <textarea
+                        id={`flag-reason-${order.id}`}
+                        value={flagReason}
+                        onChange={(e) => setFlagReason(e.target.value)}
+                        maxLength={500}
+                        rows={2}
+                        className="w-full rounded-xl border border-hiraya-structure-line bg-hiraya-cream-deep px-3 py-2 text-[11px] text-hiraya-ink focus:border-hiraya-accent focus:outline-none"
+                        placeholder="e.g. Payment not yet visible in GCash history."
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => { setFlagging(false); setFlagReason(''); }} disabled={Boolean(saving)} className="rounded-xl border border-hiraya-structure-line px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-hiraya-ink transition hover:bg-navy-900/5 cursor-pointer disabled:opacity-50">Cancel</button>
+                        <button type="button" onClick={flagPayment} disabled={Boolean(saving)} className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition hover:bg-amber-700 cursor-pointer disabled:opacity-50">
+                          {saving === 'flag' ? <Loader2 size={13} className="animate-spin" /> : <Flag size={13} />} Needs review
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRejectingDp(true)}
-                        disabled={Boolean(saving)}
-                        className="flex items-center justify-center gap-1.5 rounded-xl border border-red-600/40 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-red-700 transition hover:bg-red-500/12 cursor-pointer disabled:opacity-50"
-                      >
-                        <Ban size={13} /> Reject
-                      </button>
-                      <button
-                        type="button"
-                        onClick={approveDp}
-                        disabled={Boolean(saving) || !order.dp_proof_image_path}
-                        className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition hover:bg-emerald-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {saving === 'approve-dp' ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
-                        Approve
-                      </button>
+                    <div className="space-y-3">
+                      {/* VERIFY AGAINST A TRUSTED RECORD — the only way to mark an order paid. */}
+                      <label className="block">
+                        <span className="mb-1 block text-[9px] uppercase tracking-widest text-hiraya-sand">Checked against</span>
+                        <select
+                          value={verifyMethod}
+                          onChange={(e) => setVerifyMethod(e.target.value)}
+                          className="w-full rounded-xl border border-hiraya-structure-line bg-hiraya-cream-deep px-3 py-2 text-[11px] text-hiraya-ink focus:border-hiraya-accent focus:outline-none"
+                        >
+                          <option value="">Choose the trusted record…</option>
+                          {VERIFY_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-[9px] uppercase tracking-widest text-hiraya-sand">Transaction ID from that record (optional, internal)</span>
+                        <input
+                          type="text"
+                          value={verifyRef}
+                          onChange={(e) => setVerifyRef(e.target.value)}
+                          maxLength={64}
+                          className="w-full rounded-xl border border-hiraya-structure-line bg-hiraya-cream-deep px-3 py-2 font-mono text-[11px] text-hiraya-ink focus:border-hiraya-accent focus:outline-none"
+                          placeholder="e.g. 9012 345 678901"
+                        />
+                      </label>
+                      <label className="flex items-start gap-2 text-[11px] text-hiraya-ink">
+                        <input type="checkbox" checked={verifyConfirmed} onChange={(e) => setVerifyConfirmed(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-600" />
+                        I found a received payment of {peso(order.dp_amount)} for this order in that record.
+                      </label>
+                      {order.receipt_risk_level === 'high' && (
+                        <label className="flex items-start gap-2 rounded-lg bg-red-500/10 p-2 text-[11px] text-red-700">
+                          <input type="checkbox" checked={riskAck} onChange={(e) => setRiskAck(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-red-600" />
+                          The receipt was flagged high risk; I re-checked the trusted record and the payment is genuine.
+                        </label>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRejectingDp(true)}
+                          disabled={Boolean(saving)}
+                          className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-red-600/40 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-red-700 transition hover:bg-red-500/12 cursor-pointer disabled:opacity-50"
+                        >
+                          <Ban size={13} /> Failed
+                        </button>
+                        {order.payment_status === 'pending' && (
+                          <button
+                            type="button"
+                            onClick={() => setFlagging(true)}
+                            disabled={Boolean(saving)}
+                            className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-amber-600/40 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 transition hover:bg-amber-500/12 cursor-pointer disabled:opacity-50"
+                          >
+                            <Flag size={13} /> Needs review
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={approveDp}
+                          disabled={Boolean(saving) || !order.dp_proof_image_path}
+                          className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition hover:bg-emerald-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {saving === 'approve-dp' ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                          Verify payment
+                        </button>
+                      </div>
                     </div>
                   )
                 )}
+                {order.payment_status === 'needs_review' && !rejectingDp && (
+                  <p className="text-[10px] text-amber-800">Needs review{order.rejection_reason ? `: ${order.rejection_reason}` : ''}.</p>
+                )}
                 {order.payment_status === 'rejected' && (
-                  <p className="text-[10px] text-red-700">Rejected — waiting for the customer to re-upload.</p>
+                  <p className="text-[10px] text-red-700">Verification failed — waiting for the customer to upload the correct receipt.</p>
                 )}
                 {['50_paid', 'fully_paid'].includes(order.payment_status) && (
                   <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
@@ -581,8 +768,8 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
                     {order.full_payment_proof_image_path ? 'Confirm full payment' : 'Waiting for balance receipt'}
                   </button>
                 )}
-                {['pending', 'rejected'].includes(order.payment_status) && (
-                  <p className="text-[10px] text-hiraya-sand">Available once the down payment is approved.</p>
+                {['pending', 'needs_review', 'rejected'].includes(order.payment_status) && (
+                  <p className="text-[10px] text-hiraya-sand">Available once the down payment is verified.</p>
                 )}
                 {order.payment_status === 'fully_paid' && (
                   <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
@@ -625,12 +812,19 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
           )}
 
           <section className="border-t border-hiraya-structure-line/80 pt-4 space-y-2 text-[11px]">
-            {[
-              ['Total', order.total_amount],
-              ['Down Payment', order.dp_amount],
-              ['Balance', order.balance_amount],
-              ['Amount Paid', paidAmount(order)],
-            ].map(([label, value]) => (
+            {(paidInFull(order)
+              ? [
+                ['Total (full payment)', order.total_amount],
+                ['Amount Paid (verified)', paidAmount(order)],
+              ]
+              : [
+                // Historical 50/50 order: kept readable as it was recorded.
+                ['Total', order.total_amount],
+                ['Down Payment (legacy)', order.dp_amount],
+                ['Balance (legacy)', order.balance_amount],
+                ['Amount Paid', paidAmount(order)],
+              ]
+            ).map(([label, value]) => (
               <div key={label} className="flex justify-between">
                 <span className="text-hiraya-sand uppercase tracking-widest text-[9px]">{label}</span>
                 <span className="text-hiraya-ink font-medium">{peso(value)}</span>
@@ -669,7 +863,7 @@ const OrderDetailSheet = ({ order, onClose, onUpdated }) => {
             <>
             {order.payment_status !== 'fully_paid' && (
               <p className="text-[10px] text-hiraya-sand">
-                Shipped and Delivered unlock once the full payment is confirmed above.
+                Shipped and Delivered unlock once the full payment is verified above.
               </p>
             )}
             {order.payment_status === '50_paid' && (

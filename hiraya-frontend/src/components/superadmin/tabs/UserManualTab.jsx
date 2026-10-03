@@ -34,11 +34,13 @@ const GUIDES = [
   {
     id: 'add-product',
     title: 'Adding a product',
-    roles: ['admin', 'superadmin'],
+    // Add / Edit / Delete Product are Super Admin only.
+    roles: ['superadmin'],
     steps: [
       'Open Inventory Management and click “Add Product”.',
       'Drop a clear, front-facing photo of the garment into step 1 and check that it is the right item.',
-      'Click “Auto-fill with AI”. The AI fills in the name, description, category and price and removes the photo background. Correct anything it got wrong in step 2.',
+      'Type the product name yourself — the AI never fills it.',
+      'Click “Auto-fill with AI”. The AI fills in the description, category and price and removes the photo background. Correct anything it got wrong in step 2.',
       'In step 3, tap every size the garment comes in and type how many you have of each (or use “Same quantity for all”).',
       'Optional — step 4: drop one photo per extra colour. Backgrounds, colour names and quantities are filled in for you; tap “Change” to fix a colour.',
       'Optional — step 5: pair it with pieces that complete the look (e.g. a polo with a coat).',
@@ -50,9 +52,10 @@ const GUIDES = [
     title: 'Processing an order (payment flow)',
     roles: ['admin', 'superadmin'],
     steps: [
-      'Open Orders Management. New orders show “Awaiting down payment” once the customer uploads the 50% receipt.',
-      'Open the order, check the receipt and reference number, then click “Approve down payment” (or reject it with a reason — the customer can re-upload).',
-      'The customer then pays the balance and uploads the second receipt. Check it and click “Confirm full payment”.',
+      'Open Orders Management. Every new order is paid in FULL with one payment and shows “Pending Verification” once the customer uploads the receipt.',
+      'Open the order and read the automatic receipt check (risk signal, amount, payee, duplicates). It is advisory only — never approve because of it.',
+      'Find the payment in the store’s GCash / Maya / bank transaction history. Only then click “Verify payment”, choose the record you checked and (optionally) enter its transaction ID. Use “Needs review” while you investigate, or “Verification failed” with a reason so the customer can upload the correct receipt.',
+      'Older orders from the retired 50% down-payment flow still show their balance and can be completed with “Confirm full payment”.',
       'Add the LBC tracking number or Lalamove booking, then mark the order “Shipped”, and “Delivered” once received.',
       'The customer is notified by e-mail and in-app at every step. After delivery they can review the products.',
     ],
@@ -62,39 +65,45 @@ const GUIDES = [
     title: 'Demonstrating the payment flow',
     roles: ['admin', 'superadmin'],
     steps: [
-      'In Orders Management click “Create demo order”. A demo order from “Demo Customer” appears with a sample down-payment receipt.',
-      'Walk through the normal steps: approve the down payment, then click “Simulate customer balance payment” in the order to stand in for the customer’s second upload.',
-      'Confirm the full payment, add tracking, ship and deliver. Customer e-mails go to the shop inbox (+demo).',
+      'In Orders Management click “Create demo order”. A demo order from “Demo Customer” appears with a sample full-payment receipt.',
+      'Walk through the normal steps: verify the payment, add tracking, ship and deliver. Customer e-mails go to the shop inbox (+demo).',
       'Demo orders never change stock and are left out of the dashboard. Click “Clear demo orders” when you are done.',
     ],
   },
   {
     id: 'customers',
-    title: 'Customers and restoring a deleted try-on',
-    roles: ['admin', 'superadmin'],
+    title: 'Customers',
+    roles: ['superadmin'],
     steps: [
-      'Open Customers Management and click a customer to see their details, orders and try-on history.',
-      'Looks the customer deleted are marked “Deleted”. If a customer writes in asking for one back, click “Restore”.',
-      'The look returns to their try-on history and they are notified by e-mail and in the app.',
+      'Open Customers Management and click a customer to see their details, orders and account activity.',
+      'Try-on photos are private to the customer and are not shown here. Customers restore their own deleted renders from Gallery → Recently Deleted.',
     ],
   },
   {
     id: 'feedback',
-    title: 'Customers feedback',
+    title: 'Product reviews',
     roles: ['admin', 'superadmin'],
     steps: [
-      'Customers Feedback lists ratings and comments from signed-in customers, with their names.',
-      'Use the star filter to focus on low ratings that may need a follow-up.',
+      'Product Reviews is the one place for customer ratings: each review has a star rating and a written review from a delivered order.',
+      'Use the All / 5 Star … 1 Star filters to focus on low ratings that may need a follow-up.',
     ],
   },
   {
     id: 'audit',
     title: 'Audit logs and stock history',
-    roles: ['admin', 'superadmin'],
+    roles: ['superadmin'],
     steps: [
       'Activity Log records who did what and when: sign-ins, sections opened, product and order changes, and customer account activity.',
       'Filter by person, area or date, and click a row to read the full details.',
       'Stock History (second tab) shows every stock count change and what caused it.',
+    ],
+  },
+  {
+    id: 'stock-history',
+    title: 'Stock history',
+    roles: ['admin'],
+    steps: [
+      'Open Audit Logs to see Stock History: every stock count change, who made it and what caused it (an order, a cancellation or a quick adjust).',
     ],
   },
   {

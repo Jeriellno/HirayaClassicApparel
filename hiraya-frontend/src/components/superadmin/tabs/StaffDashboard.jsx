@@ -15,8 +15,9 @@ import api from '../../../api/axios';
 const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 
 const NEXT_STEP = (o) => {
-  if (o.payment_status === 'pending') return 'Verify down payment';
-  if (o.payment_status === '50_paid') return 'Confirm balance';
+  if (o.payment_status === 'pending') return 'Verify payment';
+  if (o.payment_status === 'needs_review') return 'Review payment';
+  if (o.payment_status === '50_paid') return 'Confirm balance (legacy)';
   return 'Pack & ship';
 };
 

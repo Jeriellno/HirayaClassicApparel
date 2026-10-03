@@ -82,7 +82,7 @@ const MEMBER_HOME_STEPS = [
         element: anchor('home-shortcuts'),
         placement: 'bottom',
         title: 'Shortcuts',
-        text: 'The four places members go most: the AI Studio, the Shop, your Bag and your try-on history. One tap each.',
+        text: 'The four places members go most: the AI Studio, the Shop, your Bag and your try-on Gallery. One tap each.',
     },
     {
         element: anchor('studio-cta'),
@@ -172,7 +172,7 @@ const PRODUCT_STEPS = [
         element: anchor('product-tryon'),
         placement: 'left',
         title: 'Try in Virtual Try-On',
-        text: 'Sends this exact variant to the studio with your selection pre-loaded, so you see the fit on you before you commit to the down payment.',
+        text: 'Sends this exact variant to the studio with your selection pre-loaded, so you see the fit on you before you pay.',
         guestText: 'The AI studio is for members. Sign in and this button opens it with this exact piece pre-loaded.',
     },
 ];
@@ -196,13 +196,13 @@ const CART_STEPS = [
         element: anchor('cart-summary'),
         placement: 'left',
         title: 'Order summary',
-        text: 'Your total, split into the 50% down payment and the remaining balance. Proceed to Checkout carries only the pieces you ticked.',
+        text: 'Your total — paid in full with one payment at checkout. Proceed to Checkout carries only the pieces you ticked.',
     },
     {
         element: anchor('cart-studio'),
         placement: 'left',
         title: 'Try them on first',
-        text: 'Not sure? Send the whole bag to the AI studio and see the fit before committing to the down payment.',
+        text: 'Not sure? Send the whole bag to the AI studio and see the fit before you pay.',
     },
 ];
 
@@ -213,7 +213,7 @@ const CHECKOUT_STEPS = [
         element: anchor('checkout-guidelines'),
         placement: 'right',
         title: 'Order guidelines',
-        text: 'Cut-off times, the down-payment rule and how delivery works. Worth one read before you fill anything in.',
+        text: 'Cut-off times, the full-payment rule and how delivery works. Worth one read before you fill anything in.',
     },
     {
         element: anchor('checkout-shipping'),
@@ -231,13 +231,13 @@ const CHECKOUT_STEPS = [
         element: anchor('checkout-payment'),
         placement: 'top',
         title: '3 · Payment',
-        text: 'Review your items, choose a 50% down payment or full payment, scan the store QR to pay, then attach your receipt and its reference number. Any balance is settled before courier pickup.',
+        text: 'Review your items, pay the full amount (scan the store QR), then attach your receipt. We verify every payment against our records before shipping.',
     },
     {
         element: anchor('checkout-submit'),
         placement: 'top',
         title: 'Submit the order',
-        text: 'Sends the order and the down-payment proof together. You can follow its progress afterwards in My Orders.',
+        text: 'Sends the order and your payment receipt together. You can follow its verification and delivery in My Orders.',
     },
 ];
 
@@ -277,8 +277,8 @@ const TRYON_STEPS = [
     {
         element: anchor('history-toggle'),
         placement: 'auto',
-        title: 'Your try-on history',
-        text: 'Every finished render is saved automatically. Open History to compare before and after, keep favourites, or load a past outfit straight back into your stack.',
+        title: 'Your Gallery',
+        text: 'Every finished render is saved automatically. Open Gallery to compare before and after, keep favourites, or load a past outfit straight back into your stack. Deleted looks wait in Recently Deleted, where you can restore them.',
     },
 ];
 
@@ -295,7 +295,7 @@ const ORDERS_STEPS = [
         element: anchor('orders-list'),
         placement: 'top',
         title: 'Track and settle',
-        text: 'Each order shows its status and payment progress. Settle the balance or re-upload a rejected down payment from the order itself.',
+        text: 'Each order starts as a compact row — open it for details, payment verification and delivery. If a payment could not be verified, upload the correct receipt from the order itself.',
     },
     {
         element: anchor('orders-bag'),

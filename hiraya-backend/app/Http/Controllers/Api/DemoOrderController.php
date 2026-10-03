@@ -18,15 +18,15 @@ use Illuminate\Support\Str;
 /**
  * DEMO ORDERS — for presenting the payment flow (e.g. a capstone defense).
  *
- * A demo order is a REAL order row walking the REAL admin flow (verify down
- * payment -> confirm balance -> tracking -> shipped -> delivered), so what the
- * panel sees is exactly what a customer order does. Only the customer's two
- * uploads are simulated:
+ * A demo order is a REAL order row walking the REAL admin flow (verify the
+ * FULL payment -> tracking -> shipped -> delivered), so what the panel sees is
+ * exactly what a customer order does. Only the customer's upload is simulated:
  *
  *   POST   /admin/orders/demo                    a new order from "Demo Customer",
- *                                                with a generated 50% receipt,
- *                                                waiting for down-payment review
- *   POST   /admin/orders/{order}/demo-balance    the customer's balance receipt
+ *                                                with a generated full-payment
+ *                                                receipt, pending verification
+ *   POST   /admin/orders/{order}/demo-balance    LEGACY: balance receipt for an
+ *                                                old 50/50 demo order only
  *   DELETE /admin/orders/demo                    remove every demo order
  *
  * Demo orders carry `is_demo`: they never touch stock, are excluded from the
@@ -49,22 +49,21 @@ class DemoOrderController extends Controller
         $customer = $this->demoCustomer();
         $size = collect(is_array($product->sizes) ? $product->sizes : [])->first() ?: 'M';
         $total = round((float) $product->price, 2);
-        $dp = round($total / 2, 2);
 
-        $order = DB::transaction(function () use ($customer, $product, $size, $total, $dp) {
+        $order = DB::transaction(function () use ($customer, $product, $size, $total) {
+            // Full payment only (the 50% down-payment flow was removed).
             $order = Order::create([
                 'user_id' => $customer->id,
                 'total_amount' => $total,
-                'dp_amount' => $dp,
-                'balance_amount' => round($total - $dp, 2),
+                'dp_amount' => $total,
+                'balance_amount' => 0,
                 'payment_status' => 'pending',
                 'order_status' => 'pending',
                 'courier' => 'lbc',
                 'customer_name' => $customer->full_name,
                 'contact_number' => '09170000000',
                 'delivery_address' => '123 Demo Street, Barangay Sample, Quezon City, Metro Manila',
-                'dp_proof_image_path' => $this->receipt('DOWN PAYMENT (50%)', $dp, 'orders/dp-proofs'),
-                'dp_reference_number' => 'DEMO-' . strtoupper(Str::random(8)),
+                'dp_proof_image_path' => $this->receipt('FULL PAYMENT', $total, 'orders/dp-proofs'),
                 'dp_submitted_at' => now(),
             ]);
             $order->forceFill(['is_demo' => true])->save();
@@ -86,8 +85,8 @@ class DemoOrderController extends Controller
         $this->writeAudit($request, 'CREATE_DEMO_ORDER', 'ORDERS', "Demo order #{$order->id} ({$product->name}, ₱" . number_format($total, 2) . ') created for a presentation.');
 
         return response()->json([
-            'message' => "Demo order #{$order->id} created — it is waiting for down-payment verification.",
-            'order' => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product']),
+            'message' => "Demo order #{$order->id} created — its full payment is pending verification.",
+            'order' => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields(),
         ], 201);
     }
 
@@ -106,13 +105,12 @@ class DemoOrderController extends Controller
 
         $order->update([
             'full_payment_proof_image_path' => $this->receipt('REMAINING BALANCE', (float) $order->balance_amount, 'orders/full-payment-proofs'),
-            'balance_reference_number' => 'DEMO-' . strtoupper(Str::random(8)),
             'balance_proof_submitted_at' => now(),
         ]);
 
         return response()->json([
             'message' => 'The demo customer uploaded the balance receipt. You can now confirm the full payment.',
-            'order' => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product']),
+            'order' => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields(),
         ]);
     }
 

@@ -5,7 +5,7 @@
 | Payment / Payout Account Details
 |--------------------------------------------------------------------------
 |
-| Where customers send their 50% down payment (and the remaining balance).
+| Where customers send their FULL order payment (one payment per order).
 | These are surfaced to the storefront so the balance screen is never a dead
 | end: the customer always sees exactly where to send the money.
 |
@@ -20,7 +20,7 @@ return [
     // Shown above the account list (optional).
     'instructions' => env(
         'PAYMENT_INSTRUCTIONS',
-        'Send your down payment or remaining balance to any of the accounts below, then upload the receipt on your orders page. Orders placed before 3:00 PM are processed the same day.'
+        'Send the full order amount to any of the accounts below, then upload the receipt. We verify every payment against our transaction records before your order ships. Orders placed before 3:00 PM are processed the same day.'
     ),
 
     // One entry per account the store accepts. `type` is free text and only

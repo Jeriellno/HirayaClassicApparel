@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { User, Sparkles, LogOut, Settings, Menu, X, Package, ShoppingBag, ChevronDown, MessageSquare } from 'lucide-react';
+import { User, Sparkles, LogOut, Settings, Menu, X, Package, ShoppingBag, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
@@ -408,13 +408,8 @@ const Navbar = () => {
                                     <Sparkles size={18} className={location.pathname === '/try-on' ? 'text-navy-950' : 'text-hiraya-nav-muted'}/>
                                     {t('nav.tryon')}
                                 </Link>
-                                <Link
-                                    to="/feedback"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className={drawerItem(location.pathname === '/feedback')}
-                                >
-                                    <MessageSquare size={18} /> {t('nav.feedback')}
-                                </Link>
+                                {/* The separate Feedback page was merged into Product
+                                    Reviews (rate + review from My Orders). */}
 
                                 {user && (
                                     <>

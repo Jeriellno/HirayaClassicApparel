@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, History, Package, ShoppingBag, Wand2 } from 'lucide-react';
+import { ArrowUpRight, Images, Package, ShoppingBag, Wand2 } from 'lucide-react';
 import { trackSpotlight } from '../../utils/pointerSpotlight';
 
 const EASE = [0.22, 1, 0.36, 1];
@@ -29,7 +29,7 @@ const ShortcutDeck = ({ bagCount = 0 }) => {
       badge: bagCount > 0 ? bagCount : null,
     },
     { to: '/orders', icon: Package, label: 'My Orders', note: 'Track payment and delivery' },
-    { to: '/try-on?history=1', icon: History, label: 'Try-On History', note: 'Revisit your past looks' },
+    { to: '/try-on?history=1', icon: Images, label: 'Gallery', note: 'Revisit your past looks' },
   ];
 
   return (

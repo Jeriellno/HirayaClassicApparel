@@ -152,13 +152,21 @@ class UserController extends Controller
     /**
      * Permanently delete the authenticated user's account (Danger Zone).
      *
-     * Requires the CURRENT password as proof of ownership. After deletion every
-     * token is revoked so no other device can keep a dead session alive.
+     * Re-authentication: the CURRENT password is required. Then, in one
+     * transaction:
      *
-     * NOTE ON FOREIGN KEYS: cart items, orders and other child rows cascade or
-     * are soft-orphanned by the schema's own FK rules; if a hard FK blocks the
-     * delete, the 409-style error below surfaces it to the client instead of
-     * throwing an unhandled 500.
+     *   - try-on renders are force-deleted through Eloquent, so their encrypted
+     *     objects are removed from the private renders bucket too (a plain FK
+     *     cascade would orphan them);
+     *   - bag items, reviews and the profile row go with the account (FK cascade);
+     *   - ORDERS ARE RETAINED as business/financial records: the FK sets
+     *     orders.user_id to NULL, and the order keeps only the delivery snapshot
+     *     needed for the transaction history;
+     *   - notifications and every API token are removed, so all sessions end.
+     *
+     * An account with an order still in progress cannot be deleted yet (the
+     * store still has to verify, ship or deliver it) — the customer is told
+     * exactly why instead of being silently redirected.
      */
     public function deleteAccount(Request $request)
     {
@@ -181,23 +189,50 @@ class UserController extends Controller
             ], 422);
         }
 
-        try {
-            $user->tokens()->delete();
-            $user->delete();
+        $openOrder = $user->orders()
+            ->whereNotIn('order_status', ['delivered', 'rejected'])
+            ->value('id');
+        if ($openOrder) {
+            return response()->json([
+                'message' => 'Your order #' . $openOrder . ' is still in progress. You can delete your account once all your orders are delivered or cancelled.',
+                'reason'  => 'open_orders',
+            ], 409);
+        }
 
-            // Written AFTER the delete succeeds; the row keeps the account id in
-            // `subject_user_id`, so the history outlives the account.
-            AccountAudit::record($user, 'USER_ACCOUNT_DELETED', 'Customer deleted their own account.', $request);
+        $userId = $user->id;
+        $email = $user->email;
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+                // Removes each render's encrypted stored object (model hook).
+                \App\Models\TryOnSession::withTrashed()
+                    ->where('user_id', $user->id)
+                    ->select(['id', 'result_image_path'])
+                    ->each(fn ($session) => $session->forceDelete());
+
+                $user->notifications()->delete();
+                $user->tokens()->delete();
+                $user->delete();
+            });
         } catch (\Throwable $e) {
             report($e);
 
             return response()->json([
-                'message' => 'Your account could not be deleted because it still has linked records (e.g. orders). Contact support to remove them first.',
-            ], 409);
+                'message' => 'Your account could not be deleted right now. Nothing was removed — please try again or contact support.',
+            ], 500);
+        }
+
+        // Written AFTER the delete succeeds; the row keeps the account id in
+        // `subject_user_id`, so the history outlives the account.
+        try {
+            AccountAudit::record($user, 'USER_ACCOUNT_DELETED', 'Customer deleted their own account (' . $email . ', #' . $userId . '); orders kept as business records.', $request);
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return response()->json([
             'message' => 'Your account has been permanently deleted.',
+            'deleted' => true,
         ]);
     }
 }

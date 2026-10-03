@@ -219,7 +219,9 @@ export const AuthProvider = ({ children }) => {
     };
 
     /**
-     * Registers the account.
+     * Registers the account — STEP 1. New sign-ups answer 202
+     * `{ verification_required, email }`: no account exists yet until the
+     * Gmail code is verified (see verifyRegistration).
      */
     const register = async (formData) => {
         const res = await api.post('/register', formData);
@@ -233,6 +235,35 @@ export const AuthProvider = ({ children }) => {
         }
 
         return res;
+    };
+
+    /**
+     * STEP 2 of sign-up: the 6-digit code from the Gmail inbox. The account is
+     * created (already verified) and signed in by the server.
+     */
+    const verifyRegistration = async (email, code) => {
+        const res = await api.post('/register/verify', { email, code });
+        const { token } = res.data || {};
+        const userData = normalizeUser(res.data?.user);
+        if (token) {
+            persistSession(token, userData, true);
+            setUser(userData || null);
+            logoutStarted.current = false;
+        }
+        return res;
+    };
+
+    /**
+     * End the session LOCALLY after the server already revoked it (e.g. the
+     * account was just deleted). Clears React state too, so the route guards
+     * do not keep treating the visitor as signed in.
+     */
+    const endSession = (redirectTo = '/login', state = undefined) => {
+        clearStoredSession();
+        setUser(null);
+        queryClient.clear();
+        logoutStarted.current = false;
+        navigate(redirectTo, { replace: true, state });
     };
 
     const updateUser = (updatedData) => {
@@ -294,7 +325,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider
-            value={{ user, login, register, logout, loading, updateUser, refreshUser, checkUser }}
+            value={{ user, login, register, verifyRegistration, endSession, logout, loading, updateUser, refreshUser, checkUser }}
         >
             {children}
         </AuthContext.Provider>

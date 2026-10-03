@@ -35,6 +35,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
  *   - at least 8 characters   (unchanged; the one rule every endpoint already had)
  *   - at least 1 uppercase    (from Register — was client-side only)
  *   - at least 1 number       (from Register — was client-side only)
+ *   - at least 1 special char (anything that is not a letter or digit, e.g.
+ *                              ! @ # $ % _ - . ) — added for NEW passwords only;
+ *                              existing passwords keep working because sign-in
+ *                              never re-validates strength.
  *
  * Uppercase-and-number rather than a wide symbol set: it is the policy the UI
  * already advertised to customers, so enforcing it server-side makes the form's
@@ -76,6 +80,10 @@ class PasswordStrength implements ValidationRule
         if (!preg_match('/[0-9]/', $value)) {
             $fail("The {$label} must contain at least 1 number.");
         }
+
+        if (!preg_match('/[^A-Za-z0-9]/', $value)) {
+            $fail("The {$label} must contain at least 1 special character (e.g. ! @ # $ %).");
+        }
     }
 
     /**
@@ -85,6 +93,6 @@ class PasswordStrength implements ValidationRule
      */
     public static function rule(): string
     {
-        return 'required|string|min:' . self::MIN_LENGTH . '|regex:/[A-Z]/|regex:/[0-9]/';
+        return 'required|string|min:' . self::MIN_LENGTH . '|regex:/[A-Z]/|regex:/[0-9]/|regex:/[^A-Za-z0-9]/';
     }
 }

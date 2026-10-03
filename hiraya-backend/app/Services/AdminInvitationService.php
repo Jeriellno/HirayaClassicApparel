@@ -425,12 +425,17 @@ class AdminInvitationService
         return $user;
     }
 
-    /** The frontend route the invited link points at. */
+    /**
+     * The frontend route the invited link points at.
+     *
+     * Built from FRONTEND_URL only (App\Support\FrontendUrl), never from the
+     * request. In production a localhost / http / unset origin is refused here,
+     * BEFORE any mail is sent, so a superadmin is told to fix the configuration
+     * instead of an invitee receiving a link that points at localhost.
+     */
     public function invitationUrl(string $email, string $token): string
     {
-        $base = rtrim((string) config('app.frontend_url', env('FRONTEND_URL', config('app.url'))), '/');
-
-        return $base . '/accept-invitation?' . http_build_query([
+        return \App\Support\FrontendUrl::to('/accept-invitation', [
             'email' => $email,
             'token' => $token,
         ]);

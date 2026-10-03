@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
     Loader2,
     Package,
-    Truck,
     CheckCircle2,
     Clock,
     ShoppingBag,
@@ -25,13 +25,55 @@ import ReviewProductModal from './ReviewProductModal';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
 import { productForColor } from '../../utils/productVariant';
+import { useT } from '../../context/PreferencesContext';
 
-// Customer-facing labels for each backend payment status.
+// Customer-facing labels for each backend payment status (one full payment;
+// '50_paid' only appears on historical 50/50 orders). Labels are i18n keys.
 const PAYMENT_STEPS = {
-    pending: { label: 'Down Payment Pending Verification', tone: 'cream' },
-    '50_paid': { label: '50% Paid — Balance Due', tone: 'blue' },
-    fully_paid: { label: 'Fully Paid', tone: 'emerald' },
-    rejected: { label: 'Down Payment Rejected — Action Needed', tone: 'red' },
+    pending: { label: 'payment.pending', tone: 'cream' },
+    needs_review: { label: 'payment.needsReview', tone: 'cream' },
+    '50_paid': { label: 'payment.legacyBalanceDue', tone: 'blue' },
+    fully_paid: { label: 'payment.verified', tone: 'emerald' },
+    rejected: { label: 'payment.failed', tone: 'red' },
+};
+
+/*
+ * ORDER LINE IMAGE — tries the colour's catalogue card, then the product's
+ * own image, then the placeholder, so a missing or moved file never leaves a
+ * broken image on mobile or desktop.
+ */
+const OrderLineImage = ({ line, className = '' }) => {
+    const candidates = useMemo(() => {
+        const product = productForColor(line.product, line.selected_color);
+        return [product?.display_image_url, product?.image_url, line.product?.display_image_url, line.product?.image_url, line.product?.image]
+            .filter(Boolean)
+            .map((src) => getProductImageUrl(src))
+            .filter((src, i, all) => all.indexOf(src) === i)
+            .concat(getProductImageUrl(null));
+    }, [line]);
+    const [index, setIndex] = useState(0);
+
+    return (
+        <div
+            className={`shrink-0 overflow-hidden rounded-xl bg-black shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)] ${className}`}
+            // Matches the product's background theme (black for legacy cards).
+            style={{ backgroundColor: themeSurfaceFor(line.product) }}
+        >
+            <img
+                src={candidates[Math.min(index, candidates.length - 1)]}
+                onError={() => setIndex((i) => (i < candidates.length - 1 ? i + 1 : i))}
+                alt={line.product_name_snapshot || 'Item'}
+                loading="lazy"
+                decoding="async"
+                className="block h-full w-full object-contain"
+            />
+        </div>
+    );
+};
+
+OrderLineImage.propTypes = {
+    line: PropTypes.object.isRequired,
+    className: PropTypes.string,
 };
 
 const ORDER_STATUS_LABELS = {
@@ -52,12 +94,17 @@ const TONE_CLASSES = {
 };
 
 /**
- * Tab 2 of the customer dashboard: order history + the 2-step payment flow
- * (50% down payment verification, then balance settlement).
+ * Tab 2 of the customer dashboard: order history. Every order is ONE full
+ * payment that the store verifies against its own records; historical 50/50
+ * orders keep their balance step so they can still be completed.
+ *
+ * Orders start as COMPACT rows (thumbnail, number, status, date, total); a
+ * row opens to the full details.
  *
  * Talks only to /orders — kept independent from the wishlist and cart APIs.
  */
 const OrdersTab = () => {
+    const t = useT();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [orders, setOrders] = useState([]);
@@ -105,9 +152,6 @@ const OrdersTab = () => {
     useEffect(() => {
         if (focusOrderId) setExpanded((current) => new Set(current).add(focusOrderId));
     }, [focusOrderId]);
-    useEffect(() => {
-        if (orders.length === 1) setExpanded((current) => new Set(current).add(orders[0].id));
-    }, [orders]);
 
     const reviewByItem = useMemo(
         () => new Map((reviewsQuery.data || []).map((r) => [r.order_item_id, r])),
@@ -158,54 +202,24 @@ const OrdersTab = () => {
         }
     }, [fetching, focusOrderId]);
 
-    // Payment reference numbers typed per order, before the receipt is picked.
-    const [refDrafts, setRefDrafts] = useState({});
-    const refFor = (order) => (refDrafts[order.id] || '').trim();
-
-    // The file picker submits immediately, so the reference must be in first.
-    const requireReference = (order, input, file) => {
+    // The receipt must be a real image the server will accept.
+    const validReceipt = (file, input) => {
         if (file && (!/^image\/(png|jpe?g|webp)$/i.test(file.type) || file.size > 5 * 1024 * 1024)) {
-            setError('The receipt must be a PNG, JPG or WEBP image under 5 MB.');
+            setError(t('orders.receiptInvalid'));
             if (input) input.value = '';
             return false;
         }
-        if (refFor(order).length >= 4) return true;
-        setError('Enter the reference number from your GCash or bank receipt before uploading it.');
-        if (input) input.value = '';
-        return false;
+        return Boolean(file);
     };
 
-    const referenceField = (order) => (
-        <div className="max-w-sm">
-            <label
-                htmlFor={`payment-ref-${order.id}`}
-                className="mb-1.5 block text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted"
-            >
-                Payment Reference Number
-            </label>
-            <input
-                id={`payment-ref-${order.id}`}
-                type="text"
-                value={refDrafts[order.id] || ''}
-                onChange={(e) => setRefDrafts((current) => ({ ...current, [order.id]: e.target.value }))}
-                minLength={4}
-                maxLength={64}
-                autoComplete="off"
-                className="field text-xs"
-                placeholder="e.g. GCash Ref. No. 1234 567 890123"
-            />
-        </div>
-    );
-
-    // Customer submits proof of the remaining balance.
+    // LEGACY 50/50 orders only: proof of the remaining balance.
     const handlePayBalance = async (order, file, input) => {
-        if (!file || !requireReference(order, input, file)) return;
+        if (!validReceipt(file, input)) return;
         setBusyId(order.id);
         setError('');
         try {
             const payload = new FormData();
             payload.append('full_payment_proof_image', file);
-            payload.append('balance_reference_number', refFor(order));
             const res = await api.post(`/orders/${order.id}/pay-balance`, payload);
             setOrders((current) =>
                 current.map((o) => (o.id === order.id ? res.data.order : o))
@@ -217,21 +231,20 @@ const OrdersTab = () => {
         }
     };
 
-    // Recovery path: customer replaces a rejected down payment proof.
+    // Recovery path: verification failed, the customer uploads the right receipt.
     const handleReuploadDp = async (order, file, input) => {
-        if (!file || !requireReference(order, input, file)) return;
+        if (!validReceipt(file, input)) return;
         setBusyId(order.id);
         setError('');
         try {
             const payload = new FormData();
             payload.append('dp_proof_image', file);
-            payload.append('dp_reference_number', refFor(order));
             const res = await api.post(`/orders/${order.id}/reupload-dp`, payload);
             setOrders((current) =>
                 current.map((o) => (o.id === order.id ? res.data.order : o))
             );
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to re-submit your down payment proof.');
+            setError(err.response?.data?.message || t('orders.reuploadFailed'));
         } finally {
             setBusyId(null);
         }
@@ -249,7 +262,7 @@ const OrdersTab = () => {
         <div>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                    {orders.length} order{orders.length !== 1 ? 's' : ''} · Track delivery &amp; settle your balance
+                    {t('orders.count', { count: orders.length })}
                 </p>
                 <div className="flex items-center gap-2">
                     {/* All / Delivered — delivered orders are where reviews live. */}
@@ -313,16 +326,10 @@ const OrdersTab = () => {
                 <div className="space-y-5">
                     {visibleOrders.map((order) => {
                         const paidInFull = Number(order.balance_amount) <= 0;
-                        const baseStep = PAYMENT_STEPS[order.payment_status] || {
+                        const step = PAYMENT_STEPS[order.payment_status] || {
                             label: order.payment_status,
                             tone: 'cream',
                         };
-                        // Paid in full at checkout: there is no "down payment" to speak of.
-                        const step = paidInFull && order.payment_status === 'pending'
-                            ? { ...baseStep, label: 'Full Payment Pending Verification' }
-                            : paidInFull && order.payment_status === 'rejected'
-                                ? { ...baseStep, label: 'Payment Rejected — Action Needed' }
-                                : baseStep;
                         const isDelivered = order.order_status === 'delivered';
                         const isFocused = order.id === focusOrderId;
                         const isOpen = expanded.has(order.id);
@@ -342,41 +349,46 @@ const OrdersTab = () => {
                                     onClick={() => toggleOrder(order.id)}
                                     aria-expanded={isOpen}
                                     aria-controls={`order-details-${order.id}`}
-                                    className={`flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus rounded-xl ${isOpen ? 'border-b border-hiraya-structure-line pb-4' : ''}`}
+                                    className={`flex w-full min-h-[44px] cursor-pointer items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus rounded-xl ${isOpen ? 'border-b border-hiraya-structure-line pb-4' : ''}`}
                                 >
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
-                                            Order #{order.id}
+                                    {/* COMPACT ROW: thumbnail, number + status, item/date, total. */}
+                                    {lineCount > 0 ? (
+                                        <OrderLineImage line={order.order_items[0]} className="h-14 w-11 sm:h-16 sm:w-12" />
+                                    ) : (
+                                        <span className="flex h-14 w-11 shrink-0 items-center justify-center rounded-xl bg-cream-200/70 sm:h-16 sm:w-12">
+                                            <Package size={16} className="text-hiraya-ink-muted" />
                                         </span>
-                                        <span
-                                            className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${TONE_CLASSES[step.tone]}`}
-                                        >
-                                            {step.label}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                                        <span className="flex items-center gap-2"><Truck size={13} />{order.courier}</span>
-                                        <ChevronDown size={16} className={`text-hiraya-ink transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-                                    </div>
-                                    {!isOpen && (
-                                        <div className="flex w-full flex-wrap items-center justify-between gap-2 text-[11px] text-hiraya-ink-muted">
-                                            <span className="min-w-0 truncate">
-                                                {lineCount > 0
-                                                    ? `${order.order_items[0].product_name_snapshot || 'Item'}${lineCount > 1 ? ` + ${lineCount - 1} more` : ''}`
-                                                    : 'Order'}
-                                                {' · '}
-                                                {new Date(order.created_at).toLocaleDateString()}
-                                            </span>
-                                            <span className="flex items-center gap-2">
-                                                {needsReview && (
-                                                    <span className="rounded-full bg-hiraya-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-hiraya-accent">
-                                                        Review your items
-                                                    </span>
-                                                )}
-                                                <Currency amount={order.total_amount} className="font-semibold text-hiraya-ink" />
-                                            </span>
-                                        </div>
                                     )}
+                                    <span className="min-w-0 flex-1 space-y-1">
+                                        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
+                                                {t('orders.orderNo', { id: order.id })}
+                                            </span>
+                                            <span
+                                                className={`rounded-full border px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${TONE_CLASSES[step.tone]}`}
+                                            >
+                                                {t(step.label)}
+                                            </span>
+                                        </span>
+                                        <span className="block truncate text-[11px] text-hiraya-ink-muted">
+                                            {lineCount > 0
+                                                ? `${order.order_items[0].product_name_snapshot || 'Item'}${lineCount > 1 ? ` + ${lineCount - 1}` : ''}`
+                                                : t('orders.order')}
+                                            {' · '}
+                                            {new Date(order.created_at).toLocaleDateString()}
+                                            {' · '}
+                                            <span className="uppercase">{order.courier}</span>
+                                        </span>
+                                        {needsReview && !isOpen && (
+                                            <span className="inline-block rounded-full bg-hiraya-accent/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-hiraya-accent">
+                                                {t('orders.reviewYourItems')}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span className="flex shrink-0 flex-col items-end gap-1">
+                                        <Currency amount={order.total_amount} className="text-[12px] font-semibold text-hiraya-ink" />
+                                        <ChevronDown size={16} className={`text-hiraya-ink transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                                    </span>
                                 </button>
 
                                 {isOpen && (
@@ -386,31 +398,7 @@ const OrdersTab = () => {
                                     <div className="space-y-3 border-b border-hiraya-structure-line py-4">
                                         {order.order_items.map((line) => (
                                             <div key={line.id} className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-                                                <div
-                                                    className="h-16 w-12 shrink-0 overflow-hidden rounded-xl bg-black shadow-[0_8px_16px_-10px_rgba(0,0,0,0.8)]"
-                                                    // Matches the product's background theme (black for legacy cards).
-                                                    style={{ backgroundColor: themeSurfaceFor(line.product) }}
-                                                >
-                                                    {/*
-                                                     * THE PRODUCT TILE IS THE OBSIDIAN FRAME.
-                                                     * The catalog image is a finished card cut
-                                                     * out on black, so `object-cover` inside a
-                                                     * cream well cropped the frame and showed
-                                                     * black bars; `object-contain` on a black
-                                                     * well shows the whole card invisibly.
-                                                     */}
-                                                    <img
-                                                        src={getProductImageUrl(
-                                                            // The AI cut-out on the HIRAYA frame, matching
-                                                            // what the customer saw when they added it.
-                                                            productForColor(line.product, line.selected_color)?.display_image_url
-                                                            || line.product?.image_url
-                                                            || line.product?.image
-                                                        )}
-                                                        alt={line.product_name_snapshot || 'Item'}
-                                                        className="h-full w-full object-contain"
-                                                    />
-                                                </div>
+                                                <OrderLineImage line={line} className="h-16 w-12" />
                                                 <div className="min-w-0 flex-1">
                                                     <p className="truncate text-[11px] text-hiraya-ink">
                                                         {line.product_name_snapshot || `Product #${line.product_id}`}
@@ -516,34 +504,42 @@ const OrdersTab = () => {
 
                                     <div className="space-y-2">
                                         <div className="flex justify-between">
-                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">Total</span>
+                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">{t('orders.total')}</span>
                                             <Currency amount={order.total_amount} />
                                         </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                                                Down Payment
-                                            </span>
-                                            <Currency amount={order.dp_amount} className="text-hiraya-ink" />
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">Balance</span>
-                                            {order.payment_status === 'fully_paid' ? (
-                                                <span>—</span>
-                                            ) : (
-                                                <Currency amount={order.balance_amount} />
-                                            )}
-                                        </div>
+                                        {paidInFull ? (
+                                            <div className="flex justify-between">
+                                                <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">{t('orders.payment')}</span>
+                                                <span className="text-hiraya-ink">{t('orders.fullPayment')}</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {/* Historical 50/50 order, shown as it was recorded. */}
+                                                <div className="flex justify-between">
+                                                    <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                                                        {t('orders.legacyDownPayment')}
+                                                    </span>
+                                                    <Currency amount={order.dp_amount} className="text-hiraya-ink" />
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted">{t('orders.balance')}</span>
+                                                    {order.payment_status === 'fully_paid' ? (
+                                                        <span>—</span>
+                                                    ) : (
+                                                        <Currency amount={order.balance_amount} />
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Status-specific action / message */}
                                 <div className="border-t border-hiraya-structure-line pt-4">
-                                    {order.payment_status === 'pending' && (
+                                    {['pending', 'needs_review'].includes(order.payment_status) && (
                                         <p className="flex items-center gap-2 text-[11px] text-hiraya-ink-soft">
                                             <Clock size={13} className="shrink-0 text-hiraya-accent" />
-                                            We are verifying your 50% down payment
-                                            {order.dp_reference_number && ` (ref. ${order.dp_reference_number})`}. Orders
-                                            placed before 3:00 PM are processed the same day.
+                                            {order.payment_status === 'needs_review' ? t('orders.underReviewMsg') : t('orders.verifyingMsg')}
                                         </p>
                                     )}
 
@@ -552,7 +548,7 @@ const OrdersTab = () => {
                                             <div className="flex items-start gap-2 rounded-xl border border-red-600/40 bg-red-500/12 px-4 py-3 text-[11px] text-red-700">
                                                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                                                 <span>
-                                                    We could not verify your down payment.
+                                                    {t('orders.failedMsg')}
                                                     {order.rejection_reason && (
                                                         <>
                                                             {' '}
@@ -560,13 +556,11 @@ const OrdersTab = () => {
                                                             <strong className="text-red-700">{order.rejection_reason}</strong>
                                                         </>
                                                     )}{' '}
-                                                    Please re-upload a clear photo of your receipt below.
+                                                    {t('orders.uploadCorrect')}
                                                 </span>
                                             </div>
 
-                                            <PaymentInstructions amount={order.dp_amount} amountLabel="Down payment" />
-
-                                            {referenceField(order)}
+                                            <PaymentInstructions amount={order.dp_amount} amountLabel={paidInFull ? t('orders.fullPayment') : t('orders.legacyDownPayment')} />
 
                                             {/*
                                              * THE RE-UPLOAD CONTROL IS A STYLED FILE LABEL.
@@ -583,10 +577,10 @@ const OrdersTab = () => {
                                                 ) : (
                                                     <Upload size={13} />
                                                 )}
-                                                Re-upload DP Proof
+                                                {t('orders.uploadReceipt')}
                                                 <input
                                                     type="file"
-                                                    accept="image/*"
+                                                    accept="image/png,image/jpeg,image/webp"
                                                     className="hidden"
                                                     onChange={(e) => handleReuploadDp(order, e.target.files?.[0], e.target)}
                                                 />
@@ -605,9 +599,7 @@ const OrdersTab = () => {
                                             {order.balance_proof_submitted_at ? (
                                                 <p className="flex items-center gap-2 text-[11px] text-hiraya-ink-soft">
                                                     <Clock size={13} className="shrink-0 text-hiraya-accent" />
-                                                    Balance proof submitted
-                                                    {order.balance_reference_number && ` (ref. ${order.balance_reference_number})`}. We
-                                                    are verifying it — you can re-upload if you sent the wrong file.
+                                                    Balance proof submitted. We are verifying it — you can re-upload if you sent the wrong file.
                                                 </p>
                                             ) : (
                                                 <PaymentInstructions
@@ -617,7 +609,6 @@ const OrdersTab = () => {
                                             )}
 
                                             <div className="flex flex-wrap items-end gap-3">
-                                                {referenceField(order)}
                                                 <label className="flex cursor-pointer items-center gap-2 rounded-full border border-hiraya-accent-deep bg-hiraya-accent px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-on-accent shadow-[0_10px_20px_-12px_rgba(21,32,54,0.8)] transition-colors hover:bg-hiraya-accent-deep has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-hiraya-focus has-[:focus-visible]:ring-offset-2">
                                                     {busyId === order.id ? (
                                                         <Loader2 size={13} className="animate-spin" />
@@ -627,7 +618,7 @@ const OrdersTab = () => {
                                                     Pay Balance
                                                     <input
                                                         type="file"
-                                                        accept="image/*"
+                                                        accept="image/png,image/jpeg,image/webp"
                                                         className="hidden"
                                                         onChange={(e) => handlePayBalance(order, e.target.files?.[0], e.target)}
                                                     />
@@ -639,7 +630,7 @@ const OrdersTab = () => {
                                     {order.payment_status === 'fully_paid' && !['shipped', 'delivered', 'rejected'].includes(order.order_status) && (
                                         <p className="flex items-center gap-2 text-[11px] text-navy-700">
                                             <Package size={13} className="shrink-0" />
-                                            Payment complete. Your order is being prepared for shipment.
+                                            {t('orders.paidPreparing')}
                                         </p>
                                     )}
 
@@ -653,7 +644,7 @@ const OrdersTab = () => {
                                     {order.order_status === 'delivered' && (
                                         <p className="flex items-center gap-2 text-[11px] text-emerald-700">
                                             <CheckCircle2 size={13} className="shrink-0" />
-                                            Your order has been delivered. Tap Review Product to rate each item and your order experience.
+                                            {t('orders.deliveredReview')}
                                         </p>
                                     )}
 

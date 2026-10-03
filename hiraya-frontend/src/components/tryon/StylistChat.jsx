@@ -209,7 +209,7 @@ export const StylistChat = ({ messages, isTyping, onSendMessage, onSelectProduct
         {products.length > 0 && (
           <div className="space-y-1.5 pl-8 animate-fadeIn">
             <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-accent">
-              <Sparkles size={10} /> Recommended for you
+              <Sparkles size={10} /> {last?.intent === 'look_analysis' ? 'Completes this look' : 'Recommended for you'}
             </p>
             <div className="-mr-4 flex snap-x gap-2 overflow-x-auto pb-2 pr-4 [scrollbar-width:thin]">
               {products.map((p) => (
@@ -313,6 +313,7 @@ StylistChat.propTypes = {
       suggestions: PropTypes.array,
       products: PropTypes.array,
       links: PropTypes.array,
+      intent: PropTypes.string,
     })
   ).isRequired,
   isTyping: PropTypes.bool,

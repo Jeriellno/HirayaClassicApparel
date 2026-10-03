@@ -193,7 +193,7 @@ class DashboardInsightsController extends Controller
             $queue = DB::table('orders')
                 ->where('is_demo', false)
                 ->where('order_status', '<>', 'rejected')
-                ->selectRaw('SUM(CASE WHEN payment_status = ? AND dp_proof_image_path IS NOT NULL THEN 1 ELSE 0 END) AS verify_dp', ['pending'])
+                ->selectRaw('SUM(CASE WHEN payment_status IN (?, ?) AND dp_proof_image_path IS NOT NULL THEN 1 ELSE 0 END) AS verify_dp', ['pending', 'needs_review'])
                 ->selectRaw('SUM(CASE WHEN payment_status = ? AND full_payment_proof_image_path IS NOT NULL THEN 1 ELSE 0 END) AS verify_balance', ['50_paid'])
                 ->selectRaw('SUM(CASE WHEN payment_status = ? AND order_status IN (?, ?) THEN 1 ELSE 0 END) AS to_ship', ['fully_paid', 'processing', 'ready_for_shipping'])
                 ->selectRaw('SUM(CASE WHEN order_status = ? THEN 1 ELSE 0 END) AS in_transit', ['shipped'])
@@ -293,7 +293,7 @@ class DashboardInsightsController extends Controller
         try {
             $queue = DB::table('orders')
                 ->where('order_status', '<>', 'rejected')
-                ->selectRaw('SUM(CASE WHEN payment_status = ? AND dp_proof_image_path IS NOT NULL THEN 1 ELSE 0 END) AS verify_dp', ['pending'])
+                ->selectRaw('SUM(CASE WHEN payment_status IN (?, ?) AND dp_proof_image_path IS NOT NULL THEN 1 ELSE 0 END) AS verify_dp', ['pending', 'needs_review'])
                 ->selectRaw('SUM(CASE WHEN payment_status = ? AND full_payment_proof_image_path IS NOT NULL THEN 1 ELSE 0 END) AS verify_balance', ['50_paid'])
                 ->selectRaw('SUM(CASE WHEN payment_status = ? AND order_status IN (?, ?) THEN 1 ELSE 0 END) AS to_ship', ['fully_paid', 'processing', 'ready_for_shipping'])
                 ->selectRaw('SUM(CASE WHEN order_status = ? THEN 1 ELSE 0 END) AS in_transit', ['shipped'])
@@ -331,7 +331,7 @@ class DashboardInsightsController extends Controller
             $needsAction = DB::table('orders')
                 ->where('order_status', '<>', 'rejected')
                 ->where(function ($q) {
-                    $q->where(fn ($w) => $w->where('payment_status', 'pending')->whereNotNull('dp_proof_image_path'))
+                    $q->where(fn ($w) => $w->whereIn('payment_status', ['pending', 'needs_review'])->whereNotNull('dp_proof_image_path'))
                         ->orWhere(fn ($w) => $w->where('payment_status', '50_paid')->whereNotNull('full_payment_proof_image_path'))
                         ->orWhere(fn ($w) => $w->where('payment_status', 'fully_paid')->whereIn('order_status', ['processing', 'ready_for_shipping']));
                 })

@@ -89,6 +89,13 @@ function Credentials({ email, password, onDone }) {
 
 Credentials.propTypes = { email: PropTypes.string, password: PropTypes.string, onDone: PropTypes.func.isRequired };
 
+/*
+ * Authenticator state comes from the server's REAL security state
+ * (`mfa_status`, read from Supabase's verified MFA factors). The stored
+ * `mfa_enrolled_at` is only a fallback for an older API response.
+ */
+const mfaSetUp = (a) => (a.mfa_status ? a.mfa_status === 'set_up' : Boolean(a.mfa_enrolled_at));
+
 export default function AdminsTab() {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -217,7 +224,7 @@ export default function AdminsTab() {
                   <div><dt className="text-[9px] uppercase tracking-wider text-charcoal-500">Contact</dt><dd className="text-charcoal-700">{a.contact_number || '—'}</dd></div>
                   <div><dt className="text-[9px] uppercase tracking-wider text-charcoal-500">Last sign-in</dt><dd className="text-charcoal-700">{when(a.last_login_at)}</dd></div>
                   <div className="col-span-2"><dt className="text-[9px] uppercase tracking-wider text-charcoal-500">Authenticator</dt>
-                    <dd>{a.mfa_enrolled_at
+                    <dd>{mfaSetUp(a)
                       ? <span className="inline-flex items-center gap-1 font-semibold text-emerald-700"><ShieldCheck size={12} /> Set up</span>
                       : <span className="inline-flex items-center gap-1 font-semibold text-amber-700"><ShieldAlert size={12} /> On first sign-in</span>}</dd>
                   </div>
@@ -260,7 +267,7 @@ export default function AdminsTab() {
                     <td className="truncate px-4 py-3 text-charcoal-700" title={a.email}>{a.email}</td>
                     <td className="truncate px-4 py-3 text-charcoal-700">{a.contact_number || '—'}</td>
                     <td className="px-4 py-3">
-                      {a.mfa_enrolled_at ? (
+                      {mfaSetUp(a) ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700"><ShieldCheck size={12} /> Set up</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700"><ShieldAlert size={12} /> On first sign-in</span>

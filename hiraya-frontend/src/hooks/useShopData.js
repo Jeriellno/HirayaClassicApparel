@@ -6,14 +6,8 @@ import api from '../api/axios';
 import { parseVariants } from '../utils/stylistHelper';
 import { normalizeCartPayload } from '../utils/cartShape';
 import { notify } from '../utils/notify';
+import { rowsForProducts } from '../utils/shopRows';
 
-const FIXED_CATEGORIES = [
-  'Tops',
-  'Bottoms',
-  'Footwear',
-  'Outerwear',
-  'Dresses',
-];
 
 /**
  * The first REAL size for a product.
@@ -171,17 +165,9 @@ export const useShopData = () => {
   const availableCategories = useMemo(() => {
     if (!filteredProducts.length) return [];
 
-    const dbCategories = Array.from(
-      new Set(filteredProducts.map((p) => p.category?.trim()).filter(Boolean))
-    );
-
-    let orderedCategories = FIXED_CATEGORIES.filter((fixedCat) =>
-      dbCategories.some((dbCat) => {
-        const dbLower = dbCat.toLowerCase();
-        const fixedLower = fixedCat.toLowerCase();
-        return dbLower.startsWith(fixedLower.slice(0, 3)) || fixedLower.startsWith(dbLower.slice(0, 3));
-      })
-    );
+    // Every product maps to exactly one row (see utils/shopRows.js), so a
+    // product in a category outside the five original rows is still listed.
+    let orderedCategories = rowsForProducts(filteredProducts);
 
     const normalizedActive = activeSubCat?.trim().toLowerCase();
     if (normalizedActive && normalizedActive !== 'all' && normalizedActive !== 'all garments') {

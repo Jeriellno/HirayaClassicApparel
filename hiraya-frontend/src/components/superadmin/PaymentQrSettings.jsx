@@ -60,8 +60,8 @@ const PaymentQrSettings = () => {
         <QrCode size={16} className="text-hiraya-ink" /> Payment QR
       </h3>
       <p className="text-[11px] text-hiraya-sand normal-case tracking-normal leading-relaxed">
-        Upload your GCash or bank QR. Customers scan it to pay their down payment and balance, then enter the
-        reference number from their receipt — check that number in your GCash or bank app before approving.
+        Upload your GCash or bank QR. Customers scan it to pay the full order amount and upload their receipt —
+        find that payment in your GCash or bank transaction history before verifying it.
       </p>
 
       <div className="flex flex-wrap items-center gap-4">

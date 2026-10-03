@@ -51,4 +51,47 @@ if (keyRef && urlRef && keyRef !== urlRef) {
     );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/*
+ * EVERY SUPABASE REQUEST GETS A DEADLINE.
+ *
+ * auth-js calls `fetch` with no timeout, and every `getSession()` that needs a
+ * token refresh waits on ONE shared in-flight refresh. A single stalled refresh
+ * request (a dropped connection, a DNS hiccup) therefore left every later
+ * `getSession()` pending for the life of the tab: the console guard sat on
+ * "Verifying Session…", every admin request waited in the axios interceptor
+ * before it was even sent (so axios' own timeout never applied), and only a NEW
+ * tab — a new client — worked again. With a deadline, a stalled request fails,
+ * auth-js reports a retryable error, and the next call can try again.
+ */
+export const SUPABASE_REQUEST_TIMEOUT_MS = 15000;
+
+const fetchWithTimeout = (input, init = {}) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+    const callerSignal = init.signal;
+    if (callerSignal) {
+        if (callerSignal.aborted) controller.abort();
+        else callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+    return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: fetchWithTimeout },
+});
+
+/**
+ * Resolve `promise`, or reject after `ms` with an error marked `isSessionTimeout`.
+ * Used where a caller must not wait indefinitely on the auth client.
+ */
+export const withTimeout = (promise, ms, message = 'The staff session could not be confirmed in time.') => {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+            const error = new Error(message);
+            error.isSessionTimeout = true;
+            reject(error);
+        }, ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};

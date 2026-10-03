@@ -57,6 +57,31 @@ class AdminAccountController extends Controller
                 'created_at',
             ]);
 
+        /*
+         * AUTHENTICATOR STATUS FROM THE REAL SECURITY STATE.
+         *
+         * `mfa_enrolled_at` used to be written only when the console remembered
+         * to call /mfa-enrolled, so an admin who HAD set up their authenticator
+         * (and could open the console) still showed "On first sign-in". The
+         * status now comes from GoTrue's verified MFA factors; the column is
+         * back-filled when it lagged behind, and only used as a fallback when
+         * Supabase cannot be reached.
+         */
+        $factors = \App\Support\SupabaseIdentity::verifiedFactorMap();
+
+        $accounts->each(function (User $account) use ($factors) {
+            $email = \App\Support\SupabaseIdentity::canonicalEmail($account->email);
+            $verified = $factors !== null && array_key_exists($email, $factors) ? $factors[$email] : null;
+
+            if ($verified === true && $account->mfa_enrolled_at === null) {
+                $account->forceFill(['mfa_enrolled_at' => now()])->saveQuietly();
+            }
+
+            $setUp = $verified ?? ($account->mfa_enrolled_at !== null);
+            $account->setAttribute('mfa_status', $setUp ? 'set_up' : 'pending');
+            $account->setAttribute('mfa_status_source', $verified === null ? 'stored' : 'supabase');
+        });
+
         return response()->json($accounts);
     }
 
@@ -675,12 +700,13 @@ class AdminAccountController extends Controller
         return response()->json(['message' => 'Administrator removed. They can no longer sign in.']);
     }
 
-    /** A strong password that satisfies PasswordStrength (letters, a capital, a digit). */
+    /** A strong password that satisfies PasswordStrength (letters, a capital, a digit, a symbol). */
     private function generatePassword(): string
     {
         do {
-            $password = \Illuminate\Support\Str::password(14, true, true, false);
-        } while (!preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password) || !preg_match('/[a-z]/', $password));
+            $password = \Illuminate\Support\Str::password(14, true, true, true);
+        } while (!preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password) || !preg_match('/[a-z]/', $password)
+            || !preg_match('/[^A-Za-z0-9]/', $password));
 
         return $password;
     }

@@ -198,6 +198,18 @@ class ResolveSupabaseUser
          * established.
          */
 
+        /*
+         * RECORD THE VERIFIED ENROLMENT. This request already passed
+         * `supabase.aal2` (a VERIFIED TOTP challenge), so the account has a
+         * working authenticator. Stamping it here keeps the Super Admin "2FA"
+         * column truthful even when the client never called /mfa-enrolled.
+         */
+        if ($user->mfa_enrolled_at === null
+            && in_array($role, ['admin', 'superadmin'], true)
+            && $request->attributes->get('supabase_aal') === 'aal2') {
+            $user->forceFill(['mfa_enrolled_at' => now()])->saveQuietly();
+        }
+
         // Let the existing `admin` / `superadmin` middleware see a real user.
         Auth::setUser($user);
 

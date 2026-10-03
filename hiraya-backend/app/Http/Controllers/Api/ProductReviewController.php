@@ -30,6 +30,86 @@ class ProductReviewController extends Controller
      * "Review Product" for "View Review" on lines that are already done.
      */
     /**
+     * GET /api/admin/reviews — THE ONE REVIEW LIST for the console.
+     *
+     * Feedback was merged into Product Reviews, so staff read a single list:
+     * every verified-purchase product review plus any order-experience rating
+     * customers left before the merge (type "order"). Rows are LIGHT: review
+     * photos are not inlined (that is what made the old Product Reviews panel
+     * time out); `has_image` tells the console to fetch one on demand from
+     * /admin/product-reviews/{id}/image.
+     */
+    public function adminUnified(Request $request)
+    {
+        $limit = (int) min(max((int) $request->query('limit', 300), 1), 500);
+
+        $reviews = ProductReview::query()
+            ->with(['product:id,name', 'user:id,full_name,email', 'orderItem:id,selected_size,selected_color'])
+            ->select(['id', 'user_id', 'product_id', 'order_id', 'order_item_id', 'rating', 'comment', 'created_at'])
+            ->selectRaw("(image IS NOT NULL AND image <> '') AS has_image")
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(fn (ProductReview $r) => [
+                'key' => 'review-' . $r->id,
+                'type' => 'product',
+                'id' => $r->id,
+                'product_id' => $r->product_id,
+                'product_name' => $r->product?->name,
+                'size' => $r->orderItem?->selected_size,
+                'color' => $r->orderItem?->selected_color,
+                'order_id' => $r->order_id,
+                'customer_name' => $r->user?->full_name,
+                'customer_email' => $r->user?->email,
+                'rating' => (int) $r->rating,
+                'comment' => $r->comment,
+                'has_image' => (bool) $r->has_image,
+                'created_at' => optional($r->created_at)->toIso8601String(),
+            ]);
+
+        $legacy = \App\Models\Feedback::query()
+            ->whereNotNull('user_id')
+            ->with('user:id,full_name,email')
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(fn ($f) => [
+                'key' => 'feedback-' . $f->id,
+                'type' => 'order',
+                'id' => $f->id,
+                'product_id' => null,
+                'product_name' => null,
+                'size' => null,
+                'color' => null,
+                'order_id' => $f->order_id,
+                'customer_name' => $f->user?->full_name ?: $f->user_name,
+                'customer_email' => $f->user?->email ?: $f->user_email,
+                'rating' => $f->rating !== null ? (int) $f->rating : null,
+                'comment' => $f->comment,
+                'has_image' => false,
+                'created_at' => optional($f->created_at)->toIso8601String(),
+            ]);
+
+        return response()->json(
+            $reviews->concat($legacy)->sortByDesc('created_at')->values()->take($limit)->values()
+        );
+    }
+
+    /** GET /api/admin/product-reviews/{review}/image — one review photo, on demand. */
+    public function adminImage(ProductReview $review)
+    {
+        $image = (string) $review->image;
+        if (! preg_match('#^data:(image/(?:png|jpe?g|webp));base64,(.+)$#s', $image, $m)) {
+            return response()->json(['message' => 'This review has no photo.'], 404);
+        }
+
+        return response(base64_decode($m[2]) ?: '', 200, [
+            'Content-Type' => $m[1],
+            'Cache-Control' => 'private, max-age=300',
+        ]);
+    }
+
+    /**
      * GET /api/admin/product-reviews — every product review, newest first, for
      * the staff Customers Feedback screen (who, which product, which order).
      */

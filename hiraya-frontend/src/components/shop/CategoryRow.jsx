@@ -1,6 +1,7 @@
 ﻿import { motion } from 'framer-motion';
 import { PlusCircle } from 'lucide-react';
 import ProductCard from '../product/ProductCard';
+import { shopRowFor } from '../../utils/shopRows';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -27,19 +28,9 @@ const CategoryRow = ({
   const safeProducts = Array.isArray(products) ? products : [];
   const safeCategory = String(dbCategory || '');
 
-  // Ultra-flexible matching: Kukunin ang items kung 'top' vs 'tops' or 'bottom' vs 'bottoms'
-  const filtered = safeProducts.filter((p) => {
-    if (!p || !p.category) return false;
-    const prodCat = String(p.category).trim().toLowerCase();
-    const targetCat = safeCategory.trim().toLowerCase();
-    if (!prodCat || !targetCat) return false;
-
-    return (
-      prodCat === targetCat ||
-      prodCat.startsWith(targetCat.slice(0, 3)) ||
-      targetCat.startsWith(prodCat.slice(0, 3))
-    );
-  });
+  // Each product belongs to exactly one row (utils/shopRows.js) — the same
+  // mapping that decides which rows exist, so nothing eligible is dropped.
+  const filtered = safeProducts.filter((p) => p && shopRowFor(p.category) === safeCategory);
 
   if (filtered.length === 0) return null;
 

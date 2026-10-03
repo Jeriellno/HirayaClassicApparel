@@ -156,7 +156,10 @@ export default function InventoryTab({
   onUpdateProduct,
   onDeleteProduct ,
   onAnalyzeImage,
-  onAdjustStock
+  onAdjustStock,
+  // Add / Edit / Delete Product are SUPERADMIN-ONLY (the API refuses an admin
+  // too). An admin keeps the read view and the quick stock adjust.
+  canManageProducts = false
 }) {
   // Product whose stock is being quick-adjusted (null = closed).
   const [adjusting, setAdjusting] = useState(null);
@@ -337,8 +340,8 @@ export default function InventoryTab({
     });
 
   /**
-   * Auto-fill the product details from the garment photo via AI. Fills the name,
-   * description, category, the garment fit type and a sensible price when the
+   * Auto-fill the product details from the garment photo via AI. Fills the
+   * description, category (NEVER the product name — staff type that), the garment fit type and a sensible price when the
    * field is still empty, WITHOUT overwriting anything the admin already typed.
    *
    * The AI is only allowed to ADD information. It is not a "reset" — pressing it
@@ -408,7 +411,9 @@ export default function InventoryTab({
          * stock matrix: that is hand-entered data the AI has no opinion about,
          * and silently clearing it would discard real counts.
          */
-        name: overwrite ? (analysis.name || prev.name) : (prev.name || analysis.name || ''),
+        // PRODUCT NAME IS NEVER AI-FILLED: staff type it themselves, and an
+        // auto-fill run (first pass or re-run) leaves whatever they typed alone.
+        name: prev.name,
         description: overwrite
           ? (analysis.description || prev.description)
           : (prev.description || analysis.description || ''),
@@ -884,6 +889,7 @@ export default function InventoryTab({
   };
 
   const openAddModal = () => {
+    if (!canManageProducts) return;
     setEditingId(null);
     setIsEditingExistingImage(false);
     setFormData(INITIAL_FORM_STATE);
@@ -913,6 +919,7 @@ export default function InventoryTab({
   };
 
    const openEditModal = (item) => {
+    if (!canManageProducts) return;
     setEditingId(item.id);
     setIsEditingExistingImage(true);
     const aiTags = item.ai_tags || {};
@@ -1191,6 +1198,7 @@ export default function InventoryTab({
   };
 
   const handleDelete = async (item) => {
+    if (!canManageProducts) return;
     const ok = await confirm({
       title: 'Delete product?',
       message: `"${item.name || 'This product'}" will be removed from the inventory and the shop. This cannot be undone.`,
@@ -1226,12 +1234,14 @@ export default function InventoryTab({
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="px-4 py-2.5 bg-hiraya-accent hover:bg-hiraya-gold-deep text-hiraya-on-accent font-mono text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
-        >
-          <Plus size={16} /> Add Product
-        </button>
+        {canManageProducts && (
+          <button
+            onClick={openAddModal}
+            className="px-4 py-2.5 bg-hiraya-accent hover:bg-hiraya-gold-deep text-hiraya-on-accent font-mono text-xs font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shrink-0"
+          >
+            <Plus size={16} /> Add Product
+          </button>
+        )}
       </div>
 
       {/* INVENTORY TABLE */}
@@ -1260,11 +1270,15 @@ export default function InventoryTab({
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-1.5">
-                    <button type="button" onClick={() => openEditModal(item)} aria-label={`Edit ${item.name}`} className="rounded-lg border border-hiraya-structure-line p-2 text-hiraya-ink cursor-pointer"><Edit3 size={14} /></button>
+                    {canManageProducts && (
+                      <button type="button" onClick={() => openEditModal(item)} aria-label={`Edit ${item.name}`} className="rounded-lg border border-hiraya-structure-line p-2 text-hiraya-ink cursor-pointer"><Edit3 size={14} /></button>
+                    )}
                     {onAdjustStock && (
                       <button type="button" onClick={() => setAdjusting(item)} aria-label={`Adjust stock of ${item.name}`} className="rounded-lg border border-hiraya-structure-line p-2 text-hiraya-ink cursor-pointer"><SlidersHorizontal size={14} /></button>
                     )}
-                    <button type="button" onClick={() => handleDelete(item)} aria-label={`Delete ${item.name}`} className="rounded-lg border border-red-600/30 p-2 text-red-700 cursor-pointer"><Trash2 size={14} /></button>
+                    {canManageProducts && (
+                      <button type="button" onClick={() => handleDelete(item)} aria-label={`Delete ${item.name}`} className="rounded-lg border border-red-600/30 p-2 text-red-700 cursor-pointer"><Trash2 size={14} /></button>
+                    )}
                   </div>
                 </li>
               );
@@ -1490,13 +1504,15 @@ export default function InventoryTab({
                        */}
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="p-2 bg-navy-100 hover:bg-navy-200/70 border border-navy-300/70 text-navy-800 rounded-lg transition cursor-pointer"
-                            title="Edit Product"
-                          >
-                            <Edit3 size={14} />
-                          </button>
+                          {canManageProducts && (
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-2 bg-navy-100 hover:bg-navy-200/70 border border-navy-300/70 text-navy-800 rounded-lg transition cursor-pointer"
+                              title="Edit Product"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                          )}
                           {onAdjustStock && (
                             <button
                               type="button"
@@ -1508,13 +1524,15 @@ export default function InventoryTab({
                               <SlidersHorizontal size={14} />
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="p-2 bg-red-500/12 hover:bg-red-500/20 border border-red-600/40 text-red-700 rounded-lg transition cursor-pointer"
-                            title="Delete Product"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {canManageProducts && (
+                            <button
+                              onClick={() => handleDelete(item)}
+                              className="p-2 bg-red-500/12 hover:bg-red-500/20 border border-red-600/40 text-red-700 rounded-lg transition cursor-pointer"
+                              title="Delete Product"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1718,7 +1736,7 @@ export default function InventoryTab({
                       disabled={!imageFile || isAnalyzingImage}
                       aria-busy={isAnalyzingImage}
                       title={hasCompletedRun
-                        ? 'Run the AI again — it will replace the name, description, category and price, and redo the background'
+                        ? 'Run the AI again — it will replace the description, category and price (never the product name), and redo the background'
                         : 'Let the AI fill in the product details and remove the background'}
                       className={`w-full px-3 py-2.5 font-bold uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 text-[10px] transition cursor-pointer disabled:bg-hiraya-disabled-bg disabled:text-hiraya-disabled-ink disabled:shadow-none disabled:cursor-not-allowed ${
                         imageFile && !hasCompletedRun
@@ -1768,7 +1786,7 @@ export default function InventoryTab({
                       <SectionTitle n={2} title="Details" hint="Filled in by the AI — check and correct anything it got wrong." done={detailsDone} />
                       <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
                         <div className="sm:col-span-4">
-                          <label htmlFor="product_name" className={labelCls}>Product name *</label>
+                          <label htmlFor="product_name" className={labelCls}>Product name * <span className="normal-case tracking-normal font-normal text-hiraya-ink-muted">(type it yourself — AI does not fill this)</span></label>
                           <input id="product_name" type="text" name="name" required placeholder="e.g. Silk Barong Tagalog" value={formData.name} onChange={handleInputChange} className={field} />
                         </div>
                         <div className="sm:col-span-2">

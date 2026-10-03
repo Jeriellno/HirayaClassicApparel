@@ -629,7 +629,7 @@ const ProductDetail = () => {
             <div className="card px-5 py-1 sm:px-6">
               <AccordionItem
                 title={t('product.guidelines')}
-                subtitle="3:00 PM cutoff · 50% DP or full payment"
+                subtitle="3:00 PM cutoff · full payment"
                 icon={FileText}
                 defaultOpen={false}
               >
@@ -641,13 +641,12 @@ const ProductDetail = () => {
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>
-                    Pay a <strong className="text-hiraya-ink">50% down payment</strong> to secure your order, or
-                    pay in full at checkout.
+                    Pay the <strong className="text-hiraya-ink">full order amount</strong> in one payment at checkout.
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>
-                    Any remaining balance must be settled <strong className="text-hiraya-ink">before courier
-                    pickup</strong> — orders with an unpaid balance may be cancelled.
+                    We <strong className="text-hiraya-ink">verify every payment</strong> against our own GCash / bank
+                    records before your order is prepared.
                   </li>
                   <li className="flex gap-2.5">
                     <span className="text-hiraya-accent">·</span>
@@ -676,16 +675,15 @@ const ProductDetail = () => {
                 />
               </AccordionItem>
 
-              <AccordionItem title={t('product.shipping')} subtitle="Couriers, DP and balance" icon={Truck}>
+              <AccordionItem title={t('product.shipping')} subtitle="Couriers and full payment" icon={Truck}>
                 <p>
                   We ship nationwide. Choose <strong className="text-hiraya-ink">LBC</strong> for door-to-door
                   delivery, or <strong className="text-hiraya-ink">Lalamove</strong> for same-day bookings you
                   arrange yourself once the piece is ready.
                 </p>
                 <p className="mt-2.5">
-                  Pay a 50% down payment to reserve your piece and the balance before courier pickup, or
-                  pay in full at checkout. Scan the store QR, then upload your receipt with its reference
-                  number — we verify every payment.
+                  Pay the full amount at checkout: scan the store QR, then upload your receipt. We verify
+                  every payment against our transaction records before preparing your order.
                 </p>
               </AccordionItem>
             </div>

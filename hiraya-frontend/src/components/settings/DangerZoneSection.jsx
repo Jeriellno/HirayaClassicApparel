@@ -48,9 +48,15 @@ export const DangerZoneSection = ({ onDeleted }) => {
     setLoading(true);
     setError('');
     try {
-      await api.delete('/user/account', { data: { password } });
+      const res = await api.delete('/user/account', { data: { password } });
+      // Only a confirmed deletion ends the session; anything else stays here
+      // with its error so the customer is never silently sent away.
+      if (res.data?.deleted !== true) {
+        setError(res.data?.message || 'Your account could not be deleted. Please try again.');
+        return;
+      }
       setShowModal(false);
-      onDeleted?.();
+      onDeleted?.(res.data?.message);
     } catch (err) {
       const apiErrors = err.response?.data?.errors;
       if (apiErrors?.password) {
@@ -74,8 +80,9 @@ export const DangerZoneSection = ({ onDeleted }) => {
           <div>
             <p className="text-xs font-semibold text-hiraya-ink">Delete this account permanently</p>
             <p className="mt-1 text-[10px] text-hiraya-ink-muted">
-              Your profile, saved body measurements, and session will be removed. This action
-              cannot be undone.
+              Your profile, sizes, bag, try-on Gallery and sessions will be removed. Past orders are kept
+              only as store records. Accounts with an order still in progress cannot be deleted yet.
+              This action cannot be undone.
             </p>
           </div>
           <button

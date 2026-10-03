@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { reportRequestSuccess, reportRequestFailure, isBackendReachable } from '../utils/backendHealth';
-import { supabase } from '../services/supabase';
+import { supabase, withTimeout } from '../services/supabase';
+
+// Upper bound for reading / refreshing the staff (Supabase) session per request.
+const SESSION_LOOKUP_TIMEOUT_MS = 12000;
 
 // Helper to guarantee a clean API Base URL ending with '/api'
 const normalizeBaseUrl = (rawUrl) => {
@@ -175,7 +178,12 @@ api.interceptors.request.use(
 
     if (needsSupabaseToken(config)) {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        /*
+         * BOUNDED. This await happens BEFORE axios starts its own timeout, so a
+         * session lookup stuck on a stalled token refresh used to hold the
+         * request — and every dashboard query behind it — open forever.
+         */
+        const { data, error } = await withTimeout(supabase.auth.getSession(), SESSION_LOOKUP_TIMEOUT_MS);
         if (error) {
           console.error('ADMIN SUPABASE SESSION ERROR:', error);
         }
@@ -190,6 +198,20 @@ api.interceptors.request.use(
           );
         }
       } catch (error) {
+        if (error?.isSessionTimeout) {
+          // Fail THIS request with an honest, retryable message instead of
+          // sending it without a staff token (which would only come back 401).
+          const sessionError = new Error(
+            'Your staff session could not be confirmed (the sign-in service is not responding). Check your connection and try again.',
+          );
+          sessionError.isSessionTimeout = true;
+          // Shape parseApiError passes through verbatim (not "cannot reach the server").
+          sessionError.isAuthError = true;
+          sessionError.status = 0;
+          sessionError.errors = {};
+          sessionError.config = config;
+          throw sessionError;
+        }
         console.error('Could not read the Supabase session for an AAL2-gated request.', error);
       }
     }
@@ -214,10 +236,48 @@ api.interceptors.response.use(
     reportRequestSuccess();
     return response;
   },
-  (error) => {
+  async (error) => {
     const url = error?.config?.url ?? '';
     const status = error?.response?.status ?? 0;
     const data = error?.response?.data;
+
+    // A session lookup that timed out is not a backend outage: do not flip the
+    // "server unreachable" banner for it.
+    if (error?.isSessionTimeout) {
+      return Promise.reject(error);
+    }
+
+    /*
+     * ONE SILENT REFRESH FOR AN EXPIRED STAFF TOKEN.
+     *
+     * The token attached a moment ago can expire before the backend checks it
+     * (a long-idle tab, a refresh racing the request, or a small clock
+     * difference with the server). Instead of failing the dashboard, refresh
+     * the Supabase session once and replay the request with the new token. A
+     * second 401 is real and is reported as before; MFA is not bypassed — a
+     * refreshed session keeps its own aal level and the server re-checks it.
+     */
+    if (
+      status === 401 &&
+      needsSupabaseToken(error?.config) &&
+      !error.config._sessionRetried &&
+      /Invalid or expired session token/i.test(String(data?.message || ''))
+    ) {
+      try {
+        error.config._sessionRetried = true;
+        const { data: refreshed, error: refreshError } = await withTimeout(
+          supabase.auth.refreshSession(),
+          SESSION_LOOKUP_TIMEOUT_MS,
+        );
+        const freshToken = refreshed?.session?.access_token;
+        if (!refreshError && freshToken) {
+          error.config.headers.Authorization = `Bearer ${freshToken}`;
+          return api(error.config);
+        }
+      } catch (refreshFailure) {
+        console.warn('Staff session refresh before retry failed:', refreshFailure?.message);
+      }
+    }
 
     if (data && typeof data === 'object') {
       const raw = String(data.message || '');

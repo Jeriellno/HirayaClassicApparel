@@ -36,6 +36,11 @@ class TryOnSession extends Model
         'history_title',
         'garment_metadata_json',
         'result_image_base64',
+        // Opaque reference to the ENCRYPTED render in the private renders bucket
+        // (App\Support\RenderVault). New renders store only this.
+        'result_image_path',
+        // Duplicate-render fingerprint (see TryOnController::renderFingerprint).
+        'render_fingerprint',
         'ai_feedback',
         'error_message',
     ];
@@ -55,6 +60,51 @@ class TryOnSession extends Model
     protected $attributes = [
         'status' => 'queued',
     ];
+
+    /*
+     * Never serialise the image columns by accident (e.g. inside a relation
+     * dump): renders are only handed out by the owner-checked endpoints.
+     */
+    protected $hidden = [
+        'result_image_base64',
+        'result_image_path',
+        'user_photo_base64',
+    ];
+
+    protected static function booted(): void
+    {
+        // Permanent deletion removes the stored object too (Recently Deleted
+        // purge, retention purge, account deletion).
+        static::forceDeleted(function (TryOnSession $session) {
+            // After commit, so a rolled-back delete never loses the stored file.
+            $path = $session->result_image_path;
+            \Illuminate\Support\Facades\DB::afterCommit(fn () => \App\Support\RenderVault::delete($path));
+        });
+    }
+
+    /** The render as a data URI — from the private vault, or a legacy Base64 row. */
+    public function resultImage(): ?string
+    {
+        if ($this->result_image_path) {
+            return \App\Support\RenderVault::get($this->result_image_path);
+        }
+
+        return $this->result_image_base64 ?: null;
+    }
+
+    /** Does this session have a stored render (vaulted or legacy)? */
+    public function hasResultImage(): bool
+    {
+        return ! empty($this->result_image_path) || ! empty($this->result_image_base64);
+    }
+
+    /** Only sessions that actually carry a render (either storage form). */
+    public function scopeWithRender($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNotNull('result_image_path')->orWhereNotNull('result_image_base64');
+        });
+    }
 
     // Status constants
     public const STATUS_QUEUED = 'queued';
@@ -99,9 +149,22 @@ class TryOnSession extends Model
      */
     public function markCompleted(string $resultImageBase64, string $aiFeedback): void
     {
+        /*
+         * The render goes to the private, encrypted vault and the row keeps only
+         * the opaque reference. If the vault cannot store it at all, the render
+         * is kept in the legacy column rather than lost (the customer paid for it).
+         */
+        $path = null;
+        try {
+            $path = \App\Support\RenderVault::put($resultImageBase64);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('TryOnSession: render could not be vaulted: ' . $e->getMessage());
+        }
+
         $this->update([
             'status' => self::STATUS_COMPLETED,
-            'result_image_base64' => $resultImageBase64,
+            'result_image_path' => $path,
+            'result_image_base64' => $path ? null : $resultImageBase64,
             'ai_feedback' => $aiFeedback,
         ]);
     }

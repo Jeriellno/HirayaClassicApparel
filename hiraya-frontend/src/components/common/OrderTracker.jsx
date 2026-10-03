@@ -6,41 +6,83 @@ const LADDER = ['pending', 'processing', 'ready_for_shipping', 'shipped', 'deliv
 const reached = (order, status) => LADDER.indexOf(order.order_status) >= LADDER.indexOf(status);
 
 /**
- * The order's journey, newest step highlighted. Steps follow the Order
- * Guidelines: down payment → full payment → courier → delivery. Dates come
+ * The order's journey, newest step highlighted: payment verified → courier →
+ * delivery (legacy 50/50 orders keep their down payment → balance steps). Dates come
  * from the order's step timestamps; orders older than those columns show the
  * step without a date.
  */
-export const orderSteps = (order) => [
-  { key: 'placed', label: 'Order placed', at: order.created_at, done: true },
-  {
-    key: 'dp',
-    label: Number(order.balance_amount) <= 0 ? 'Payment verified' : 'Down payment verified',
-    at: order.dp_verified_at,
-    done: PAID.includes(order.payment_status),
-    hint: order.payment_status === 'pending'
-      ? 'Waiting for the store to check your receipt'
-      : order.payment_status === 'rejected' ? 'Receipt was not accepted — please upload it again' : null,
+// Hints differ by who is reading: the customer, or staff on the console.
+const HINTS = {
+  customer: {
+    pending: 'Pending verification — the store is matching your payment',
+    needs_review: 'Under review — no action needed unless we contact you',
+    rejected: 'Verification failed — please upload the correct receipt',
+    balanceSent: 'Balance receipt sent — waiting for confirmation',
+    balanceDue: 'Send the remaining balance to ship your order',
   },
-  {
-    key: 'paid',
-    label: 'Fully paid',
-    at: order.fully_paid_at,
-    done: order.payment_status === 'fully_paid',
-    hint: order.payment_status === '50_paid'
-      ? (order.balance_proof_submitted_at ? 'Balance receipt sent — waiting for confirmation' : 'Send the remaining balance to ship your order')
-      : null,
+  staff: {
+    pending: 'Receipt received — verify the full payment in the store’s payment records',
+    needs_review: 'Flagged for review — verify or mark it failed',
+    rejected: 'Verification failed — waiting for the customer’s new receipt',
+    balanceSent: 'Balance receipt received — confirm the balance',
+    balanceDue: 'Waiting for the customer’s balance payment',
   },
-  { key: 'ready', label: 'Ready to ship', at: order.ready_for_shipping_at, done: reached(order, 'ready_for_shipping') },
-  {
-    key: 'shipped',
-    label: order.courier === 'lalamove' ? 'Picked up by Lalamove' : 'Shipped via LBC',
-    at: order.shipped_at,
-    done: reached(order, 'shipped'),
-    detail: order.tracking_booking_details || null,
-  },
-  { key: 'delivered', label: 'Delivered', at: order.delivered_at, done: reached(order, 'delivered') },
-];
+};
+
+export const orderSteps = (order, audience = 'customer') => {
+  /*
+   * Every new order is ONE full payment, so its timeline has ONE payment event:
+   * "Full payment verified" (dated by `fully_paid_at`).
+   *
+   * Only a HISTORICAL 50/50 order — it still carries a balance — keeps its two
+   * real milestones, labelled as legacy so staff never mistake them for the
+   * current flow, and a partially paid order is never shown as fully paid.
+   */
+  const legacySplit = Number(order.balance_amount) > 0;
+  const hints = HINTS[audience] || HINTS.customer;
+  const paymentHint = hints[order.payment_status] ?? null;
+
+  return [
+    { key: 'placed', label: 'Order placed', at: order.created_at, done: true },
+    ...(legacySplit
+      ? [
+        {
+          key: 'dp',
+          label: '50% down payment verified (legacy order)',
+          at: order.dp_verified_at,
+          done: PAID.includes(order.payment_status),
+          hint: paymentHint,
+        },
+        {
+          key: 'paid',
+          label: 'Balance paid — fully paid (legacy order)',
+          at: order.fully_paid_at,
+          done: order.payment_status === 'fully_paid',
+          hint: order.payment_status === '50_paid'
+            ? (order.balance_proof_submitted_at ? hints.balanceSent : hints.balanceDue)
+            : null,
+        },
+      ]
+      : [
+        {
+          key: 'paid',
+          label: 'Full payment verified',
+          at: order.fully_paid_at || order.dp_verified_at,
+          done: order.payment_status === 'fully_paid',
+          hint: paymentHint,
+        },
+      ]),
+    { key: 'ready', label: 'Ready to ship', at: order.ready_for_shipping_at, done: reached(order, 'ready_for_shipping') },
+    {
+      key: 'shipped',
+      label: order.courier === 'lalamove' ? 'Picked up by Lalamove' : 'Shipped via LBC',
+      at: order.shipped_at,
+      done: reached(order, 'shipped'),
+      detail: order.tracking_booking_details || null,
+    },
+    { key: 'delivered', label: 'Delivered', at: order.delivered_at, done: reached(order, 'delivered') },
+  ];
+};
 
 const formatAt = (value) => {
   if (!value) return null;
@@ -50,9 +92,9 @@ const formatAt = (value) => {
     : date.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 };
 
-const OrderTracker = ({ order, className = '' }) => {
+const OrderTracker = ({ order, className = '', audience = 'customer' }) => {
   const rejected = order.order_status === 'rejected';
-  const steps = orderSteps(order);
+  const steps = orderSteps(order, audience);
   const current = steps.findIndex((s) => !s.done);
 
   if (rejected) {
@@ -117,6 +159,7 @@ OrderTracker.propTypes = {
     tracking_booking_details: PropTypes.string,
   }).isRequired,
   className: PropTypes.string,
+  audience: PropTypes.oneOf(['customer', 'staff']),
 };
 
 export default OrderTracker;

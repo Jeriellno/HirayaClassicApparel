@@ -123,12 +123,14 @@ export const SECTIONS_BY_ROLE = {
      * the catalogue, orders, customers and their feedback, plus the User
      * Manual and Contact Support.
      *
-     * `customers` and `audit-logs` open for an admin in a LIMITED form —
-     * masked emails, no IPs, no sizes or spend, customer-area audit rows only.
-     * The reduction is done by the API from the signed-in role, not by this
-     * list. Admin Management and System Settings stay superadmin-only.
+     * `audit-logs` opens for an admin in a LIMITED form (customer-area rows,
+     * masked). Customers, Admin Management and System Settings are
+     * superadmin-only.
      */
-    admin: ['dashboard', 'inventory', 'orders', 'customers', 'feedback', 'audit-logs', 'manual', 'support'],
+    // Customer Management was REMOVED from the Admin panel (superadmin only;
+    // the API refuses admins too). Inventory stays, but read/stock-only for an
+    // admin — Add / Edit / Delete Product are superadmin-only (UI + API).
+    admin: ['dashboard', 'inventory', 'orders', 'feedback', 'audit-logs', 'manual', 'support'],
     superadmin: ALL_SECTIONS,
 };
 

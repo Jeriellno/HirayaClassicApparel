@@ -4,12 +4,14 @@ import PropTypes from 'prop-types';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Download, Heart, History, LoaderCircle, RotateCcw, Share2, Sparkles, Trash2, X,
+  ArrowLeft, Download, Heart, Images, LoaderCircle, RotateCcw, Share2, Sparkles, Trash2, Undo2, X,
 } from 'lucide-react';
 import api, { parseApiError } from '../../api/axios';
 import useConfirm from '../../hooks/useConfirm';
+import { useT } from '../../context/PreferencesContext';
 
 export const HISTORY_QUERY_KEY = 'tryon-history';
+const TRASH_QUERY_KEY = 'tryon-trash';
 const DETAIL_QUERY_KEY = 'tryon-history-detail';
 const PAGE_SIZE = 12;
 
@@ -40,7 +42,7 @@ const retryTransient = (failureCount, error) => {
 
 /* A segmented control: a pressed-in track with one navy pill. */
 const Segmented = ({ options, value, onChange, layoutId, label }) => (
-  <div role="tablist" aria-label={label} className="flex w-fit rounded-full bg-cream-200/70 p-1 shadow-neu-inset">
+  <div role="tablist" aria-label={label} className="flex w-fit max-w-full rounded-full bg-cream-200/70 p-1 shadow-neu-inset">
     {options.map((opt) => (
       <button
         key={opt.key}
@@ -48,7 +50,7 @@ const Segmented = ({ options, value, onChange, layoutId, label }) => (
         role="tab"
         aria-selected={value === opt.key}
         onClick={() => onChange(opt.key)}
-        className={`relative cursor-pointer rounded-full px-4 py-1.5 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${
+        className={`relative flex min-h-[36px] cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus sm:px-4 ${
           value === opt.key ? 'text-hiraya-on-accent' : 'text-hiraya-ink-muted hover:text-hiraya-accent'
         }`}
       >
@@ -59,6 +61,7 @@ const Segmented = ({ options, value, onChange, layoutId, label }) => (
             className="absolute inset-0 rounded-full bg-hiraya-accent shadow-[0_8px_16px_-8px_rgba(21,32,54,0.7)]"
           />
         )}
+        {opt.icon && <opt.icon size={12} className="relative shrink-0" aria-hidden="true" />}
         <span className="relative">{opt.label}</span>
       </button>
     ))}
@@ -66,31 +69,48 @@ const Segmented = ({ options, value, onChange, layoutId, label }) => (
 );
 
 Segmented.propTypes = {
-  options: PropTypes.arrayOf(PropTypes.shape({ key: PropTypes.string, label: PropTypes.string })).isRequired,
+  options: PropTypes.arrayOf(PropTypes.shape({ key: PropTypes.string, label: PropTypes.string, icon: PropTypes.elementType })).isRequired,
   value: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
   layoutId: PropTypes.string.isRequired,
   label: PropTypes.string,
 };
 
-const Notice = ({ children, onRetry, tone = 'error' }) => (
+const Notice = ({ children, onRetry, retryLabel, tone = 'error', role }) => (
   <div
+    role={role || (tone === 'error' ? 'alert' : 'status')}
     className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-xs ${
       tone === 'error' ? 'border border-red-600/40 bg-red-500/10 text-red-700' : 'bg-cream-200/55 text-hiraya-ink shadow-neu-inset'
     }`}
   >
     <span>{children}</span>
     {onRetry && (
-      <button type="button" onClick={onRetry} className="btn-quiet shrink-0 cursor-pointer">Try again</button>
+      <button type="button" onClick={onRetry} className="btn-quiet min-h-[36px] shrink-0 cursor-pointer">{retryLabel || 'Try again'}</button>
     )}
   </div>
 );
 
-Notice.propTypes = { children: PropTypes.node, onRetry: PropTypes.func, tone: PropTypes.oneOf(['error', 'info']) };
+Notice.propTypes = {
+  children: PropTypes.node, onRetry: PropTypes.func, retryLabel: PropTypes.string, tone: PropTypes.oneOf(['error', 'info']), role: PropTypes.string,
+};
+
+const GridSkeleton = ({ label }) => (
+  <div className="grid grid-cols-2 gap-3" aria-busy="true" aria-label={label}>
+    {Array.from({ length: 4 }).map((_, i) => (
+      <div key={i} className="animate-pulse rounded-[18px] bg-hiraya-surface p-1.5 shadow-neu">
+        <div className="aspect-[4/5] rounded-xl bg-cream-200/70" />
+        <div className="mx-1 my-2.5 h-2.5 w-3/4 rounded-full bg-cream-200/80" />
+      </div>
+    ))}
+  </div>
+);
+
+GridSkeleton.propTypes = { label: PropTypes.string };
 
 /* ------------------------------------------------------------------ list -- */
 
 const HistoryList = ({ open, filter, setFilter, onOpen, onToggleFavorite }) => {
+  const t = useT();
   const favorites = filter === 'favorites';
   const query = useInfiniteQuery({
     queryKey: [HISTORY_QUERY_KEY, filter],
@@ -110,46 +130,31 @@ const HistoryList = ({ open, filter, setFilter, onOpen, onToggleFavorite }) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between gap-3 px-5 pb-4">
-        <Segmented
-          label="Which try-ons to show"
-          layoutId="studio-history-filter"
-          value={filter}
-          onChange={setFilter}
-          options={[{ key: 'all', label: 'All Try-Ons' }, { key: 'favorites', label: 'Favorites' }]}
-        />
+        <GalleryTabs filter={filter} setFilter={setFilter} />
         {!query.isLoading && total > 0 && (
-          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
-            {total} {total === 1 ? 'look' : 'looks'}
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+            {t(total === 1 ? 'gallery.lookOne' : 'gallery.looks', { n: total })}
           </span>
         )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 scrollbar-none">
         {query.isError && items.length === 0 ? (
-          <Notice onRetry={() => query.refetch()}>We couldn&apos;t load your try-on history.</Notice>
+          <Notice onRetry={() => query.refetch()}>{t('gallery.loadError')}</Notice>
         ) : query.isLoading ? (
-          <div className="grid grid-cols-2 gap-3" aria-label="Loading your looks">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-[18px] bg-hiraya-surface p-1.5 shadow-neu">
-                <div className="aspect-[4/5] rounded-xl bg-cream-200/70" />
-                <div className="mx-1 my-2.5 h-2.5 w-3/4 rounded-full bg-cream-200/80" />
-              </div>
-            ))}
-          </div>
+          <GridSkeleton label={t('gallery.loading')} />
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center px-4 py-12 text-center">
             <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-navy-900 text-cream-100 shadow-neu">
               {favorites ? <Heart size={24} /> : <Sparkles size={24} />}
             </div>
-            <h3 className="font-serif text-lg text-hiraya-ink">{favorites ? 'No favorites yet' : 'No try-ons yet'}</h3>
+            <h3 className="font-serif text-lg text-hiraya-ink">{favorites ? t('gallery.noFavorites') : t('gallery.empty')}</h3>
             <p className="mt-2 max-w-[16rem] text-xs leading-5 text-hiraya-ink-muted">
-              {favorites
-                ? 'Tap the heart on a look to keep your best fittings here.'
-                : 'Generate a fitting on the canvas — every finished render is saved here automatically.'}
+              {favorites ? t('gallery.noFavoritesHint') : t('gallery.emptyHint')}
             </p>
             {favorites && (
               <button type="button" onClick={() => setFilter('all')} className="btn-secondary mt-5 cursor-pointer rounded-full">
-                View All Try-Ons
+                {t('gallery.viewAll')}
               </button>
             )}
           </div>
@@ -169,7 +174,8 @@ const HistoryList = ({ open, filter, setFilter, onOpen, onToggleFavorite }) => {
                           src={imageSrc(item.thumbnail)}
                           alt={item.title}
                           loading="lazy"
-                          className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+                          decoding="async"
+                          className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-cream-400"><Sparkles size={20} /></div>
@@ -185,8 +191,8 @@ const HistoryList = ({ open, filter, setFilter, onOpen, onToggleFavorite }) => {
                     type="button"
                     onClick={() => onToggleFavorite(item)}
                     aria-pressed={!!item.is_favorite}
-                    aria-label={item.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-                    className="absolute right-3 top-3 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-black/60 text-cream-100 backdrop-blur-sm transition-colors hover:bg-hiraya-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100"
+                    aria-label={item.is_favorite ? t('gallery.unfavorite') : t('gallery.favorite')}
+                    className="absolute right-2.5 top-2.5 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-cream-100 backdrop-blur-sm transition-colors hover:bg-hiraya-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-cream-100"
                   >
                     <Heart size={15} className={item.is_favorite ? 'fill-current' : ''} />
                   </button>
@@ -202,12 +208,12 @@ const HistoryList = ({ open, filter, setFilter, onOpen, onToggleFavorite }) => {
                 className="btn-secondary mx-auto mt-5 flex cursor-pointer rounded-full disabled:cursor-wait"
               >
                 {query.isFetchingNextPage ? <LoaderCircle size={14} className="animate-spin" /> : null}
-                {query.isFetchingNextPage ? 'Loading…' : 'Load more looks'}
+                {query.isFetchingNextPage ? t('common.loading') : t('gallery.loadMore')}
               </button>
             )}
             {query.isError && items.length > 0 && (
               <div className="mt-4">
-                <Notice onRetry={() => query.fetchNextPage()}>Couldn&apos;t load more looks.</Notice>
+                <Notice onRetry={() => query.fetchNextPage()}>{t('gallery.loadMoreError')}</Notice>
               </div>
             )}
           </>
@@ -225,9 +231,174 @@ HistoryList.propTypes = {
   onToggleFavorite: PropTypes.func.isRequired,
 };
 
+/* All / Favorites / Recently Deleted — one tab row shared by both lists. */
+const GalleryTabs = ({ filter, setFilter }) => {
+  const t = useT();
+  return (
+    <Segmented
+      label={t('gallery.tabsLabel')}
+      layoutId="studio-gallery-filter"
+      value={filter}
+      onChange={setFilter}
+      options={[
+        { key: 'all', label: t('gallery.all') },
+        { key: 'favorites', label: t('gallery.favorites'), icon: Heart },
+        { key: 'trash', label: t('gallery.recentlyDeleted'), icon: Trash2 },
+      ]}
+    />
+  );
+};
+
+GalleryTabs.propTypes = { filter: PropTypes.string.isRequired, setFilter: PropTypes.func.isRequired };
+
+/* ----------------------------------------------------- recently deleted -- */
+
+/**
+ * RECENTLY DELETED — soft-deleted renders, kept for the retention window.
+ * Each can be restored to the Gallery or deleted forever (which also removes
+ * the stored file). Only the signed-in customer's own renders are listed
+ * (the API scopes every call to the session's user).
+ */
+const TrashList = ({ open, filter, setFilter, onRestore, onPurge, onEmpty, busyId }) => {
+  const t = useT();
+  const query = useInfiniteQuery({
+    queryKey: [TRASH_QUERY_KEY],
+    queryFn: async ({ pageParam }) => (await api.get('/tryon/history-trash', {
+      params: { per_page: PAGE_SIZE, page: pageParam },
+    })).data,
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last?.current_page < last?.last_page ? last.current_page + 1 : undefined),
+    enabled: open,
+    staleTime: 30 * 1000,
+    retry: retryTransient,
+  });
+
+  const items = (query.data?.pages ?? []).flatMap((page) => (Array.isArray(page?.data) ? page.data : []));
+  const total = query.data?.pages?.[0]?.total ?? 0;
+  const retention = query.data?.pages?.[0]?.retention_days ?? 30;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-3">
+        <GalleryTabs filter={filter} setFilter={setFilter} />
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 scrollbar-none">
+        <p className="mb-3 rounded-xl bg-cream-200/55 px-3.5 py-2.5 text-[11px] leading-relaxed text-hiraya-ink shadow-neu-inset">
+          {t('gallery.trashInfo', { days: retention })}
+        </p>
+
+        {query.isError && items.length === 0 ? (
+          <Notice onRetry={() => query.refetch()}>{t('gallery.trashLoadError')}</Notice>
+        ) : query.isLoading ? (
+          <GridSkeleton label={t('gallery.loading')} />
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center px-4 py-10 text-center">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-navy-900 text-cream-100 shadow-neu">
+              <Trash2 size={22} />
+            </div>
+            <h3 className="font-serif text-lg text-hiraya-ink">{t('gallery.trashEmpty')}</h3>
+            <p className="mt-2 max-w-[16rem] text-xs leading-5 text-hiraya-ink-muted">{t('gallery.trashEmptyHint')}</p>
+            <button type="button" onClick={() => setFilter('all')} className="btn-secondary mt-5 cursor-pointer rounded-full">
+              {t('gallery.backToGallery')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                {t(total === 1 ? 'gallery.lookOne' : 'gallery.looks', { n: total })}
+              </span>
+              <button
+                type="button"
+                onClick={onEmpty}
+                disabled={busyId === '__all__'}
+                className="inline-flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold text-red-700 transition-colors hover:bg-red-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50 disabled:cursor-wait disabled:opacity-60"
+              >
+                {busyId === '__all__' ? <LoaderCircle size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {t('gallery.emptyTrash')}
+              </button>
+            </div>
+            <ul className="grid grid-cols-2 gap-3">
+              {items.map((item) => {
+                const busy = busyId === item.session_id;
+                return (
+                  <li key={item.session_id} className="rounded-[18px] bg-hiraya-surface p-1.5 shadow-neu ring-1 ring-cream-50/80">
+                    <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-black">
+                      {item.thumbnail ? (
+                        <img src={imageSrc(item.thumbnail)} alt={item.title} loading="lazy" decoding="async" className="h-full w-full object-contain opacity-75 grayscale-[35%]" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-cream-400"><Sparkles size={20} /></div>
+                      )}
+                      <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] ${
+                        item.days_left != null && item.days_left <= 3 ? 'bg-red-700 text-white' : 'bg-black/70 text-white'
+                      }`}
+                      >
+                        {item.days_left === 0 ? t('gallery.lastDay') : t('gallery.daysLeft', { n: item.days_left ?? retention })}
+                      </span>
+                    </div>
+                    <div className="px-1.5 pt-2">
+                      <p className="truncate text-xs font-semibold text-hiraya-ink" title={item.title}>{item.title}</p>
+                      <p className="mt-0.5 text-[10px] text-hiraya-ink-muted">{t('gallery.deletedOn', { date: formatDate(item.deleted_at) })}</p>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onRestore(item)}
+                        disabled={busy}
+                        aria-label={`${t('gallery.restore')}: ${item.title}`}
+                        className="flex min-h-[40px] cursor-pointer items-center justify-center gap-1 rounded-xl bg-navy-900 px-2 text-[10px] font-bold uppercase tracking-wider text-cream-100 transition-colors hover:bg-navy-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {busy ? <LoaderCircle size={12} className="animate-spin" /> : <Undo2 size={12} />}
+                        {t('gallery.restore')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onPurge(item)}
+                        disabled={busy}
+                        aria-label={`${t('gallery.deleteForever')}: ${item.title}`}
+                        className="flex min-h-[40px] cursor-pointer items-center justify-center gap-1 rounded-xl border border-red-600/40 px-2 text-[10px] font-bold uppercase tracking-wider text-red-700 transition-colors hover:bg-red-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/50 disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <Trash2 size={12} />
+                        {t('gallery.delete')}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {query.hasNextPage && (
+              <button
+                type="button"
+                onClick={() => query.fetchNextPage()}
+                disabled={query.isFetchingNextPage}
+                className="btn-secondary mx-auto mt-5 flex cursor-pointer rounded-full disabled:cursor-wait"
+              >
+                {query.isFetchingNextPage ? <LoaderCircle size={14} className="animate-spin" /> : null}
+                {query.isFetchingNextPage ? t('common.loading') : t('gallery.loadMore')}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+TrashList.propTypes = {
+  open: PropTypes.bool.isRequired,
+  filter: PropTypes.string.isRequired,
+  setFilter: PropTypes.func.isRequired,
+  onRestore: PropTypes.func.isRequired,
+  onPurge: PropTypes.func.isRequired,
+  onEmpty: PropTypes.func.isRequired,
+  busyId: PropTypes.string,
+};
+
 /* ---------------------------------------------------------------- detail -- */
 
 const HistoryDetail = ({ item, onBack, onToggleFavorite, onUseOutfit, onDelete }) => {
+  const t = useT();
   const [view, setView] = useState('after');
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState(null); // { tone, text }
@@ -291,7 +462,7 @@ const HistoryDetail = ({ item, onBack, onToggleFavorite, onUseOutfit, onDelete }
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5 scrollbar-none">
       <button type="button" onClick={onBack} className="btn-quiet mb-3 w-fit cursor-pointer">
-        <ArrowLeft size={14} /> All looks
+        <ArrowLeft size={14} /> {t('gallery.backToGallery')}
       </button>
 
       <div className="rounded-[20px] bg-hiraya-surface p-2 shadow-neu ring-1 ring-cream-50/80">
@@ -366,7 +537,7 @@ const HistoryDetail = ({ item, onBack, onToggleFavorite, onUseOutfit, onDelete }
         </div>
         <button type="button" onClick={remove} disabled={busy === 'delete'} className="btn-danger mt-2 w-full cursor-pointer rounded-full disabled:cursor-wait">
           {busy === 'delete' ? <LoaderCircle size={15} className="animate-spin" /> : <Trash2 size={15} />}
-          Delete Try-On
+          {t('gallery.moveToTrash')}
         </button>
       </div>
     </div>
@@ -384,21 +555,31 @@ HistoryDetail.propTypes = {
 /* ----------------------------------------------------------------- panel -- */
 
 /**
- * TRY-ON HISTORY — the Studio's own record of finished fittings.
+ * GALLERY (formerly "Try-On History") — the Studio's record of finished
+ * fittings, plus RECENTLY DELETED.
  *
- * Lives in a SideDrawer on the AI Try-On page (it used to be a separate page
- * linked from the navbar), so the customer can look back, compare before and
- * after, and load a past outfit into the Style Stack without leaving the
- * canvas. The list is light (thumbnails only); a look's full images are
- * fetched when it is opened.
+ * Lives in a SideDrawer on the AI Try-On page, so the customer can look back,
+ * compare before and after, and load a past outfit into the Style Stack
+ * without leaving the canvas. Deleting a render is a SOFT delete: it moves to
+ * Recently Deleted, where it can be restored or deleted forever until the
+ * retention window (TRYON_TRASH_RETENTION_DAYS) purges it. Renders are served
+ * only through the owner-checked API (never a public URL).
  */
 const TryOnHistoryPanel = ({ open, onClose, onUseOutfit, className = '' }) => {
+  const t = useT();
   const reduce = useReducedMotion();
   const queryClient = useQueryClient();
   const [confirm, confirmDialog] = useConfirm();
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState(null); // { text, undo? }
+  const [busyId, setBusyId] = useState(null);
+
+  const refreshLists = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: [HISTORY_QUERY_KEY] }),
+    queryClient.invalidateQueries({ queryKey: [TRASH_QUERY_KEY] }),
+  ]);
 
   // Patch one look in every cached list (All and Favorites) and the open detail.
   const patchLook = (sessionId, patch) => {
@@ -424,27 +605,88 @@ const TryOnHistoryPanel = ({ open, onClose, onUseOutfit, className = '' }) => {
       queryClient.invalidateQueries({ queryKey: [HISTORY_QUERY_KEY, 'favorites'] });
     } catch {
       patchLook(item.session_id, { is_favorite: item.is_favorite });
-      setError("We couldn't update this favorite. Please try again.");
+      setError(t('gallery.favoriteError'));
     }
   };
 
+  const restoreLook = async (item, { silent = false } = {}) => {
+    setBusyId(item.session_id);
+    setError('');
+    try {
+      await api.post(`/tryon/history/${item.session_id}/restore`);
+      await refreshLists();
+      setNotice(silent ? null : { text: t('gallery.restored') });
+      return true;
+    } catch {
+      setError(t('gallery.restoreError'));
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // SOFT delete: moves the look to Recently Deleted (with an Undo).
   const deleteLook = async (item) => {
     const ok = await confirm({
-      title: 'Delete try-on?',
-      message: 'This try-on and its saved images will be deleted. This cannot be undone.',
-      confirmText: 'Delete',
+      title: t('gallery.moveConfirmTitle'),
+      message: t('gallery.moveConfirmBody'),
+      confirmText: t('gallery.moveToTrash'),
       danger: true,
     });
     if (!ok) return false;
     try {
       await api.delete(`/tryon/history/${item.session_id}`);
       queryClient.removeQueries({ queryKey: [DETAIL_QUERY_KEY, item.session_id] });
-      await queryClient.invalidateQueries({ queryKey: [HISTORY_QUERY_KEY] });
+      await refreshLists();
       setSelected(null);
+      setNotice({ text: t('gallery.moved'), undo: item });
       return true;
     } catch {
-      setError("We couldn't delete this try-on. Please try again.");
+      setError(t('gallery.deleteError'));
       return false;
+    }
+  };
+
+  // PERMANENT delete of one look already in Recently Deleted.
+  const purgeLook = async (item) => {
+    const ok = await confirm({
+      title: t('gallery.purgeConfirmTitle'),
+      message: t('gallery.purgeConfirmBody'),
+      confirmText: t('gallery.deleteForever'),
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyId(item.session_id);
+    setError('');
+    try {
+      await api.delete(`/tryon/history/${item.session_id}/permanent`);
+      await queryClient.invalidateQueries({ queryKey: [TRASH_QUERY_KEY] });
+      setNotice({ text: t('gallery.purged') });
+    } catch {
+      setError(t('gallery.purgeError'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const emptyTrash = async () => {
+    const ok = await confirm({
+      title: t('gallery.emptyConfirmTitle'),
+      message: t('gallery.emptyConfirmBody'),
+      confirmText: t('gallery.emptyTrash'),
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyId('__all__');
+    setError('');
+    try {
+      await api.delete('/tryon/history-trash');
+      await queryClient.invalidateQueries({ queryKey: [TRASH_QUERY_KEY] });
+      setNotice({ text: t('gallery.emptied') });
+    } catch {
+      setError(t('gallery.purgeError'));
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -459,11 +701,11 @@ const TryOnHistoryPanel = ({ open, onClose, onUseOutfit, className = '' }) => {
       <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-5">
         <h2 className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy-900 text-cream-100 shadow-neu-sm">
-            <History size={15} />
+            <Images size={15} />
           </span>
-          Try-On History
+          {t('gallery.title')}
         </h2>
-        <button type="button" onClick={onClose} aria-label="Close try-on history" className="btn-icon h-9 w-9 cursor-pointer rounded-full">
+        <button type="button" onClick={onClose} aria-label={t('gallery.close')} className="btn-icon h-10 w-10 cursor-pointer rounded-full">
           <X size={17} />
         </button>
       </div>
@@ -471,6 +713,17 @@ const TryOnHistoryPanel = ({ open, onClose, onUseOutfit, className = '' }) => {
       {error && (
         <div className="px-5 pb-3">
           <Notice>{error}</Notice>
+        </div>
+      )}
+      {notice && !error && (
+        <div className="px-5 pb-3">
+          <Notice
+            tone="info"
+            onRetry={notice.undo ? () => restoreLook(notice.undo, { silent: true }) : () => setNotice(null)}
+            retryLabel={notice.undo ? t('gallery.undo') : t('common.close')}
+          >
+            {notice.text}
+          </Notice>
         </div>
       )}
 
@@ -501,13 +754,25 @@ const TryOnHistoryPanel = ({ open, onClose, onUseOutfit, className = '' }) => {
             exit={reduce ? { opacity: 0 } : { opacity: 0, x: -24 }}
             transition={{ duration: 0.2 }}
           >
-            <HistoryList
-              open={open}
-              filter={filter}
-              setFilter={setFilter}
-              onOpen={setSelected}
-              onToggleFavorite={toggleFavorite}
-            />
+            {filter === 'trash' ? (
+              <TrashList
+                open={open}
+                filter={filter}
+                setFilter={setFilter}
+                onRestore={restoreLook}
+                onPurge={purgeLook}
+                onEmpty={emptyTrash}
+                busyId={busyId}
+              />
+            ) : (
+              <HistoryList
+                open={open}
+                filter={filter}
+                setFilter={setFilter}
+                onOpen={setSelected}
+                onToggleFavorite={toggleFavorite}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

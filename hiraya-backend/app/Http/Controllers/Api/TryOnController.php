@@ -10,6 +10,8 @@ use App\Services\SizeChart;
 use App\Services\TryOnPreProcessor;
 use App\Services\GeminiKeyPool;
 use App\Support\LocalAsset;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -297,6 +299,47 @@ TXT;
         // customer's SIZE profile via the size chart — see bodyMetricsFor().
         $measurements = $this->bodyMetricsFor($user);
 
+        /*
+         * DUPLICATE-RENDER PROTECTION (credit protection).
+         *
+         * Every render is a paid call to the try-on provider. Before paying,
+         * look for THIS customer's own render of the exact same inputs: the
+         * same source photo bytes, the same garment images/products/categories,
+         * the same sizing profile and the same render pipeline version. The
+         * fingerprint is a sha256 over the CONTENT, never a filename, so a
+         * changed photo, garment, size or pipeline version is a new render.
+         *
+         * Matching is always scoped to user_id, so one customer's cached render
+         * can never be served to another. A lock stops a double-click from
+         * starting two identical paid renders.
+         */
+        $fingerprint = $this->renderFingerprint($userPhoto, $garmentPhotos, $garmentCategories, $garmentMetadata, $measurements);
+        $lock = Cache::lock('tryon-fp:' . $user->id . ':' . $fingerprint, 15);
+        if (! $lock->get()) {
+            return response()->json([
+                'message' => 'This exact fitting is already being started. Please wait a moment.',
+            ], 409);
+        }
+
+        try {
+            if ($reused = $this->reusableRender($user->id, $fingerprint)) {
+                return $reused;
+            }
+
+            return $this->startNewRender($user, $userPhoto, $garmentPhotos, $garmentCategories, $garmentMetadata,
+                $historyTitle, $measurements, $fingerprint, $assetWarnings);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * The rest of the original initiate flow: plan, store, dispatch the PAID render.
+     * Unchanged apart from recording the fingerprint and vault-aware reads.
+     */
+    private function startNewRender($user, string $userPhoto, array $garmentPhotos, array $garmentCategories,
+        array $garmentMetadata, string $historyTitle, array $measurements, string $fingerprint, array $assetWarnings): JsonResponse
+    {
         // Create unique session ID
         $sessionId = 'tryon_' . Str::uuid()->toString();
 
@@ -344,6 +387,7 @@ TXT;
             'render_plan_json' => $renderPlan,
             'status' => TryOnSession::STATUS_QUEUED,
             'is_favorite' => false,
+            'render_fingerprint' => $fingerprint,
         ]);
 
         /*
@@ -407,7 +451,7 @@ TXT;
 
         $isSync = config('queue.default') === 'sync';
         $completedInline = $session->status === TryOnSession::STATUS_COMPLETED
-            && ! empty($session->result_image_base64);
+            && $session->hasResultImage();
 
         $payload = [
             'session_id' => $sessionId,
@@ -460,8 +504,9 @@ TXT;
         ];
 
         if ($completedInline) {
-            $payload['result_image_base64'] = $session->result_image_base64;
-            $payload['result_image'] = $session->result_image_base64;
+            $image = $session->resultImage();
+            $payload['result_image_base64'] = $image;
+            $payload['result_image'] = $image;
             $payload['ai_feedback'] = $session->ai_feedback;
             $payload['recommended_size'] = $this->extractRecommendedSize($session);
 
@@ -479,6 +524,113 @@ TXT;
         }
 
         return response()->json($payload, 202);
+    }
+
+    /**
+     * Deterministic content fingerprint of a render request (sha256 hex).
+     *
+     * Covers everything that changes the output: the source photo bytes, each
+     * garment image + its product id + its body region, the sizing profile the
+     * renderer is given, and `tryon.render_version`.
+     */
+    private function renderFingerprint(string $userPhoto, array $garmentPhotos, array $garmentCategories,
+        array $garmentMetadata, array $measurements): string
+    {
+        $contentHash = function (string $value): string {
+            $payload = str_starts_with($value, 'data:') && str_contains($value, ',')
+                ? (base64_decode(substr($value, strpos($value, ',') + 1), true) ?: $value)
+                : $value;
+
+            return hash('sha256', $payload);
+        };
+
+        $garments = [];
+        foreach (array_values($garmentPhotos) as $i => $photo) {
+            $garments[] = [
+                'image' => $contentHash((string) $photo),
+                'category' => $garmentCategories[$i] ?? null,
+                'product_id' => $garmentMetadata[$i]['product_id'] ?? null,
+            ];
+        }
+
+        $measurementsSorted = $measurements;
+        ksort($measurementsSorted);
+
+        return hash('sha256', json_encode([
+            'v' => (string) config('tryon.render_version', 'v1'),
+            'photo' => $contentHash($userPhoto),
+            'garments' => $garments,
+            'measurements' => $measurementsSorted,
+        ]));
+    }
+
+    /**
+     * The customer's own reusable render for this fingerprint, as a response —
+     * or null when a new (paid) render is needed.
+     *
+     *  - a finished render (even one in Recently Deleted, which is restored)
+     *    is returned as-is: no provider call, no credits;
+     *  - an identical render still in flight (< 15 min old) is returned so the
+     *    client polls that one instead of paying for a second.
+     */
+    private function reusableRender(int $userId, string $fingerprint): ?JsonResponse
+    {
+        $existing = TryOnSession::withTrashed()
+            ->where('user_id', $userId)
+            ->where('render_fingerprint', $fingerprint)
+            ->whereIn('status', [TryOnSession::STATUS_COMPLETED, TryOnSession::STATUS_QUEUED, TryOnSession::STATUS_PROCESSING])
+            ->latest()
+            ->first();
+
+        if (! $existing) {
+            return null;
+        }
+
+        if ($existing->status === TryOnSession::STATUS_COMPLETED) {
+            $image = $existing->hasResultImage() ? $existing->resultImage() : null;
+            if (! $image) {
+                return null; // stored object unreadable: render again
+            }
+
+            $restored = false;
+            if ($existing->trashed()) {
+                $existing->restore();
+                $restored = true;
+            }
+
+            return response()->json([
+                'session_id' => $existing->session_id,
+                'id' => $existing->session_id,
+                'status' => TryOnSession::STATUS_COMPLETED,
+                'progress' => 100,
+                'reused' => true,
+                'restored_from_trash' => $restored,
+                'result_image_base64' => $image,
+                'result_image' => $image,
+                'ai_feedback' => $existing->ai_feedback,
+                'recommended_size' => $this->extractRecommendedSize($existing),
+                'asset_warnings' => [],
+                'excluded_non_wearables' => $this->droppedNonWearables,
+                'message' => $restored
+                    ? 'You already rendered this exact look — it was restored from Recently Deleted. No new render was charged.'
+                    : 'You already rendered this exact look, so your saved result is shown. No new render was charged.',
+            ], 200);
+        }
+
+        if (! $existing->trashed() && $existing->created_at && $existing->created_at->gt(now()->subMinutes(15))) {
+            return response()->json([
+                'session_id' => $existing->session_id,
+                'id' => $existing->session_id,
+                'status' => $existing->status,
+                'progress' => 10,
+                'reused' => true,
+                'asset_warnings' => [],
+                'excluded_non_wearables' => $this->droppedNonWearables,
+                'message' => 'This exact fitting is already rendering. Showing its progress.',
+            ], 202);
+        }
+
+        return null;
     }
 
     /**
@@ -916,10 +1068,13 @@ TXT;
             $response['message'] = 'Mapping garment drape to your body frame.';
         } elseif ($session->status === TryOnSession::STATUS_COMPLETED) {
             $response['progress'] = 100;
-            $response['result_image_base64'] = $session->result_image_base64;
+            // Decrypted from the private vault for the OWNER only (query above
+            // is scoped to request()->user()->id).
+            $image = $session->resultImage();
+            $response['result_image_base64'] = $image;
             // `result_image` kept as an alias so clients reading either key
             // keep rendering instead of showing an empty canvas.
-            $response['result_image'] = $session->result_image_base64;
+            $response['result_image'] = $image;
             $response['ai_feedback'] = $session->ai_feedback;
             $response['recommended_size'] = $this->extractRecommendedSize($session);
         } elseif ($session->status === TryOnSession::STATUS_FAILED) {
@@ -1052,6 +1207,7 @@ TXT;
             'status' => TryOnSession::STATUS_QUEUED,
             'error_message' => null,
             'result_image_base64' => null,
+            'result_image_path' => null,
         ]);
 
         ProcessTryOnJob::dispatch($session->id);
@@ -1086,8 +1242,8 @@ TXT;
          */
         $query = TryOnSession::where('user_id', $request->user()->id)
             ->where('status', TryOnSession::STATUS_COMPLETED)
-            ->whereNotNull('result_image_base64')
-            ->select(['id', 'session_id', 'is_favorite', 'history_title', 'garment_metadata_json', 'result_image_base64', 'created_at']);
+            ->withRender()
+            ->select(['id', 'session_id', 'is_favorite', 'history_title', 'garment_metadata_json', 'result_image_base64', 'result_image_path', 'created_at']);
 
         if ($request->boolean('favorites')) {
             $query->where('is_favorite', true);
@@ -1103,12 +1259,144 @@ TXT;
                 'title' => $this->historyTitle($session, $garments),
                 'garment_count' => count($garments),
                 'is_favorite' => (bool) $session->is_favorite,
-                'thumbnail' => $this->historyThumbnail($session->result_image_base64),
+                'thumbnail' => $this->sessionThumbnail($session),
                 'created_at' => optional($session->created_at)->toIso8601String(),
             ];
         }));
 
         return response()->json($sessions);
+    }
+
+    /**
+     * GET /api/tryon/history-trash — the customer's "Recently Deleted" renders.
+     *
+     * Expired items (older than tryon.trash_retention_days) are purged for this
+     * customer first, so the list never shows something about to vanish.
+     */
+    public function trash(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+        $retention = max(1, (int) config('tryon.trash_retention_days', 30));
+        self::purgeExpiredTrash($userId);
+
+        $sessions = TryOnSession::onlyTrashed()
+            ->where('user_id', $userId)
+            ->where('status', TryOnSession::STATUS_COMPLETED)
+            ->withRender()
+            ->select(['id', 'session_id', 'history_title', 'garment_metadata_json', 'result_image_base64', 'result_image_path', 'created_at', 'deleted_at'])
+            ->orderByDesc('deleted_at')
+            ->paginate(min(max($request->integer('per_page', 12), 1), 24));
+
+        $sessions->setCollection($sessions->getCollection()->map(function (TryOnSession $session) use ($retention) {
+            $garments = $this->historyGarments($session);
+            $purgeAt = $session->deleted_at?->copy()->addDays($retention);
+
+            return [
+                'session_id' => $session->session_id,
+                'title' => $this->historyTitle($session, $garments),
+                'garment_count' => count($garments),
+                'thumbnail' => $this->sessionThumbnail($session),
+                'created_at' => optional($session->created_at)->toIso8601String(),
+                'deleted_at' => optional($session->deleted_at)->toIso8601String(),
+                'purge_at' => optional($purgeAt)->toIso8601String(),
+                'days_left' => $purgeAt ? max(0, (int) ceil(now()->diffInHours($purgeAt, false) / 24)) : null,
+            ];
+        }));
+
+        return response()->json(array_merge($sessions->toArray(), ['retention_days' => $retention]));
+    }
+
+    /** POST /api/tryon/history/{sessionId}/restore — back to the Gallery. */
+    public function restoreHistory(Request $request, string $sessionId): JsonResponse
+    {
+        $session = TryOnSession::onlyTrashed()
+            ->where('session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $session->restore();
+
+        return response()->json(['message' => 'Restored to your Gallery.', 'session_id' => $session->session_id]);
+    }
+
+    /**
+     * DELETE /api/tryon/history/{sessionId}/permanent — gone for good.
+     * Only items already in Recently Deleted can be purged; the encrypted
+     * object is removed from storage by the model's forceDeleted hook.
+     */
+    public function forceDestroyHistory(Request $request, string $sessionId): JsonResponse
+    {
+        $session = TryOnSession::onlyTrashed()
+            ->where('session_id', $sessionId)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        Cache::forget('tryon-thumb:' . $session->id);
+        $session->forceDelete();
+
+        return response()->json(status: 204);
+    }
+
+    /** DELETE /api/tryon/history-trash — empty Recently Deleted. */
+    public function emptyTrash(Request $request): JsonResponse
+    {
+        $count = 0;
+        TryOnSession::onlyTrashed()
+            ->where('user_id', $request->user()->id)
+            ->select(['id', 'result_image_path'])
+            ->each(function (TryOnSession $session) use (&$count) {
+                Cache::forget('tryon-thumb:' . $session->id);
+                $session->forceDelete();
+                $count++;
+            });
+
+        return response()->json(['message' => 'Recently Deleted is empty.', 'removed' => $count]);
+    }
+
+    /**
+     * Permanently purge trashed renders past the retention window (one user,
+     * or everyone when $userId is null — used by `tryon:purge-deleted`).
+     */
+    public static function purgeExpiredTrash(?int $userId = null): int
+    {
+        $cutoff = now()->subDays(max(1, (int) config('tryon.trash_retention_days', 30)));
+        $count = 0;
+
+        TryOnSession::onlyTrashed()
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->where('deleted_at', '<', $cutoff)
+            ->select(['id', 'result_image_path'])
+            ->each(function (TryOnSession $session) use (&$count) {
+                Cache::forget('tryon-thumb:' . $session->id);
+                $session->forceDelete();
+                $count++;
+            });
+
+        return $count;
+    }
+
+    /**
+     * A small JPEG thumbnail for a Gallery card. Cached ENCRYPTED (the cache is
+     * a file store) so the vault is not re-read for every grid load.
+     */
+    private function sessionThumbnail(TryOnSession $session): ?string
+    {
+        $key = 'tryon-thumb:' . $session->id;
+        $cached = Cache::get($key);
+        if (is_string($cached)) {
+            try {
+                return Crypt::decryptString($cached);
+            } catch (\Throwable $e) {
+                Cache::forget($key);
+            }
+        }
+
+        $thumb = $this->historyThumbnail($session->resultImage());
+        if ($thumb) {
+            Cache::put($key, Crypt::encryptString($thumb), now()->addDays(7));
+        }
+
+        return $thumb;
     }
 
     /**
@@ -1123,7 +1411,7 @@ TXT;
         $session = TryOnSession::where('session_id', $sessionId)
             ->where('user_id', $request->user()->id)
             ->where('status', TryOnSession::STATUS_COMPLETED)
-            ->select(['id', 'session_id', 'is_favorite', 'history_title', 'garment_metadata_json', 'result_image_base64', 'user_photo_base64', 'created_at'])
+            ->select(['id', 'session_id', 'is_favorite', 'history_title', 'garment_metadata_json', 'result_image_base64', 'result_image_path', 'user_photo_base64', 'created_at'])
             ->firstOrFail();
 
         $garments = $this->historyGarments($session);
@@ -1132,7 +1420,7 @@ TXT;
             'session_id' => $session->session_id,
             'title' => $this->historyTitle($session, $garments),
             'is_favorite' => (bool) $session->is_favorite,
-            'result_image_base64' => $session->result_image_base64,
+            'result_image_base64' => $session->resultImage(),
             'original_image_base64' => $session->user_photo_base64,
             'garments' => $garments,
             'created_at' => optional($session->created_at)->toIso8601String(),
@@ -1226,6 +1514,10 @@ TXT;
         return response()->json(['id' => $session->session_id, 'is_favorite' => $session->is_favorite]);
     }
 
+    /**
+     * DELETE /api/tryon/history/{sessionId} — a SOFT delete: the render moves
+     * to Recently Deleted (restorable until the retention window ends).
+     */
     public function destroyHistory(Request $request, string $sessionId): JsonResponse
     {
         $session = TryOnSession::where('session_id', $sessionId)
@@ -1298,13 +1590,19 @@ TXT;
             'context' => 'nullable|array',
             'context.measurements' => 'nullable|array',
             'context.selected_garments' => 'nullable|array',
+            'context.selected_garments.*' => 'nullable|string|max:255',
             'context.has_generated_image' => 'nullable|boolean',
+            // `look_analysis` = sent by the Studio right after a render finishes.
+            'context.mode' => 'nullable|string|in:chat,look_analysis',
+            // The finished render's session (owner-checked below) for the look analysis.
+            'context.session_id' => 'nullable|string|max:80',
         ]);
 
         $message = trim($validated['message']);
         $measurements = $validated['context']['measurements'] ?? [];
         $garments = array_values(array_filter($validated['context']['selected_garments'] ?? []));
         $hasImage = ! empty($validated['context']['has_generated_image']);
+        $mode = $validated['context']['mode'] ?? 'chat';
 
         /*
          * NO CENTIMETRES SENT? USE THE SAVED PROFILE. Every account records an
@@ -1353,9 +1651,41 @@ TXT;
          */
         $pairedIds = $this->pairedIdsForStack($garments);
 
-        $products = $this->catalogForChat($message, $size, $user?->gender, 4, $pairedIds);
-
         $intent = $this->detectIntent($message);
+        $season = $this->currentSeason();
+
+        /*
+         * CONTEXTUAL RECOMMENDATION CARDS.
+         *
+         * Cards used to be attached to EVERY reply ("hi" got four product cards).
+         * Now:
+         *   - after a render (look analysis, or a styling question about the
+         *     rendered look) the cards are COMPLEMENTARY pieces for the worn
+         *     garments — stylist pairings first, then missing layers, seasonal;
+         *   - in normal chat, cards appear only when the message actually asks
+         *     for pieces / an outfit / pairing / occasion ideas;
+         *   - greetings, sizing explanations and HIRAYA questions get none.
+         */
+        $lookMode = $mode === 'look_analysis'
+            || ($hasImage && ! empty($garments) && in_array($intent, ['style', 'color', 'occasion'], true));
+
+        if ($lookMode) {
+            $products = $this->complementaryForLook($garments, $user?->gender, $size, $pairedIds, $season, 4);
+        } elseif ($this->wantsCards($intent, $message)) {
+            $products = $this->catalogForChat($message, $size, $user?->gender, 4, $pairedIds);
+        } else {
+            $products = [];
+        }
+
+        // The finished render itself (owner-checked), for a vision read of the look.
+        $lookImage = null;
+        if ($mode === 'look_analysis' && ! empty($validated['context']['session_id']) && $user) {
+            $session = TryOnSession::where('session_id', $validated['context']['session_id'])
+                ->where('user_id', $user->id)
+                ->where('status', TryOnSession::STATUS_COMPLETED)
+                ->first();
+            $lookImage = $session ? $this->historyThumbnail($session->resultImage()) : null;
+        }
 
         $gemini = $this->geminiReply(
             $message,
@@ -1365,27 +1695,34 @@ TXT;
             $hasImage,
             $size,
             $products,
+            $lookMode,
+            $season,
+            $lookImage,
         );
 
-        $reply = $gemini ?? $this->deterministicReply(
-            $intent,
-            $message,
-            $chest,
-            $waist,
-            $hips,
-            $size,
-            $garments,
-            $hasImage,
-            $products,
-        );
+        $reply = $gemini ?? ($lookMode
+            ? $this->lookAnalysisReply($garments, $products, $season)
+            : $this->deterministicReply(
+                $intent,
+                $message,
+                $chest,
+                $waist,
+                $hips,
+                $size,
+                $garments,
+                $hasImage,
+                $products,
+            ));
 
         return response()->json([
             'reply' => $reply,
             'source' => $gemini !== null ? 'gemini' : 'rules',
-            'intent' => $intent,
+            'intent' => $lookMode ? 'look_analysis' : $intent,
             // Quick-reply chips, context-aware (see suggestionsFor()).
-            'suggestions' => $this->suggestionsFor($intent, $size, ! empty($garments)),
-            // Catalog pieces in the recommended size, for clickable cards.
+            'suggestions' => $lookMode
+                ? ['What shoes go with this?', 'Style this for the ' . $season['label'], 'Show more pieces that match']
+                : $this->suggestionsFor($intent, $size, ! empty($garments)),
+            // Recommendation cards — only when relevant (see above).
             'products' => $products,
             /*
              * DEEP LINKS for answers the chat should NOT recite.
@@ -1397,8 +1734,180 @@ TXT;
              * worse for the customer than the page that already owns that view.
              * The chat answers briefly and links to the source of truth.
              */
-            'links' => $this->linksFor($intent, $size, $products),
+            'links' => $products ? $this->linksFor($intent, $size, $products) : [],
         ]);
+    }
+
+    /** Does this chat message actually ask for pieces to look at? */
+    private function wantsCards(string $intent, string $message): bool
+    {
+        if (in_array($intent, ['style', 'occasion', 'color'], true)) {
+            return true;
+        }
+
+        return (bool) preg_match(
+            '/\b(show|recommend|suggest|pair|match|complete|outfit|look for|wear with|what to wear|available|options?|pieces?|meron|mayroon|ipakita)\b/i',
+            $message
+        );
+    }
+
+    /** The Philippine season right now (store time), for seasonal styling. */
+    private function currentSeason(): array
+    {
+        $month = (int) now(config('payments.timezone', 'Asia/Manila'))->month;
+
+        return match (true) {
+            $month >= 6 && $month <= 11 => [
+                'key' => 'rainy', 'label' => 'rainy season',
+                'words' => ['jacket', 'outerwear', 'coat', 'long sleeve', 'trench', 'boots', 'layer'],
+            ],
+            $month >= 3 && $month <= 5 => [
+                'key' => 'hot', 'label' => 'summer heat',
+                'words' => ['linen', 'summer', 'shorts', 'short sleeve', 'cotton', 'sandals', 'resort'],
+            ],
+            default => [
+                'key' => 'cool', 'label' => 'cool holiday season',
+                'words' => ['knit', 'blazer', 'coat', 'formal', 'cardigan', 'long sleeve', 'holiday'],
+            ],
+        };
+    }
+
+    /** Coarse body layer of a catalogue piece, for "what is missing from this look". */
+    private function layerOf(?string $category, ?string $name = null): string
+    {
+        $text = Str::lower(trim(($category ?? '') . ' ' . ($name ?? '')));
+
+        return match (true) {
+            (bool) preg_match('/shoe|sneaker|boot|sandal|heel|loafer|footwear/', $text) => 'footwear',
+            (bool) preg_match('/dress|gown|terno|filipiniana|full_body|full body/', $text) => 'dress',
+            (bool) preg_match('/jacket|coat|blazer|outerwear|cardigan|vest|hoodie/', $text) => 'outerwear',
+            (bool) preg_match('/pant|trouser|short|skirt|jean|slack|bottom|cargo|chino/', $text) => 'bottom',
+            (bool) preg_match('/bag|belt|hat|cap|accessor|scarf|tie|jewel|watch/', $text) => 'accessory',
+            default => 'top',
+        };
+    }
+
+    /**
+     * COMPLEMENTARY HIRAYA PIECES for the rendered look.
+     *
+     * Ranked: stylist pairings of the worn garments first, then pieces that add
+     * a layer the look does not have yet (e.g. outerwear or a bottom), then
+     * seasonal relevance, the shopper's size and stock. Worn pieces and unrelated
+     * categories that duplicate what is already worn are left out, so the cards
+     * are never random.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function complementaryForLook(array $garments, ?string $gender, ?string $size, array $pairedIds, array $season, int $limit = 4): array
+    {
+        $worn = $this->stackGarmentDetails($garments);
+        $wornNames = array_map(fn ($g) => Str::lower((string) $g['name']), $worn ?: array_map(fn ($n) => ['name' => $n], $garments));
+        $wornLayers = array_values(array_unique(array_map(fn ($g) => $this->layerOf($g['category'] ?? null, $g['name'] ?? null), $worn)));
+        $wearsDress = in_array('dress', $wornLayers, true);
+
+        $wantGender = match (Str::lower((string) $gender)) {
+            'male' => 'men',
+            'female' => 'women',
+            default => null,
+        };
+
+        try {
+            $catalog = Product::query()->latest('id')->limit(120)->get();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $scored = [];
+        foreach ($catalog as $product) {
+            if (in_array(Str::lower((string) $product->name), $wornNames, true)) {
+                continue;
+            }
+            $productGender = Str::lower((string) $product->gender);
+            if ($wantGender && $productGender !== '' && $productGender !== 'unisex' && $productGender !== $wantGender) {
+                continue;
+            }
+
+            $layer = $this->layerOf($product->category, $product->name);
+            $paired = in_array((int) $product->id, $pairedIds, true);
+            $addsLayer = ! in_array($layer, $wornLayers, true)
+                // A dress already covers top + bottom.
+                && ! ($wearsDress && in_array($layer, ['top', 'bottom'], true))
+                // A top/bottom look does not need a dress.
+                && ! (! $wearsDress && $layer === 'dress' && array_intersect(['top', 'bottom'], $wornLayers));
+
+            if (! $paired && ! $addsLayer) {
+                continue; // would duplicate what is already worn — not complementary
+            }
+
+            $haystack = Str::lower(implode(' ', array_filter([
+                $product->name, $product->description, (string) $product->category, $product->background_occasion,
+            ])));
+            $seasonal = collect($season['words'])->contains(fn ($w) => str_contains($haystack, $w));
+            $sizes = $this->normaliseSizeLabels($product->sizes);
+            $fitsSize = $size && in_array(Str::upper($size), $sizes, true);
+            $inStock = (int) ($product->stock ?? 0) > 0;
+
+            $scored[] = [
+                'product' => $product,
+                'paired' => $paired,
+                'seasonal' => $seasonal,
+                'sizes' => $sizes,
+                'score' => ($paired ? 10 : 0) + ($addsLayer ? 4 : 0) + ($seasonal ? 2 : 0) + ($fitsSize ? 2 : 0) + ($inStock ? 1 : 0),
+            ];
+        }
+
+        usort($scored, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        $out = [];
+        foreach (array_slice($scored, 0, $limit) as $row) {
+            $product = $row['product'];
+            $out[] = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'category' => $product->category,
+                'price' => (float) $product->price,
+                'image_url' => $product->display_image_url ?: $product->image_url,
+                'in_stock' => (int) ($product->stock ?? 0) > 0,
+                'sizes' => $row['sizes'],
+                'stock_in_this_size' => $size ? $this->stockForSize($product, Str::upper($size)) : null,
+                'url' => '/product/' . $product->id,
+                'pairs_with_your_stack' => $row['paired'],
+                'seasonal' => $row['seasonal'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Rule-based look analysis (used when Gemini is unavailable). */
+    private function lookAnalysisReply(array $garments, array $products, array $season): string
+    {
+        $worn = $garments ? implode(' + ', $garments) : 'your selected pieces';
+        $lines = ['Your look is ready: ' . $worn . '.'];
+
+        $layers = array_values(array_unique(array_map(
+            fn ($g) => $this->layerOf($g['category'] ?? null, $g['name'] ?? null),
+            $this->stackGarmentDetails($garments)
+        )));
+        if (count($layers) <= 1) {
+            $lines[] = 'It reads clean and focused on one statement piece — adding a second layer or a contrasting bottom would give the outfit more structure.';
+        } else {
+            $lines[] = 'The layers work together as one outfit; keep the accessories minimal so the silhouette stays the focus.';
+        }
+
+        $lines[] = 'For the ' . $season['label'] . ', '
+            . match ($season['key']) {
+                'rainy' => 'a light outer layer and closed shoes keep the look practical.',
+                'hot' => 'breathable fabrics and lighter tones keep it comfortable.',
+                default => 'a knit or blazer layer makes it feel finished.',
+            };
+
+        if ($products) {
+            $lines[] = 'Pieces from Hiraya that complete this look: '
+                . implode(', ', array_map(fn ($p) => $p['name'], array_slice($products, 0, 3))) . '.';
+        }
+
+        return implode(' ', $lines);
     }
 
     /**
@@ -1490,6 +1999,9 @@ TXT;
         bool $hasImage,
         ?string $size,
         array $products,
+        bool $lookMode = false,
+        array $season = [],
+        ?string $lookImage = null,
     ): ?string {
         /*
          * POOL, NOT A SINGLE KEY — the key that answers comes from
@@ -1543,6 +2055,8 @@ TXT;
              */
             'sizes_present_in_catalog_now' => $this->sizesPresentInCatalog(),
             'total_garments_in_catalog' => $this->catalogCount(),
+            'current_season_ph' => $season['label'] ?? null,
+            'recommendation_cards_shown' => array_map(fn ($p) => $p['name'], $products),
         ];
 
         /*
@@ -1570,11 +2084,29 @@ TXT;
             . "- When the customer asks what to wear with a piece, or for an outfit, recommend the\n"
             . "  stylist pairings first: the `stylist_pairs` of each garment in `garments_in_stack`\n"
             . "  and any piece marked `pairs_with_your_stack`. Say they were paired by Hiraya's stylists.\n"
+            . "- SCOPE: answer only about HIRAYA, HIRAYA garments/products, styling, garment and fit\n"
+            . "  combinations, sizing guidance and seasonal styling. For anything else, say briefly\n"
+            . "  that you can only help with HIRAYA styling and suggest a related question.\n"
+            . "- Only mention products by name if they are in CONTEXT; recommendation cards are shown\n"
+            . "  to the customer only for `recommendation_cards_shown` — never point at cards otherwise.\n"
             . "- Answer the customer's message directly, warmly, in 2-4 short sentences.\n"
             . "- Plain text only. No markdown headings, no bullet lists.\n\n"
+            . ($lookMode
+                ? "LOOK ANALYSIS MODE: the customer just rendered a virtual try-on wearing `style_stack`"
+                    . ($lookImage ? ' (the rendered image is attached)' : '') . ". Do NOT make the answer about the\n"
+                    . "matched size. Give a short high-level read of the look (silhouette, proportion, colour\n"
+                    . "balance, occasion it suits), one or two concrete styling observations, then recommend\n"
+                    . "the complementary HIRAYA pieces in `recommendation_cards_shown` and why they complete\n"
+                    . "this look. Mention the current season (`current_season_ph`) only if it is relevant.\n\n"
+                : '')
             . $this->hirayaKnowledge() . "\n\n"
             . 'CONTEXT (JSON): ' . json_encode($context, JSON_UNESCAPED_SLASHES) . "\n\n"
             . 'CUSTOMER MESSAGE: ' . $message;
+
+        $parts = [['text' => $prompt]];
+        if ($lookImage && preg_match('#^data:(image/[a-z]+);base64,(.+)$#s', $lookImage, $m)) {
+            $parts[] = ['inlineData' => ['mimeType' => $m[1], 'data' => $m[2]]];
+        }
 
         try {
             $response = Http::timeout(20)
@@ -1585,7 +2117,7 @@ TXT;
                         . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey),
                     [
                         'contents' => [[
-                            'parts' => [['text' => $prompt]],
+                            'parts' => $parts,
                         ]],
                         'generationConfig' => ['temperature' => 0.6],
                     ],
@@ -1704,6 +2236,11 @@ TXT;
                 break;
 
             default:
+                if (! preg_match('/hiraya|wear|outfit|style|size|fit|shirt|dress|pants|top|bottom|garment|clothes|damit|look|season|rain|summer|color|colour|fabric|shoe|jacket|barong|order/i', $message)) {
+                    // Outside the stylist's scope: say so instead of improvising.
+                    $lines[] = 'I can only help with HIRAYA styling — our pieces, sizing, fit and outfit combinations, and seasonal looks. Try asking what to pair with a piece, or which size to pick.';
+                    break;
+                }
                 $lines[] = $sizeSentence
                     ?? 'Add your chest and waist measurements so I can recommend an exact size.';
                 $lines[] = ! empty($garments)

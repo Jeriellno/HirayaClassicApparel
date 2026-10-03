@@ -112,7 +112,9 @@ Static site **Redirects/Rewrites** (order matters):
 1. `/supabase-storage/*` → `https://hiraya-classicapparel.onrender.com/supabase-storage/*` (Rewrite)
 2. `/*` → `/index.html` (Rewrite)
 
-Backend environment on Render: everything in `.env.example`, plus `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://hiraya-classicapparel.onrender.com`. Pushing to `main` auto-deploys both services. The free plan sleeps after ~15 min idle — open the site a minute before a demo (or ping `/up`).
+Backend environment on Render: everything in `.env.example`, plus `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://hiraya-classicapparel.onrender.com`, and **`FRONTEND_URL=https://hirayaclassicapparel-1.onrender.com`** (origin only, no trailing slash). Pushing to `main` auto-deploys both services.
+
+**Admin invitation links** are built only from `FRONTEND_URL` + `/accept-invitation` (never from request headers). Locally (`FRONTEND_URL=http://localhost:5173`) an invite sent from your local backend points at your machine — open it on the same computer. For invitees elsewhere, send the invite from the deployed console, whose backend has the production `FRONTEND_URL`. With `APP_ENV=production` an unset, `http` or `localhost` value is refused before any e-mail is sent. Invitations are mailed by Laravel (not Supabase), so no Supabase redirect-URL entry is needed; the static site's `/* → /index.html` rewrite (above) is what lets the link open. After changing env vars on Render, redeploy (or restart) the backend service. The free plan sleeps after ~15 min idle — open the site a minute before a demo (or ping `/up`).
 
 ---
 

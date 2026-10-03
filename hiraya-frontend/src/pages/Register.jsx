@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Check, X, CheckCircle2, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Check, X, CheckCircle2, ChevronRight, AlertCircle, Loader2, MailCheck, RotateCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { parseApiError } from '../api/axios';
+import api, { parseApiError } from '../api/axios';
 import AuthShell from '../components/auth/AuthShell';
 import {
     PASSWORD_REQUIREMENTS,
@@ -37,6 +37,14 @@ const fieldClass = (hasError) => `${FIELD_BASE} ${hasError ? FIELD_ERR : FIELD_O
  * input behave differently on two screens of the same flow.
  */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/*
+ * NEW ACCOUNTS MUST USE GMAIL — and prove they own it. The shape check below
+ * only filters typos; ownership is proven by the 6-digit code the server mails
+ * to the address (the account is created only after that code comes back).
+ * Mirrors AuthController::GMAIL_PATTERN.
+ */
+const GMAIL_REGEX = /^[a-z0-9](?:[a-z0-9.+_-]{0,62}[a-z0-9])?@gmail\.com$/i;
 
 /*
  * REGISTRATION IS ONE STEP AGAIN — BUT IT STILL COLLECTS A SIZING PROFILE.
@@ -118,13 +126,18 @@ const Register = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(false);
+    // STEP 2 — the address a verification code was sent to (null = form step).
+    const [pendingEmail, setPendingEmail] = useState(null);
+    const [code, setCode] = useState('');
+    const [notice, setNotice] = useState('');
+    const [resending, setResending] = useState(false);
 
     const navigate = useNavigate();
     // Registration issues a token server-side; using the provider means the
     // session is persisted and the customer lands signed-in. Registering by
     // calling `api.post` directly (as this page used to) silently discarded
     // that token and forced a second login trip.
-    const { register } = useAuth();
+    const { register, verifyRegistration } = useAuth();
 
     /*
      * THE CHECKLIST IS THE SHARED POLICY, NOT A LOCAL LIST.
@@ -152,6 +165,7 @@ const Register = () => {
         if (!formData.full_name.trim()) errs.full_name = "Full Name is required";
         if (!formData.email.trim()) errs.email = "Email Address is required";
         else if (!EMAIL_REGEX.test(formData.email.trim())) errs.email = "Please enter a valid email address.";
+        else if (!GMAIL_REGEX.test(formData.email.trim())) errs.email = "Please sign up with a Gmail address (name@gmail.com).";
         if (!formData.upper_body_size) errs.upper_body_size = "Please choose your upper body size.";
         else if (!SIZE_LABELS.some((s) => s.value === formData.upper_body_size)) {
             errs.upper_body_size = "Please choose a valid upper body size.";
@@ -211,6 +225,14 @@ const Register = () => {
             const response = await register(payload);
             const status = response?.status;
 
+            // New sign-ups: a code was mailed; the account is created on verify.
+            if (status === 202 && response.data?.verification_required) {
+                setPendingEmail(response.data.email || payload.email);
+                setNotice(response.data.message || '');
+                setCode('');
+                return;
+            }
+
             if (status === 200 || status === 201) {
                 // Token already persisted by AuthContext — go straight to shop.
                 navigate('/shop', {
@@ -232,6 +254,98 @@ const Register = () => {
             setIsLoading(false);
         }
     };
+
+    const handleVerify = async (e) => {
+        e.preventDefault();
+        setErrors({});
+        const digits = code.replace(/\D/g, '');
+        if (digits.length !== 6) {
+            setErrors({ code: 'Enter the 6-digit code from your Gmail inbox.' });
+            return;
+        }
+        setIsLoading(true);
+        try {
+            await verifyRegistration(pendingEmail, digits);
+            navigate('/shop', { state: { message: 'Welcome to Hiraya! Your Gmail is verified and your account is ready.' } });
+        } catch (err) {
+            const { message, status } = parseApiError(err);
+            const reason = err?.response?.data?.reason;
+            if (reason === 'expired' || reason === 'locked') {
+                setPendingEmail(null);
+                setErrors({ general: message });
+            } else {
+                setErrors({ code: message || (status ? 'That code did not work.' : 'Could not reach the server. Please try again.') });
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResend = async () => {
+        setResending(true);
+        setErrors({});
+        try {
+            const res = await api.post('/register/resend', { email: pendingEmail });
+            setNotice(res.data?.message || 'A new code is on its way.');
+        } catch (err) {
+            const { message } = parseApiError(err);
+            if (err?.response?.data?.reason === 'expired') setPendingEmail(null);
+            setErrors({ [err?.response?.data?.reason === 'expired' ? 'general' : 'code']: message });
+        } finally {
+            setResending(false);
+        }
+    };
+
+    if (pendingEmail) {
+        return (
+            <AuthShell mode="signup" title="Verify your Gmail" kicker="One last step">
+                <form onSubmit={handleVerify} noValidate className="space-y-4">
+                    <div className="flex items-start gap-3 rounded-xl border border-hiraya-structure-line bg-hiraya-surface-raised p-3.5">
+                        <MailCheck size={18} className="mt-0.5 shrink-0 text-hiraya-accent" />
+                        <p className="text-[11px] leading-relaxed text-hiraya-ink" role="status">
+                            We sent a 6-digit code to{' '}
+                            <span className="font-semibold break-all" translate="no">{pendingEmail}</span>.
+                            {' '}Enter it below to finish creating your account.
+                            {notice && notice.startsWith('A new code') && <span className="mt-1 block font-semibold">{notice}</span>}
+                        </p>
+                    </div>
+                    <div>
+                        <label htmlFor="verification_code" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-hiraya-ink-muted">
+                            Verification code
+                        </label>
+                        <input
+                            id="verification_code"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength={7}
+                            autoFocus
+                            value={code}
+                            onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))}
+                            className={`${fieldClass(errors.code)} text-center font-mono text-lg tracking-[0.5em]`}
+                            placeholder="••••••"
+                            aria-invalid={Boolean(errors.code)}
+                            aria-describedby={errors.code ? 'verification_code_error' : undefined}
+                        />
+                        {errors.code && <p id="verification_code_error" className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{errors.code}</p>}
+                    </div>
+                    <button type="submit" disabled={isLoading} className="btn-primary w-full rounded-full py-3.5">
+                        {isLoading ? <><Loader2 size={14} className="animate-spin" /> Verifying…</> : <>Verify &amp; create account <ChevronRight size={14} /></>}
+                    </button>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                        <button type="button" onClick={handleResend} disabled={resending} className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 font-semibold text-hiraya-ink hover:text-hiraya-accent disabled:opacity-60">
+                            {resending ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />} Resend code
+                        </button>
+                        <button type="button" onClick={() => { setPendingEmail(null); setErrors({}); }} className="min-h-[40px] cursor-pointer text-hiraya-ink-muted hover:text-hiraya-ink">
+                            Use a different email
+                        </button>
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-hiraya-ink-muted">
+                        Can&apos;t find it? Check Spam or Promotions. The code expires in 15 minutes. Your account is only created after it is verified.
+                    </p>
+                </form>
+            </AuthShell>
+        );
+    }
 
     return (
         /*
@@ -275,7 +389,7 @@ const Register = () => {
                         <div>
                             <input
                                 type="email"
-                                placeholder={t('auth.email')}
+                                placeholder={`${t('auth.email')} (Gmail)`}
                                 autoComplete="email"
                                 className={fieldClass(errors.email)}
                                 value={formData.email}

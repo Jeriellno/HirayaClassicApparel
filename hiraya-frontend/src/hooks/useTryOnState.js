@@ -455,8 +455,8 @@ export const useTryOnState = () => {
   }, [applySavedOutfit]);
 
   // The wishlist / "Saved" bookmark layer was retired end to end (UI, API and
-  // the `wishlists` table). The Studio's garment picker is now fed by exactly
-  // two sources: the BAG below and the recommendation feed.
+  // the `wishlists` table). The Studio's garment picker is fed by ONE source:
+  // the BAG below (what the customer explicitly added).
 
   // BAG (active purchase layer). This is the primary feed for the Studio:
   // whatever the customer is actually buying must be try-on-able.
@@ -488,28 +488,15 @@ export const useTryOnState = () => {
   });
 
   /*
-   * RECOMMENDATIONS feed — the SAME personalised set Home's Spotlight shows.
+   * RECOMMENDATIONS DO NOT ENTER THE STYLE STACK.
    *
-   * Home renders `/outfits/recommended`; the Studio only ever read bag + saved
-   * items. So a customer could see "Recommended for your size" on Home
-   * and then find an EMPTY style stack in the Studio — the recommended piece was
-   * never offered as something to try on. Ingesting the recommendation feed here
-   * makes the two surfaces agree: anything Hiraya recommends is try-on-able.
+   * The Studio used to ingest `/outfits/recommended` here, so personalised
+   * picks (fit preference / size) appeared in the Style Stack the moment a
+   * customer signed in — before they had chosen anything. The stack now holds
+   * ONLY what the customer explicitly added with Bag / Add to Style Stack.
+   * The recommendations themselves are unchanged and still shown on Home and
+   * as cards in the Stylist chat, from where they can be added deliberately.
    */
-  const { data: recommendedData } = useQuery({
-    queryKey: ['outfits-recommended', user?.id ?? 'guest'],
-    queryFn: async () => {
-      try {
-        const res = await api.get('/outfits/recommended?limit=6');
-        return Array.isArray(res.data?.recommendations) ? res.data.recommendations : [];
-      } catch (err) {
-        return [];
-      }
-    },
-    enabled: !!user,
-    staleTime: 60 * 1000,
-    retry: false,
-  });
 
   const garmentsByCategory = useMemo(() => {
     const categoriesMap = { top: [], bottom: [], footwear: [], outerwear: [], dress: [], accessories: [] };
@@ -672,15 +659,11 @@ export const useTryOnState = () => {
       });
     };
 
-    // Ingest order defines precedence. `ingest` skips a product already seen, so:
-    //   bag   > recommended
-    // The bag wins because that is what the customer is actually purchasing; a
-    // recommendation only fills a slot nothing else claims.
+    // Only the customer's own explicit choices (the bag) fill the stack.
     normalizeCartPayload(cartData).items.forEach((item) => ingest(item, 'bag'));
-    (Array.isArray(recommendedData) ? recommendedData : []).forEach((item) => ingest(item, 'recommended'));
 
     return categoriesMap;
-  }, [cartData, recommendedData]);
+  }, [cartData]);
 
   /**
    * Toggle a garment in the outfit.
@@ -1377,14 +1360,55 @@ export const useTryOnState = () => {
 
   // 4. CHATBOT LOGIC
   const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', text:"Hello! I am your Hiraya AI Personal Stylist. Upload your photo, select an outfit stack, and I will calculate your optimal fit size!" }
+    { role: 'assistant', text: "Hello! I am your Hiraya AI Stylist. Ask me about Hiraya pieces, sizing, fit, or how to pair and style a look. After you render a fitting, I will read the look and suggest pieces that complete it." }
   ]);
   const [isChatTyping, setIsChatTyping] = useState(false);
 
-  const triggerAiConclusion = useCallback((size = 'M') => {
-    const selectedNames = Object.values(selectedGarments).filter(Boolean).map(g => g.name).join(', ');
-    const conclusion = `✨ **Virtual Fitting Complete!**\n\nMatching your saved sizes (top ${bodySizes.upper_body_size || '–'}, bottom ${bodySizes.lower_body_size || '–'}) against ${selectedNames}, the recommended size for this ensemble is **Size ${size}**.\n\nHow does this look to you?`;
-    setChatMessages(prev => [...prev, { role: 'assistant', text: conclusion }]);
+  /*
+   * AFTER A RENDER: a LOOK ANALYSIS, not a "matched size" readout.
+   *
+   * The Studio used to post "the recommended size for this ensemble is Size M"
+   * after every fitting. It now asks the stylist (mode `look_analysis`, with
+   * the render's own session so the server can read the image) for a short
+   * read of the look plus COMPLEMENTARY Hiraya pieces as cards. If the
+   * stylist is unreachable, a neutral message is shown instead.
+   */
+  const triggerAiConclusion = useCallback(async (renderSessionId = null, reuseNotice = null) => {
+    const selectedNames = Object.values(selectedGarments).filter(Boolean).map((g) => g.name);
+    if (reuseNotice) {
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: reuseNotice }]);
+    }
+    setIsChatTyping(true);
+    try {
+      const res = await api.post('/tryon/chat', {
+        message: 'Analyze my rendered look and suggest what completes it.',
+        context: {
+          sizes: bodySizes,
+          selected_garments: selectedNames,
+          has_generated_image: true,
+          mode: 'look_analysis',
+          session_id: renderSessionId,
+        },
+      });
+      setChatMessages((prev) => [...prev, {
+        role: 'assistant',
+        text: res.data.reply,
+        suggestions: res.data.suggestions ?? [],
+        products: res.data.products ?? [],
+        links: res.data.links ?? [],
+        intent: res.data.intent,
+      }]);
+    } catch {
+      setChatMessages((prev) => [...prev, {
+        role: 'assistant',
+        text: `Your fitting with ${selectedNames.join(', ') || 'your pieces'} is ready. Ask me how to style it or what to pair with it.`,
+        suggestions: ['What goes with this?', 'Style this outfit'],
+        products: [],
+        links: [],
+      }]);
+    } finally {
+      setIsChatTyping(false);
+    }
   }, [selectedGarments, bodySizes]);
 
   /**
@@ -1554,6 +1578,10 @@ export const useTryOnState = () => {
             engine: res.data?.engine || 'ai',
             feedback: res.data?.ai_feedback || null,
             size: res.data?.recommended_size || null,
+            sessionId: activeSessionId,
+            // An identical earlier render was reused — no new render was charged.
+            reused: Boolean(res.data?.reused),
+            notice: res.data?.reused ? res.data?.message || null : null,
           };
         }
       }
@@ -1782,6 +1810,9 @@ export const useTryOnState = () => {
             engine: data.engine || 'ai',
             feedback: data.ai_feedback || null,
             size: data.recommended_size || null,
+            sessionId: activeSessionId,
+            reused: Boolean(res.data?.reused),
+            notice: res.data?.reused ? res.data?.message || null : null,
           };
         }
 
@@ -2183,10 +2214,8 @@ export const useTryOnState = () => {
         setTryOnProgress(100);
         setTryOnStatus('completed');
         setTryOnError(null);
-        if (server.feedback) {
-          setChatMessages((prev) => [...prev, { role: 'assistant', text: server.feedback }]);
-        }
-        triggerAiConclusion(size || 'M');
+        // The chat gets a look analysis + complementary picks (not a size readout).
+        triggerAiConclusion(server.sessionId || null, server.notice || null);
         return;
       }
 
@@ -2334,6 +2363,7 @@ export const useTryOnState = () => {
          * dropping them here is what would make the reply a dead end again.
          */
         links: res.data.links ?? [],
+        intent: res.data.intent,
       }]);
     } catch (err) {
       // A failed chat must still offer a next step, not a bare apology.

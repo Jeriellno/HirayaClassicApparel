@@ -32,9 +32,6 @@ const Cart = () => {
   const navigate = useNavigate();
   const {
     cartItems,
-    total,
-    dpAmount,
-    balanceAmount,
     isLoading,
     isError,
     updateQuantity,
@@ -62,9 +59,6 @@ const Cart = () => {
    * so both numbers are honest.
    */
   const safeCount = items.length;
-  const safeTotal = Number.isFinite(Number(total)) ? Number(total) : 0;
-  const safeDp = Number.isFinite(Number(dpAmount)) ? Number(dpAmount) : safeTotal / 2;
-  const safeBalance = Number.isFinite(Number(balanceAmount)) ? Number(balanceAmount) : safeTotal / 2;
   const lineCount = items.reduce((acc, it) => acc + Number(it?.quantity || 1), 0);
   // Total units in the bag (sum of quantities), shown beside the line count so
   // "1 item · 11 units" is unambiguous instead of showing 11 as the item count.
@@ -79,8 +73,6 @@ const Cart = () => {
 
   const selectedItems = items.filter((item) => selectedIds.has(item.id));
   const selectedTotal = selectedItems.reduce((sum, item) => sum + toPrice(item.product?.price) * Number(item.quantity || 1), 0);
-  const selectedDp = selectedTotal / 2;
-  const selectedBalance = selectedTotal - selectedDp;
   const selectedUnitCount = selectedItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0);
   const allSelected = items.length > 0 && selectedItems.length === items.length;
 
@@ -347,21 +339,15 @@ const Cart = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 my-5">
-                  <div className="rounded-2xl bg-navy-900 py-3.5 text-center shadow-[0_10px_20px_-12px_rgba(21,32,54,0.8)]">
-                    <p className="text-[9px] uppercase tracking-[0.16em] text-cream-400 mb-1">50% DP</p>
-                    <Currency amount={safeDp} className="text-sm font-semibold text-cream-50" />
-                  </div>
-                  <div className="rounded-2xl bg-cream-200/70 py-3.5 text-center shadow-neu-inset">
-                    <p className="text-[9px] uppercase tracking-[0.16em] text-hiraya-ink-muted mb-1">{t('cart.balance')}</p>
-                    <Currency amount={safeBalance} className="text-sm text-hiraya-ink" />
-                  </div>
+                {/* One full payment per order (the 50% down payment was retired). */}
+                <div className="my-5 rounded-2xl bg-navy-900 py-3.5 text-center shadow-[0_10px_20px_-12px_rgba(21,32,54,0.8)]">
+                  <p className="text-[9px] uppercase tracking-[0.16em] text-cream-400 mb-1">{t('cart.fullPayment')}</p>
+                  <Currency amount={selectedTotal} className="text-sm font-semibold text-cream-50" />
                 </div>
 
                 <p className="text-[10px] text-hiraya-ink-muted leading-relaxed mb-5 flex gap-2">
                   <AlertTriangle size={13} className="text-hiraya-accent shrink-0 mt-0.5" />
-                  Pay a 50% down payment to secure your order (balance due before courier pickup), or pay
-                  in full at checkout. Confirmed payments are final.
+                  {t('cart.paymentNote')}
                 </p>
 
                 <button

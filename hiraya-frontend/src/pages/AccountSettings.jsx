@@ -39,7 +39,7 @@ const SIZE_FIELDS = ['upper_body_size', 'lower_body_size'];
 
 const AccountSettings = () => {
   const navigate = useNavigate();
-  const { user, updateUser, refreshUser } = useAuth();
+  const { user, updateUser, refreshUser, endSession } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -330,13 +330,15 @@ const AccountSettings = () => {
          * enrols against Supabase rather than the deleted `user_two_factors`
          * table.
          */}
-        <DangerZoneSection onDeleted={() => {
-          clearStoredSession();
-          navigate('/login', {
-            replace: true,
-            state: { message: 'Your account has been permanently deleted.' },
-          });
-        }} />
+        {/*
+         * Account deleted on the server (every token revoked). `endSession`
+         * clears the React auth state as well as storage — clearing storage
+         * alone left the route guards treating the visitor as signed in, which
+         * bounced them to Home instead of showing the confirmation.
+         */}
+        <DangerZoneSection onDeleted={(message) => endSession('/login', {
+          message: message || 'Your account has been permanently deleted.',
+        })} />
         </div>
         </div>
 

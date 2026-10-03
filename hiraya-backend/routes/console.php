@@ -105,3 +105,9 @@ Schedule::command(RefreshApiKeys::class, ['--verify' => true, '--quiet-ok' => tr
  * so `personal_access_tokens` does not grow forever.
  */
 Schedule::command('sanctum:prune-expired', ['--hours' => 24])->daily();
+
+/*
+ * Try-on Gallery retention: "Recently Deleted" renders older than
+ * TRYON_TRASH_RETENTION_DAYS are purged (row + encrypted stored object).
+ */
+Schedule::command('tryon:purge-deleted')->daily()->withoutOverlapping(30);

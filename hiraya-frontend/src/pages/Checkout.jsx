@@ -31,12 +31,12 @@ const Checkout = () => {
     city: '',
     province: '',
     postal_code: '',
-    // Order Guidelines §2: 50% down payment (secures the stock) or pay in full.
-    payment_option: 'down_payment',
   });
 
+  // The receipt of the FULL payment. The 50% down-payment option and the
+  // customer-typed Reference Number were removed: one full payment per order,
+  // verified by the store against its own transaction records.
   const [dpProof, setDpProof] = useState(null);
-  const [dpReference, setDpReference] = useState('');
   const [agreed, setAgreed] = useState(false);
 
   // The backend prices the order server-side, so what we forward is the
@@ -76,9 +76,7 @@ const Checkout = () => {
       : 0;
 
   const total = estimatedTotal || 0;
-  const payInFull = formData.payment_option === 'full';
-  const dpAmount = total ? (payInFull ? total : total / 2).toFixed(2) : '0.00';
-  const balance = total ? (payInFull ? 0 : total - total / 2).toFixed(2) : '0.00';
+  const payAmount = total ? total.toFixed(2) : '0.00';
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -126,11 +124,7 @@ const Checkout = () => {
       return;
     }
     if (!dpProof) {
-      setErrorMessage(payInFull ? 'Please upload your payment receipt.' : 'Please upload your 50% down payment receipt.');
-      return;
-    }
-    if (dpReference.trim().length < 4) {
-      setErrorMessage('Please enter the reference number from your GCash or bank receipt.');
+      setErrorMessage('Please upload the receipt of your full payment.');
       return;
     }
 
@@ -145,12 +139,12 @@ const Checkout = () => {
 
     setLoading(true);
     try {
-      // Multipart FormData because we are uploading the DP proof image.
+      // Multipart FormData because we are uploading the payment receipt.
       const payload = new FormData();
       payload.append('customer_name', formData.customer_name);
       payload.append('contact_number', formData.contact_number);
       payload.append('courier', formData.courier);
-      payload.append('payment_option', formData.payment_option);
+      payload.append('payment_option', 'full');
       if (formData.courier === 'lbc') {
         ['address_line', 'barangay', 'city', 'province', 'postal_code'].forEach((key) =>
           payload.append(key, formData[key].trim()));
@@ -158,7 +152,6 @@ const Checkout = () => {
         payload.append('delivery_address', formData.delivery_address.trim());
       }
       payload.append('dp_proof_image', dpProof);
-      payload.append('dp_reference_number', dpReference.trim());
 
       // Tell the backend which path this is, so it clears the bag only for
       // genuine cart checkouts.
@@ -208,11 +201,12 @@ const Checkout = () => {
           </div>
           <h2 className="display-md text-hiraya-ink">{t('checkout.received')}</h2>
           <p className="mt-3 text-xs leading-relaxed text-hiraya-ink-soft">
-            We have received your down payment proof. Our team will verify it and update your order
-            status within the 3:00 PM same-day processing cutoff.
+            We received your payment receipt. Your payment is <strong className="text-hiraya-ink">pending verification</strong>:
+            our team matches it against our payment records before your order is prepared. Orders placed before
+            3:00 PM are processed the same day.
           </p>
 
-          <PaymentInstructions amount={dpAmount} amountLabel={payInFull ? 'Payment sent' : 'Down payment sent'} className="mb-8 mt-6 text-left" />
+          <PaymentInstructions amount={payAmount} amountLabel="Payment sent" className="mb-8 mt-6 text-left" />
 
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
             <button
@@ -245,7 +239,7 @@ const Checkout = () => {
          * every other page opens with, so Checkout reads as part of the house.
          */}
         <div className="section-head mb-10 border-b border-hiraya-structure-line pb-8">
-          <span className="kicker text-hiraya-ink-muted">Secure your order with a 50% down payment</span>
+          <span className="kicker text-hiraya-ink-muted">One full payment secures your order</span>
           <h1 className="display-section mt-2 text-navy-900">{t('checkout.title')}</h1>
         </div>
 
@@ -260,15 +254,15 @@ const Checkout = () => {
               <ul className="space-y-3 text-[11px] leading-relaxed text-hiraya-ink-soft">
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  <span>A <strong className="text-hiraya-ink">50% down payment (PAYO)</strong> is required to secure your order.</span>
+                  <span>Pay the <strong className="text-hiraya-ink">full order amount</strong> in one payment and upload the receipt.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  <span>The remaining balance must be settled <strong className="text-hiraya-ink">before the courier is booked</strong>. Orders with an unpaid balance before pickup may be cancelled.</span>
+                  <span>We <strong className="text-hiraya-ink">verify every payment against our own GCash / bank records</strong> before preparing your order. A receipt image alone does not confirm payment.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
-                  <span>We ship via <strong className="text-hiraya-ink">LBC</strong> or <strong className="text-hiraya-ink">Lalamove</strong> once <strong className="text-hiraya-ink">full payment</strong> is received. Fully paid orders are prioritized for dispatch.</span>
+                  <span>We ship via <strong className="text-hiraya-ink">LBC</strong> or <strong className="text-hiraya-ink">Lalamove</strong> once your payment is verified.</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-hiraya-accent">·</span>
@@ -493,50 +487,23 @@ const Checkout = () => {
                 </p>
               </div>
 
-              {/* HOW MUCH TO PAY NOW — Order Guidelines §2. */}
-              <div className="mb-5 grid grid-cols-2 gap-4" role="radiogroup" aria-label="How much to pay now">
-                {[
-                  { value: 'down_payment', title: '50% Down Payment', amount: total / 2, note: 'Secures your item. Pay the balance before courier pickup.' },
-                  { value: 'full', title: 'Full Payment', amount: total, note: 'Pay everything now — ready to ship once verified.' },
-                ].map((option) => {
-                  const active = formData.payment_option === option.value;
-                  return (
-                    <label
-                      key={option.value}
-                      className={`cursor-pointer rounded-2xl px-4 py-4 text-center transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-hiraya-focus ${active
-                        ? 'border border-hiraya-accent-deep bg-hiraya-accent text-hiraya-on-accent shadow-[0_12px_24px_-14px_rgba(21,32,54,0.8)]'
-                        : 'border border-cream-50/80 bg-hiraya-surface text-hiraya-ink shadow-neu-sm hover:-translate-y-0.5'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="payment_option"
-                        value={option.value}
-                        checked={active}
-                        onChange={handleChange}
-                        className="sr-only"
-                      />
-                      <p className={`mb-1 text-[9px] uppercase tracking-[0.16em] ${active ? 'opacity-80' : 'text-hiraya-ink-muted'}`}>{option.title}</p>
-                      <Currency amount={(option.amount || 0).toFixed(2)} className="text-lg font-semibold" />
-                      <p className={`mt-1 text-[9px] leading-snug ${active ? 'opacity-80' : 'text-hiraya-ink-muted'}`}>{option.note}</p>
-                    </label>
-                  );
-                })}
+              {/* ONE FULL PAYMENT — the whole order total, no down payment. */}
+              <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-hiraya-accent-deep bg-hiraya-accent px-5 py-4 text-hiraya-on-accent shadow-[0_12px_24px_-14px_rgba(21,32,54,0.8)]">
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.16em] opacity-80">Full Payment</p>
+                  <p className="mt-0.5 text-[10px] opacity-80">The whole order total, paid once.</p>
+                </div>
+                <Currency amount={payAmount} className="text-lg font-semibold" />
               </div>
-              {!payInFull && (
-                <p className="-mt-2 mb-5 text-center text-[10px] text-hiraya-ink-muted">
-                  Balance before courier pickup: <Currency amount={balance} className="font-semibold text-hiraya-ink" /> — orders with an unpaid balance before pickup may be cancelled.
-                </p>
-              )}
 
               <PaymentInstructions
-                amount={dpAmount}
-                amountLabel={payInFull ? 'Send now (full payment)' : 'Send now (50% down payment)'}
+                amount={payAmount}
+                amountLabel="Send now (full payment)"
                 className="mb-5"
               />
 
-              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
-                {payInFull ? 'Upload Payment Receipt' : 'Upload Down Payment Receipt'}
+              <label htmlFor="payment_receipt" className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted">
+                Upload Payment Receipt
               </label>
               {/*
                 * THE FILE INPUT STILL USES THE NATIVE `file:` BUTTON, because a
@@ -547,32 +514,15 @@ const Checkout = () => {
                 * ground is the shared `.field` surface.
                 */}
               <input
+                id="payment_receipt"
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={(e) => setDpProof(e.target.files[0])}
                 className="field cursor-pointer text-xs file:mr-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-hiraya-accent file:px-4 file:py-2 file:text-[10px] file:font-semibold file:uppercase file:tracking-[0.16em] file:text-hiraya-on-accent hover:file:bg-hiraya-accent-deep"
               />
 
-              <label
-                htmlFor="dp_reference_number"
-                className="mb-2 mt-5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink-muted"
-              >
-                Payment Reference Number
-              </label>
-              <input
-                id="dp_reference_number"
-                type="text"
-                value={dpReference}
-                onChange={(e) => setDpReference(e.target.value)}
-                required
-                minLength={4}
-                maxLength={64}
-                autoComplete="off"
-                className="field"
-                placeholder="e.g. GCash Ref. No. 1234 567 890123"
-              />
               <p className="mt-2 text-[10px] text-hiraya-ink-muted">
-                Printed on your GCash or bank receipt. We match it against our records to verify your payment.
+                A clear screenshot of your GCash, Maya or bank receipt (PNG, JPG or WEBP, up to 5 MB).
               </p>
             </div>
 
@@ -589,7 +539,7 @@ const Checkout = () => {
               className="btn-primary w-full rounded-full py-4"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Submitting Order...' : 'Submit Order & Down Payment'}
+              {loading ? 'Submitting Order...' : 'Submit Order & Payment'}
             </button>
           </form>
         </div>

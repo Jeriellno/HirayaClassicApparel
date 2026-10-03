@@ -263,7 +263,7 @@ const AiTryOn = () => {
       <SideDrawer
         open={historyOpen}
         onClose={closeHistory}
-        label="Try-on history"
+        label="Gallery"
         id="history-drawer"
         className="w-[min(430px,calc(100vw-1.5rem))]"
       >

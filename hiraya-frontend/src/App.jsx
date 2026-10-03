@@ -17,7 +17,6 @@ import Checkout from './pages/Checkout';
 import AiTryOn from './pages/AiTryOn';
 import AccountSettings from './pages/AccountSettings';
 import MyOrders from './pages/MyOrders';
-import Feedback from './pages/Feedback';
 import SuperAdmin from './components/superadmin/SuperAdmin';
 
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -129,7 +128,8 @@ const AppRoutes = () => {
                 <Route path="/home" element={<Home />} />
                 <Route path="/shop" element={<Shop />} />
                 <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="/feedback" element={<Feedback />} />
+                {/* Feedback was merged into Product Reviews (My Orders). Old links land there. */}
+                <Route path="/feedback" element={<Navigate to="/orders" replace />} />
 
                 {/* Guest-Only Routes */}
                 <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />

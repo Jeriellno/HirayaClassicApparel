@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Support\ReceiptStorage;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\ReceiptInspector;
 use App\Support\ProductVariants;
 use App\Notifications\OrderStatusChanged;
 use Illuminate\Http\Request;
@@ -56,6 +57,7 @@ class AdminOrderController extends Controller
          */
         return response()->json(
             $query->with(['user:id,full_name,email', 'orderItems.product'])->latest()->get()
+                ->each(fn (Order $o) => $o->withStaffFields())
         );
     }
 
@@ -64,7 +66,60 @@ class AdminOrderController extends Controller
      */
     public function show(Order $order)
     {
-        return response()->json($order->load(['user:id,full_name,email', 'orderItems.product']));
+        return response()->json($order->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields());
+    }
+
+    /**
+     * POST /api/admin/orders/{order}/receipt-check
+     *
+     * Re-run the ADVISORY receipt check (OCR + duplicate + anomaly flags). It
+     * only ever produces a risk signal; it never changes the payment status.
+     */
+    public function recheckReceipt(Request $request, Order $order)
+    {
+        if (empty($order->dp_proof_image_path)) {
+            return response()->json(['message' => 'No receipt was uploaded for this order.'], 422);
+        }
+
+        app(ReceiptInspector::class)->analyseAndStore($order->id);
+        $order->refresh();
+
+        $this->writeAudit($request, 'RECHECK_PAYMENT_RECEIPT', 'ORDERS',
+            'Re-ran the advisory receipt check for order #' . $order->id . ' (risk: ' . ($order->receipt_risk_level ?? 'unknown') . ').');
+
+        return response()->json([
+            'message' => 'Receipt check finished. Remember: it is advisory — confirm the payment in your transaction history.',
+            'order' => $order->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields(),
+        ]);
+    }
+
+    /**
+     * PATCH /api/admin/orders/{order}/flag-payment
+     *
+     * Moves a payment to "Needs Review" (e.g. the receipt looks off, or the
+     * payment cannot be found yet in the merchant history). Stock stays
+     * reserved; staff can later verify or reject it.
+     */
+    public function flagPayment(Request $request, Order $order)
+    {
+        $validated = $request->validate(['reason' => 'required|string|min:4|max:500']);
+
+        if ($order->payment_status !== 'pending') {
+            return response()->json(['message' => 'Only a payment that is pending verification can be flagged for review.'], 422);
+        }
+
+        $order->update(['payment_status' => 'needs_review', 'rejection_reason' => $validated['reason']]);
+
+        $this->writeAudit($request, 'FLAG_PAYMENT_REVIEW', 'ORDERS',
+            'Flagged the payment for order #' . $order->id . ' as Needs Review. Reason: ' . $validated['reason']);
+
+        $this->notifyCustomer($order->fresh(), 'Payment Under Review',
+            'We are taking a closer look at the payment for order #' . $order->id . '. No action is needed unless we contact you.');
+
+        return response()->json([
+            'message' => 'Payment flagged as Needs Review.',
+            'order' => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields(),
+        ]);
     }
 
     /**
@@ -98,24 +153,65 @@ class AdminOrderController extends Controller
     }
 
     /**
-     * PATCH /api/admin/orders/{order}/approve-dp
+     * PATCH /api/admin/orders/{order}/approve-dp   (route name kept for compatibility)
      *
-     * Step 1 of the 2-step flow: admin verifies the uploaded 50% down payment
-     * proof and marks the order as secured. Moves the order into processing.
+     * VERIFY THE PAYMENT. The customer's receipt image is never proof by itself
+     * (and neither is the advisory OCR/AI risk check). Staff must confirm they
+     * found the payment in a TRUSTED record — the store's GCash / Maya / bank
+     * transaction history — and say which one. Optionally the transaction id
+     * from that record is stored INTERNALLY (never shown to the customer) so the
+     * same transaction can never verify a second order.
+     *
+     * A high-risk receipt can still be approved, but only with an explicit
+     * acknowledgement — the trusted record, not the AI, decides.
+     *
+     * Only staff reach this route (`supabase.aal2` + `supabase.user` + `admin`),
+     * and every decision is written to the audit trail.
      */
     public function approveDownPayment(Request $request, Order $order)
     {
-        if ($order->payment_status !== 'pending') {
+        if (! in_array($order->payment_status, ['pending', 'needs_review'], true)) {
             return response()->json([
-                'message' => 'This order has already moved past down payment verification.',
+                'message' => 'This order has already moved past payment verification.',
             ], 422);
         }
 
         if (empty($order->dp_proof_image_path)) {
             return response()->json([
-                'message' => 'No down payment proof was uploaded for this order.',
+                'message' => 'No payment receipt was uploaded for this order.',
             ], 422);
         }
+
+        $validated = $request->validate([
+            'verification_method' => 'required|in:gcash_history,maya_history,bank_statement,merchant_dashboard,other_trusted_record',
+            'payment_confirmed_in_record' => 'accepted',
+            'transaction_reference' => 'nullable|string|min:4|max:64',
+            'risk_acknowledged' => 'nullable|boolean',
+        ], [
+            'verification_method.required' => 'Choose the trusted record you checked the payment against.',
+            'payment_confirmed_in_record.accepted' => 'Confirm that you found this payment in the store\'s transaction history.',
+        ]);
+
+        if ($order->receipt_risk_level === 'high' && ! $request->boolean('risk_acknowledged')) {
+            return response()->json([
+                'message' => 'This receipt was flagged as HIGH risk. Re-check the transaction history and tick the acknowledgement to approve.',
+                'requires_risk_acknowledgement' => true,
+            ], 422);
+        }
+
+        $transactionRef = isset($validated['transaction_reference']) ? trim($validated['transaction_reference']) : null;
+        if ($transactionRef && ($usedBy = Order::referenceInUse($transactionRef, $order->id))) {
+            return response()->json([
+                'message' => 'That transaction was already used to verify order #' . $usedBy . '. One payment cannot verify two orders.',
+                'errors' => ['transaction_reference' => ['Already used for order #' . $usedBy . '.']],
+            ], 422);
+        }
+
+        $verification = [
+            'payment_verification_method' => $validated['verification_method'],
+            'payment_verified_by' => $request->user()?->id,
+        ] + ($transactionRef ? ['dp_reference_number' => $transactionRef] : []);
+        $methodLabel = str_replace('_', ' ', $validated['verification_method']);
 
         /*
          * PAID IN FULL AT CHECKOUT: the one receipt covers everything, so the
@@ -123,7 +219,7 @@ class AdminOrderController extends Controller
          * balance step to wait for.
          */
         if ((float) $order->balance_amount <= 0) {
-            $order->update([
+            $order->update($verification + [
                 'payment_status'        => 'fully_paid',
                 'order_status'          => 'ready_for_shipping',
                 'rejection_reason'      => null,
@@ -137,9 +233,10 @@ class AdminOrderController extends Controller
                 'APPROVE_FULL_PAYMENT',
                 'ORDERS',
                 'Verified the full payment of ₱' . number_format((float) $order->total_amount, 2)
-                    . ' for order #' . $order->id
-                    . ($order->dp_reference_number ? ' (ref. ' . $order->dp_reference_number . ')' : '')
-                    . '; ready to ship.',
+                    . ' for order #' . $order->id . ' against the ' . $methodLabel
+                    . ($transactionRef ? ' (transaction ' . $transactionRef . ')' : '')
+                    . '; receipt risk signal: ' . ($order->receipt_risk_level ?? 'not checked')
+                    . ($request->boolean('risk_acknowledged') ? ' (acknowledged)' : '') . '; ready to ship.',
             );
 
             $this->notifyCustomer(
@@ -153,11 +250,12 @@ class AdminOrderController extends Controller
 
             return response()->json([
                 'message' => 'Full payment verified. The order is ready to ship.',
-                'order'   => $order->fresh(),
+                'order'   => $order->fresh()->withStaffFields(),
             ]);
         }
 
-        $order->update([
+        // LEGACY: an order placed under the removed 50% flow (balance > 0).
+        $order->update($verification + [
             'payment_status'   => '50_paid',
             'order_status'     => 'processing',
             'rejection_reason' => null,
@@ -190,7 +288,7 @@ class AdminOrderController extends Controller
 
         return response()->json([
             'message' => 'Down payment verified. Order is now secured and processing.',
-            'order'   => $order->fresh(),
+            'order'   => $order->fresh()->withStaffFields(),
         ]);
     }
 
@@ -214,9 +312,9 @@ class AdminOrderController extends Controller
                 // approve) cannot both pass the guard and double-release stock.
                 $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-                if ($locked->payment_status !== 'pending') {
+                if (! in_array($locked->payment_status, ['pending', 'needs_review'], true)) {
                     throw new \RuntimeException(
-                        'Only orders awaiting down payment verification can be rejected.'
+                        'Only orders awaiting payment verification can be rejected.'
                     );
                 }
 
@@ -232,8 +330,8 @@ class AdminOrderController extends Controller
 
             $this->notifyCustomer(
                 $order->fresh(),
-                'Down Payment Needs Attention',
-                'We could not verify your down payment for order #' . $order->id . '. Reason: ' . $validated['rejection_reason'] . ' Please re-upload a clear proof of payment on your orders page.'
+                'Payment Verification Failed',
+                'We could not verify your payment for order #' . $order->id . '. Reason: ' . $validated['rejection_reason'] . ' Please upload the correct receipt on your orders page.'
             );
 
             /*
@@ -245,16 +343,16 @@ class AdminOrderController extends Controller
              */
             $this->writeAudit(
                 $request,
-                'REJECT_DOWN_PAYMENT',
+                'REJECT_PAYMENT',
                 'ORDERS',
-                'Rejected the ₱' . number_format((float) $order->dp_amount, 2) . ' down payment for order #'
+                'Rejected the ₱' . number_format((float) $order->dp_amount, 2) . ' payment for order #'
                     . $order->id . ' and returned its stock to inventory. Reason given: '
                     . $validated['rejection_reason'],
             );
 
             return response()->json([
-                'message' => 'Down payment rejected. The customer has been asked to re-upload.',
-                'order'   => $order->fresh()->load('orderItems'),
+                'message' => 'Payment marked as Verification Failed. The customer has been asked to upload the correct receipt.',
+                'order'   => $order->fresh()->load('orderItems')->withStaffFields(),
             ]);
 
         } catch (\RuntimeException $e) {
@@ -264,7 +362,7 @@ class AdminOrderController extends Controller
             Log::error('Reject Down Payment Error: ' . $e->getMessage());
 
             return response()->json([
-                'message' => 'Failed to reject the down payment.',
+                'message' => 'Failed to reject the payment.',
             ], 500);
         }
     }
@@ -302,10 +400,10 @@ class AdminOrderController extends Controller
     }
 
     /**
-     * PATCH /api/admin/orders/{order}/confirm-full-payment
+     * POST /api/admin/orders/{order}/confirm-full-payment
      *
-     * Step 2 of the 2-step flow: admin verifies the remaining balance proof
-     * and marks the order fully paid, ready to be shipped.
+     * LEGACY ONLY — settles the remaining balance of a HISTORICAL 50/50 order
+     * (`50_paid`). New orders are verified once, in full, by approveDownPayment.
      */
     public function confirmFullPayment(Request $request, Order $order)
     {
@@ -373,7 +471,7 @@ class AdminOrderController extends Controller
 
             return response()->json([
                 'message' => 'Full payment confirmed. Order is ready for shipping.',
-                'order'   => $order->fresh(),
+                'order'   => $order->fresh()->withStaffFields(),
             ]);
 
         } catch (\Throwable $e) {
@@ -413,7 +511,7 @@ class AdminOrderController extends Controller
         if ($previousStatus === $newStatus) {
             return response()->json([
                 'message' => 'Order is already ' . str_replace('_', ' ', $newStatus) . '.',
-                'order'   => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product']),
+                'order'   => $order->fresh()->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields(),
             ]);
         }
 
@@ -453,7 +551,7 @@ class AdminOrderController extends Controller
         // Work starts only on a verified down payment (approve-dp does this).
         if ($newStatus === 'processing' && ! in_array($order->payment_status, ['50_paid', 'fully_paid'], true)) {
             return response()->json([
-                'message' => 'Verify the 50% down payment before moving this order to processing.',
+                'message' => 'Verify the payment before moving this order to processing.',
             ], 422);
         }
 
@@ -533,7 +631,7 @@ class AdminOrderController extends Controller
 
         return response()->json([
             'message' => 'Order status updated.',
-            'order'   => $order->load(['user:id,full_name,email', 'orderItems.product']),
+            'order'   => $order->load(['user:id,full_name,email', 'orderItems.product'])->withStaffFields(),
         ]);
     }
 
@@ -591,7 +689,7 @@ class AdminOrderController extends Controller
 
                 return response()->json([
                     'message' => 'Tracking / booking details saved.',
-                    'order'   => $order->fresh(),
+                    'order'   => $order->fresh()->withStaffFields(),
                 ]);
             }
 

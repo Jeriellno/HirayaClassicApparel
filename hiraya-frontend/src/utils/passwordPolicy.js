@@ -49,6 +49,14 @@ export const PASSWORD_REQUIREMENTS = [
         test: (value) => /[0-9]/.test(value),
         message: 'Include at least 1 number.',
     },
+    {
+        // Added for NEW passwords (mirrors App\Rules\PasswordStrength). Existing
+        // passwords keep working: sign-in never re-checks strength.
+        id: 'special',
+        label: 'At least 1 special character (e.g. ! @ # $ %)',
+        test: (value) => /[^A-Za-z0-9]/.test(value),
+        message: 'Include at least 1 special character (e.g. ! @ # $ %).',
+    },
 ];
 
 /**
