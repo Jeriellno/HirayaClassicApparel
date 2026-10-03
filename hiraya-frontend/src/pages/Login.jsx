@@ -8,7 +8,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 import { parseApiError } from '../api/axios';
-import { roleHome } from '../utils/consoleAccess';
+import { postLoginPath } from '../utils/consoleAccess';
 import { hasStoredSupabaseSession } from '../routes/ProtectedRoute';
 import MfaEnrollment from '../components/settings/MfaEnrollment';
 import AuthShell from '../components/auth/AuthShell';
@@ -134,7 +134,7 @@ const Login = () => {
                 if (cancelled || levels.currentLevel !== 'aal2') return;
                 const staffRole = await fetchAuthoritativeRole(user);
                 if (!cancelled && isPrivilegedRole(staffRole)) {
-                    navigate(redirectTo || roleHome(staffRole), { replace: true });
+                    navigate(postLoginPath(redirectTo, staffRole), { replace: true });
                     return;
                 }
             } catch {
@@ -177,7 +177,7 @@ const Login = () => {
     const finishStaffSignIn = (resolvedRole) => {
         // Audit Logs: record the staff sign-in (fire-and-forget; never blocks entry).
         api.post('/admin/console/signed-in').catch(() => {});
-        navigate(redirectTo || roleHome(resolvedRole), { replace: true });
+        navigate(postLoginPath(redirectTo, resolvedRole), { replace: true });
     };
 
     /** Step 1 — the password, and the role decision that follows it. */
@@ -213,7 +213,9 @@ const Login = () => {
                     console.warn('Could not clear previous staff session:', err);
                 }
 
-                navigate(redirectTo || roleHome(body.user), { replace: true });
+                // Never into the console: /login may still remember /superadmin
+                // from a staff sign-out on this browser (see postLoginPath).
+                navigate(postLoginPath(redirectTo, body.user), { replace: true });
                 return;
             }
 

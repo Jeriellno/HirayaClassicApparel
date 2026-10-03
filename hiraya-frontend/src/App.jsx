@@ -20,7 +20,7 @@ import MyOrders from './pages/MyOrders';
 import SuperAdmin from './components/superadmin/SuperAdmin';
 
 import ProtectedRoute from './routes/ProtectedRoute';
-import { roleHome } from './utils/consoleAccess';
+import { postLoginPath } from './utils/consoleAccess';
 import Navbar from './components/common/Navbar';
 import TourButton from './components/common/TourButton';
 import Toaster from './components/common/Toaster';
@@ -40,8 +40,9 @@ const GuestRoute = ({ children }) => {
 
     if (loading) return null;
     // Same destination Login.jsx navigates to, so signing in is ONE jump, not
-    // /home first and then the page the visitor came from.
-    return user ? <Navigate to={location.state?.from || roleHome(user)} replace /> : children;
+    // /home first and then the page the visitor came from — and never a page
+    // this role cannot open (that is what looped a customer on /superadmin).
+    return user ? <Navigate to={postLoginPath(location.state?.from, user)} replace /> : children;
 };
 
 GuestRoute.propTypes = {

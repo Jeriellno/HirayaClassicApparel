@@ -215,3 +215,31 @@ export const roleHome = (user) => {
     if (role === 'admin' || role === 'superadmin') return '/superadmin';
     return '/home';
 };
+
+const CONSOLE_PATH = /^\/(superadmin|admin)(\/|$)/;
+const AUTH_GATEWAY_PATH = /^\/(login|register|forgot-password|reset-password|accept-invitation)(\/|$)/;
+
+/**
+ * WHERE TO GO AFTER SIGN-IN: the remembered page (`location.state.from`) — but
+ * only when this role may open it.
+ *
+ * A staff sign-out leaves /login remembering `/superadmin`. A CUSTOMER who then
+ * signed in on that page was sent to /superadmin, the console guard (no staff
+ * session) sent them back to /login, GuestRoute forwarded them to /superadmin
+ * again — an endless loop that showed a blank page. The console is never a
+ * destination for a customer, and an auth page is never a destination at all.
+ *
+ * Used by Login.jsx and App.jsx's GuestRoute so both decide the same way.
+ *
+ * @param {string|null|undefined} from  the remembered pathname
+ * @param {object|string|null} user     the signed-in user (or role string)
+ */
+export const postLoginPath = (from, user) => {
+    const home = roleHome(user);
+
+    if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) return home;
+    if (AUTH_GATEWAY_PATH.test(from)) return home;
+    if (CONSOLE_PATH.test(from) && home !== '/superadmin') return home;
+
+    return from;
+};
