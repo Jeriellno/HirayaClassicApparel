@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, ShoppingBag, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
+import { productTypeLabel } from '../../constants/productCategories';
 import Currency from '../common/Currency';
 import { useCart } from '../../hooks/useCart';
 import { useAuth } from '../../context/AuthContext';
@@ -159,7 +160,7 @@ const QuickViewModal = ({ product, onClose, onTryOn }) => {
                 />
                 <span className="absolute left-3 top-3 flex items-center gap-1 rounded-sm border border-hiraya-nav-ink/20 bg-hiraya-surface/90 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-hiraya-ink backdrop-blur-md">
                   <Sparkles size={10} />
-                  {product.category?.replace('_', ' ') || 'GARMENT'}
+                  {productTypeLabel(product)}
                 </span>
               </div>
 

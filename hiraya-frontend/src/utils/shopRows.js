@@ -39,6 +39,19 @@ export const shopRowFor = (rawCategory) => {
   return SHOP_ROWS.find((row) => row.matches(category))?.name || OTHER_ROW;
 };
 
+/**
+ * Does a row pass the Shop's filter tab? `active` is a tab value ('top',
+ * 'formal') or a row name from "Explore More" ('Formal Wear'); 'all' passes
+ * every row. Same three-letter rule the Shop has always used.
+ */
+export const rowMatchesTab = (rowName, active) => {
+  const row = String(rowName || '').toLowerCase();
+  if (!row) return false;
+  const tab = String(active || '').trim().toLowerCase();
+  if (!tab || tab === 'all' || tab === 'all garments') return true;
+  return row.startsWith(tab.slice(0, 3)) || tab.startsWith(row.slice(0, 3));
+};
+
 /** Rows that have at least one product, in display order ("More Pieces" last). */
 export const rowsForProducts = (products) => {
   const present = new Set((Array.isArray(products) ? products : []).map((p) => shopRowFor(p?.category)).filter(Boolean));

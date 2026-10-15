@@ -397,6 +397,7 @@ const ProductDetail = () => {
               {product.category && (
                 <span className="kicker text-hiraya-ink-muted">
                   {product.category.replace('_', ' ')}
+                  {product.subcategory && <span> · {product.subcategory}</span>}
                 </span>
               )}
               <h1 className="mt-4 font-serif text-[clamp(1.8rem,3vw,2.6rem)] uppercase leading-[1.08] tracking-[0.04em] text-navy-900">

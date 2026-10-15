@@ -227,7 +227,8 @@ class RefreshApiKeys extends Command
                     ]),
 
                 'gemini' => Http::timeout(20)
-                    ->get('https://generativelanguage.googleapis.com/v1beta/models?key=' . urlencode($secret)),
+                    ->withHeaders(['x-goog-api-key' => $secret])
+                    ->get('https://generativelanguage.googleapis.com/v1beta/models'),
 
                 'supabase' => Http::timeout(20)
                     ->withToken($secret)

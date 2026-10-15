@@ -13,15 +13,17 @@ namespace App\Support;
  * A pairing is an outfit suggestion, so the two pieces must be worn on
  * DIFFERENT layers of the body:
  *
- *   top       (TOPS)                 pairs with outerwear, bottom
+ *   top       (TOPS)                 pairs with outerwear, bottom, full
  *   bottom    (BOTTOMS)              pairs with top, outerwear
  *   outerwear (OUTERWEAR)            pairs with anything except outerwear
- *   full      (DRESSES, FULL_BODY)   pairs with outerwear only — a dress
- *                                    already covers the top and bottom
+ *   full      (DRESSES, FULL_BODY)   pairs with outerwear and top — a dress
+ *                                    already covers the bottom, but a bolero
+ *                                    or cropped top can be worn over it
  *   formal    (FORMAL_MEN/WOMEN)     pairs with anything except formal
  *
  * Two tops, two coats or a dress with trousers are refused: none of those is
- * an outfit the try-on could actually layer.
+ * an outfit. The try-on wears a dress + top or dress + outerwear pair as the
+ * dress first, then the top or outerwear over it (App\Support\TryOnGarmentPlan).
  */
 class GarmentPairing
 {
@@ -54,7 +56,9 @@ class GarmentPairing
         }
 
         if ($la === 'full' || $lb === 'full') {
-            return $la === 'outerwear' || $lb === 'outerwear';
+            $other = $la === 'full' ? $lb : $la;
+
+            return $other === 'outerwear' || $other === 'top';
         }
 
         return true;

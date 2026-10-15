@@ -9,8 +9,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import api, { getAuthToken, clearStoredSession, parseApiError } from '../api/axios';
+import { reloadToLogin } from '../utils/authRedirect';
 
 const AuthContext = createContext();
+
+// The longest a customer sign-out waits for the server to revoke the token.
+const LOGOUT_REVOKE_WAIT_MS = 2000;
 
 /** Safely JSON-parses a stored user without throwing on corrupt data. */
 const readStoredUser = () => {
@@ -68,23 +72,23 @@ export const AuthProvider = ({ children }) => {
     const queryClient = useQueryClient();
 
     /*
-     * LOGOUT MUST LAND IN ONE NAVIGATION, NOT TWO.
+     * LOGOUT LANDS ON A FRESHLY LOADED /login — IN ONE NAVIGATION, NOT TWO.
      *
-     * `logout()` used to finish with `window.location.href = '/login'`, a FULL page
-     * load, on top of the `setUser(null)` it had already done. That produced the
-     * double refresh everybody saw: React re-rendered, the router's `ProtectedRoute`
-     * found no user and issued its own `<Navigate to="/login" replace />`, and then
-     * the hard navigation landed anyway — a second document load of a SPA, throwing
-     * away the bundle it had just booted and re-running every module.
+     * `logout()` once finished with `window.location.href = '/login'` on top of the
+     * `setUser(null)` it had already done: React re-rendered, `ProtectedRoute` issued
+     * its own `<Navigate to="/login" />`, and then the hard load landed anyway — the
+     * double refresh everybody saw. The fix after that went in-app only, which kept
+     * the old tab's memory alive behind the login form.
      *
-     * The state change is ALREADY enough to send the user to /login: `ProtectedRoute`
-     * is what decides the destination, and doing it in one place means the guards and
-     * the logout can never disagree about where "signed out" lives. So this navigates
-     * in-app and nothing more. The `ref` is the second half of the fix — a second
-     * click (or a re-render that fires the effect again) used to be able to kick off
-     * the same teardown twice, doubling the request and the redirect.
+     * Now every sign-out (this one, and the staff console's) flips `signingOut`
+     * FIRST. AppRoutes answers with a "Signing out..." screen and unmounts the
+     * routes, so no guard is left to redirect, and `reloadToLogin()` is the ONLY
+     * navigation: a single full page load of /login. The `ref` still stops a second
+     * click from kicking off the same teardown twice.
      */
     const logoutStarted = useRef(false);
+    const [signingOut, setSigningOut] = useState(false);
+    const beginSignOut = useCallback(() => setSigningOut(true), []);
 
     /**
      * Verifies the stored token against /api/user on app refresh.
@@ -294,38 +298,43 @@ export const AuthProvider = ({ children }) => {
     };
 
     /**
-     * Guarantees non-blocking local session destruction before network call.
+     * Customer sign-out: revoke the Sanctum token, then ONE full load of /login.
      */
     const logout = async () => {
         if (logoutStarted.current) return;
         logoutStarted.current = true;
 
         /*
-         * CAPTURE THE TOKEN FIRST, NAVIGATE IMMEDIATELY, REVOKE IN THE BACKGROUND.
-         *
-         * The old order cleared storage and THEN called /logout, so that request
-         * went out with no token: the server never revoked it (401) and the 401
-         * handling could fire on the way out. It also awaited the network before
-         * navigating, while `setUser(null)` had already made the route guards
-         * redirect — two navigations, which read as a lag/flicker on logout.
+         * CAPTURE THE TOKEN FIRST, then clear storage at once, so the session is
+         * gone locally even if the tab is closed during the wait below. The token
+         * is passed explicitly — an earlier order cleared storage first and the
+         * /logout request went out with no token, so nothing was ever revoked.
          */
         const token = getAuthToken();
-
+        beginSignOut();
         clearStoredSession();
-        setUser(null);
-        // Drop cached cart/orders/notifications so the next account never sees them.
-        queryClient.clear();
-        navigate('/login', { replace: true });
 
+        /*
+         * WAIT (BRIEFLY) FOR THE REVOKE. A full page load aborts every request still
+         * in flight, and this one is cross-origin (a CORS preflight goes first), so
+         * firing it and reloading at once would leave the token valid on the server.
+         */
         if (token) {
-            api.post('/logout', null, { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 })
-                .catch((err) => console.warn('Backend logout skipped or unreachable:', err?.message));
+            await Promise.race([
+                api.post('/logout', null, { headers: { Authorization: `Bearer ${token}` }, timeout: 8000 })
+                    .catch((err) => console.warn('Backend logout skipped or unreachable:', err?.message)),
+                new Promise((resolve) => setTimeout(resolve, LOGOUT_REVOKE_WAIT_MS)),
+            ]);
         }
+
+        // No setUser(null) / queryClient.clear() / navigate(): the reload discards
+        // all of that at once, and doing them first is what caused a second navigation.
+        reloadToLogin();
     };
 
     return (
         <AuthContext.Provider
-            value={{ user, login, register, verifyRegistration, endSession, logout, loading, updateUser, refreshUser, checkUser }}
+            value={{ user, login, register, verifyRegistration, endSession, logout, beginSignOut, signingOut, loading, updateUser, refreshUser, checkUser }}
         >
             {children}
         </AuthContext.Provider>

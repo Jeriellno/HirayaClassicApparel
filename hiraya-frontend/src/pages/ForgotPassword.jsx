@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2, ArrowLeft, AlertCircle, Loader2, Sparkles, Mail, Send, ShieldCheck } from 'lucide-react';
 import api, { parseApiError } from '../api/axios';
+import { cleanEmail, EMAIL_INPUT_PROPS } from '../utils/emailInput';
 
 /**
  * ForgotPassword - Hiraya"Gold & Black" luxury reset gateway.
@@ -152,13 +153,12 @@ const ForgotPassword = () => {
                             <div className="relative">
                                 <Mail size={16} className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-hiraya-ink-muted" />
                                 <input
-                                    type="email"
-                                    inputMode="email"
-                                    autoComplete="email"
+                                    {...EMAIL_INPUT_PROPS}
                                     placeholder="Email Address"
                                     value={email}
                                     onChange={(e) => {
-                                        setEmail(e.target.value);
+                                        // Drop hidden spaces / zero-width characters a phone keyboard adds.
+                                        setEmail(cleanEmail(e.target.value));
                                         if (error) setError('');
                                     }}
                                     onBlur={() => setTouched(true)}

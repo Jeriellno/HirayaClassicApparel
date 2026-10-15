@@ -358,7 +358,7 @@ PROMPT;
 
         foreach ($models as $model) {
             try {
-                $response = $this->http()->post($this->endpoint($apiKey, $model), [
+                $response = $this->http()->withHeaders(['x-goog-api-key' => $apiKey])->post($this->endpoint($model), [
                     'contents' => [[
                         'parts' => [
                             ['text' => self::PROMPT],
@@ -696,11 +696,16 @@ PROMPT;
             || str_contains($error, 'certificate verify');
     }
 
-    private function endpoint(string $apiKey, string $model): string
+    /*
+     * The API key travels in the `x-goog-api-key` header, never in the URL: a URL
+     * is copied into exception messages (cURL timeouts, connection errors) and from
+     * there into laravel.log, which is exactly how the key leaked before.
+     */
+    private function endpoint(string $model): string
     {
         return 'https://generativelanguage.googleapis.com/v1beta/models/'
             . $model
-            . ':generateContent?key=' . urlencode($apiKey);
+            . ':generateContent';
     }
 
     private function base64Data(string $dataUri): string

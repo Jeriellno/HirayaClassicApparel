@@ -238,12 +238,14 @@ class GeminiTryOnRenderer
     {
         $attempted[] = $model;
 
+        // Key in a header, never the URL (URLs leak into logged exceptions).
         $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/'
-            . $model . ':generateContent?key=' . urlencode($apiKey);
+            . $model . ':generateContent';
 
         try {
             $response = Http::timeout(self::TIMEOUT_SECONDS)
                 ->acceptJson()
+                ->withHeaders(['x-goog-api-key' => $apiKey])
                 ->post($endpoint, [
                     'contents' => [['role' => 'user', 'parts' => $parts]],
                     'generationConfig' => [

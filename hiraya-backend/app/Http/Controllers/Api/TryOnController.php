@@ -218,6 +218,9 @@ TXT;
              * marketing card the client fell back to (see `ghostMattesForProducts`).
              */
             'garments.*.product_id' => 'nullable|integer',
+            // The colour chosen in the bag / by the stylist, so a colour VARIANT's
+            // own cut-out is used instead of the primary colour's (see ghostMattesForProducts).
+            'garments.*.color' => 'nullable|string|max:50',
             'garment_photos_base64' => 'required_without:garments|nullable|array|min:1',
             'garment_photos_base64.*' => 'string',
         ]);
@@ -309,8 +312,8 @@ TXT;
         /*
          * WHICH GARMENTS ONE FITTING CAN WEAR.
          *
-         * One top (or outerwear) + one bottom renders as a two-pass pair; any
-         * other multi-garment stack is refused HERE, before anything is charged,
+         * One top (or outerwear) + one bottom, or one top over a dress, renders
+         * as a two-pass pair; any other multi-garment stack is refused HERE, before anything is charged,
          * with a message the customer can act on — instead of rendering one piece
          * and silently dropping the rest (see TryOnGarmentPlan).
          */
@@ -342,8 +345,9 @@ TXT;
          * can never be served to another. A lock stops a double-click from
          * starting two identical paid renders.
          */
+        // A top + bottom pair keeps PAIR_PIPELINE and a dress + top keeps OVER_DRESS_PIPELINE, so their fingerprints (and reuse) are unchanged.
         $fingerprint = $this->renderFingerprint($userPhoto, $garmentPhotos, $garmentCategories, $garmentProductIds, $measurements,
-            $garmentPlan['mode'] === TryOnGarmentPlan::MODE_PAIR ? TryOnGarmentPlan::PAIR_PIPELINE : null);
+            $garmentPlan['mode'] === TryOnGarmentPlan::MODE_PAIR ? ($garmentPlan['pipeline'] ?? TryOnGarmentPlan::PAIR_PIPELINE) : null);
         $lock = Cache::lock('tryon-fp:' . $user->id . ':' . $fingerprint, 15);
         if (! $lock->get()) {
             return response()->json([
@@ -419,15 +423,27 @@ TXT;
         $this->stageTimings['plan_ms'] = (int) round((microtime(true) - $stageStarted) * 1000);
 
         /*
-         * Freeze the render pipeline on the session: a top + bottom pair renders
-         * in two passes in this order (ProcessTryOnJob::renderPair). Sessions
-         * without this key render a single garment exactly as before.
+         * Freeze the render pipeline on the session: a top + bottom pair (bottom
+         * first) or a top / outerwear over a dress (dress first) renders in two
+         * passes in this order (ProcessTryOnJob::renderPair). `layering` and
+         * `outer` only pick the wording. Sessions without this key render a
+         * single garment exactly as before.
          */
         $storedPlan = $renderPlan;
         if ($isPair) {
             $storedPlan = (array) ($renderPlan ?? []);
-            $storedPlan['pipeline'] = ['mode' => TryOnGarmentPlan::MODE_PAIR, 'order' => $garmentPlan['order'], 'first_pass' => null];
+            $storedPlan['pipeline'] = [
+                'mode' => TryOnGarmentPlan::MODE_PAIR,
+                'order' => $garmentPlan['order'],
+                'layering' => $garmentPlan['layering'] ?? TryOnGarmentPlan::LAYERING_OVER_BOTTOM,
+                'first_pass' => null,
+            ];
+            if (isset($garmentPlan['outer'])) {
+                $storedPlan['pipeline']['outer'] = $garmentPlan['outer'];
+            }
         }
+        $overDress = $isPair && ($garmentPlan['layering'] ?? null) === TryOnGarmentPlan::LAYERING_OVER_DRESS;
+        $outerPiece = TryOnGarmentPlan::outerPiece($garmentPlan);
 
         // Create session record
         $stageStarted = microtime(true);
@@ -566,7 +582,9 @@ TXT;
                 : ($isSync
                     ? 'Virtual try-on render did not produce an image.'
                     : ($isPair
-                        ? 'Rendering your top and bottom together: two renders, one per piece.'
+                        ? ($overDress
+                            ? "Rendering your dress, then your {$outerPiece} over it: two renders, one per piece."
+                            : 'Rendering your top and bottom together: two renders, one per piece.')
                         : 'Virtual try-on session initiated. Processing started.')),
         ];
 
@@ -853,7 +871,9 @@ TXT;
 
         // Every product's matte resolved up front: one query, cached, fetched in parallel.
         $mattes = $this->ghostMattesForProducts(array_map(
-            fn ($garment) => is_array($garment) ? ($garment['product_id'] ?? null) : null,
+            fn ($garment) => is_array($garment)
+                ? ['id' => $garment['product_id'] ?? null, 'color' => $garment['color'] ?? null]
+                : ['id' => null, 'color' => null],
             $garments,
         ));
 
@@ -884,8 +904,9 @@ TXT;
              */
             $image = $clientImage;
             $productId = is_array($garment) && is_numeric($garment['product_id'] ?? null) ? (int) $garment['product_id'] : null;
-            if ($productId !== null && ($mattes[$productId] ?? '') !== '') {
-                $image = $mattes[$productId];
+            $matteKey = $productId !== null ? $this->matteKey($productId, is_array($garment) ? ($garment['color'] ?? null) : null) : null;
+            if ($matteKey !== null && ($mattes[$matteKey] ?? '') !== '') {
+                $image = $mattes[$matteKey];
             }
 
             if (!is_string($image) || trim($image) === '') {
@@ -956,25 +977,44 @@ TXT;
      * STYLE" headline ended up printed across a customer's rendered blouse.
      * PHP has no origin restriction, so the matte is fetched here instead.
      *
-     * @param  array<int, mixed>  $productIds
-     * @return array<int, string>
+     * COLOUR VARIANTS. A product's `ghost_mannequin_url` is the PRIMARY colour's
+     * cut-out. This used to be used for every request of that product, so a Navy
+     * variant was rendered in White. The requested colour now selects the
+     * variant's own cut-out; a variant without one keeps the client's image
+     * rather than borrowing the wrong colour.
+     *
+     * @param  array<int, array{id: mixed, color: mixed}>  $requests
+     * @return array<string, string>  keyed by matteKey(id, color)
      */
-    private function ghostMattesForProducts(array $productIds): array
+    private function ghostMattesForProducts(array $requests): array
     {
-        $ids = array_values(array_unique(array_map('intval', array_filter($productIds, 'is_numeric'))));
+        $ids = array_values(array_unique(array_map('intval', array_filter(array_column($requests, 'id'), 'is_numeric'))));
         if ($ids === []) {
             return [];
         }
 
         try {
-            $urls = Product::whereIn('id', $ids)->pluck('ghost_mannequin_url', 'id')
-                ->map(fn ($url) => trim((string) $url))
-                ->filter()
-                ->all();
+            $products = Product::whereIn('id', $ids)->get(['id', 'ghost_mannequin_url', 'color_variants'])->keyBy('id');
         } catch (\Throwable $e) {
             Log::warning('TryOn ghost-matte upgrade skipped: ' . $e->getMessage());
 
             return [];
+        }
+
+        $urls = [];
+        foreach ($requests as $request) {
+            if (! is_numeric($request['id'] ?? null) || ! ($product = $products->get((int) $request['id']))) {
+                continue;
+            }
+            $color = is_string($request['color'] ?? null) ? $request['color'] : null;
+            $url = trim((string) $product->ghost_mannequin_url);
+            $variant = \App\Support\ProductVariants::indexFor($product, $color);
+            if ($variant !== null) {
+                $url = trim((string) (\App\Support\ProductVariants::all($product)[$variant]['ghost_mannequin_url'] ?? ''));
+            }
+            if ($url !== '') {
+                $urls[$this->matteKey((int) $request['id'], $color)] = $url;
+            }
         }
 
         $cacheKey = fn (string $url) => 'tryon-ghost-matte:' . sha1($url);
@@ -1024,6 +1064,12 @@ TXT;
         }
 
         return array_filter($mattes, fn ($uri) => is_string($uri) && $uri !== '');
+    }
+
+    /** Lookup key for one product in one colour (see ghostMattesForProducts). */
+    private function matteKey(int $productId, ?string $color): string
+    {
+        return $productId . '|' . strtolower(trim((string) $color));
     }
 
     /**
@@ -1156,7 +1202,7 @@ TXT;
             'status' => $session->status,
         ];
 
-        // A top + bottom pair: which of its two renders is running.
+        // A two-piece pair (top + bottom, or top over a dress): which of its two renders is running.
         $pairPass = null;
         if ($session->isPairRender()) {
             $pairPass = empty($session->pipeline()['first_pass']['path']) ? 1 : 2;
@@ -1212,9 +1258,9 @@ TXT;
                 // Each pass ramps through its own half of the bar (20–55%, 55–90%).
                 $half = ($this->estimateProgress($session) - 20) / 2;
                 $response['progress'] = (int) round(($pairPass === 1 ? 20 : 55) + $half);
-                $response['message'] = $pairPass === 1
-                    ? 'Rendering piece 1 of 2 (the bottom).'
-                    : 'Rendering piece 2 of 2 (the top).';
+                // "(the bottom)" / "(the top)", or "(the dress)" first for a top or outerwear over a dress.
+                $passLabels = TryOnGarmentPlan::passLabels($session->pipeline());
+                $response['message'] = "Rendering piece {$pairPass} of 2 ({$passLabels[$pairPass - 1]}).";
             }
         } elseif ($session->status === TryOnSession::STATUS_COMPLETED) {
             $response['progress'] = 100;
@@ -2102,15 +2148,12 @@ TXT;
     {
         $m = Str::lower($message);
 
-        $has = function (array $words) use ($m): bool {
-            foreach ($words as $w) {
-                if (str_contains($m, $w)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
+        /*
+         * WHOLE WORDS ONLY. `str_contains` matched "fit" inside "outfit", so
+         * "Can you suggest an outfit for the office?" was answered as a size
+         * question; "hi" also matched inside "this" and "which".
+         */
+        $has = fn (array $words): bool => $this->containsWord($m, $words);
 
         if ($has(['size', 'sukat', 'fit', 'measurement', 'kasya', 'small', 'medium', 'large', 'xl', '2xl'])) {
             return 'size';
@@ -2259,12 +2302,14 @@ TXT;
         }
 
         try {
+            // Key in a header, not the URL — URLs end up in logged exception messages.
             $response = Http::timeout(20)
                 ->connectTimeout(8)
                 ->acceptJson()
+                ->withHeaders(['x-goog-api-key' => $apiKey])
                 ->post(
                     'https://generativelanguage.googleapis.com/v1beta/models/'
-                        . rawurlencode($model) . ':generateContent?key=' . rawurlencode($apiKey),
+                        . rawurlencode($model) . ':generateContent',
                     [
                         'contents' => [[
                             'parts' => $parts,
@@ -2365,9 +2410,7 @@ TXT;
                 $lines[] = $occasion
                     ? 'For a ' . $occasion . ' look, build the stack around one statement piece and keep the rest neutral.'
                     : 'Tell me the occasion and I will suggest how to build the stack for it.';
-                if ($sizeSentence) {
-                    $lines[] = $sizeSentence;
-                }
+                $lines[] = $this->picksSentence($products, $size);
                 break;
 
             case 'color':
@@ -2379,10 +2422,8 @@ TXT;
             case 'style':
                 $lines[] = ! empty($garments)
                     ? 'For your current stack (' . implode(', ', $garments) . '), anchor the silhouette with the outermost layer and keep the fit through the waist clean.'
-                    : 'Add pieces from your bag to your stack and I will style a complete look.';
-                if ($sizeSentence) {
-                    $lines[] = $sizeSentence;
-                }
+                    : 'Here is where I would start a look for you.';
+                $lines[] = $this->picksSentence($products, $size);
                 break;
 
             default:
@@ -2413,6 +2454,27 @@ TXT;
     }
 
     /**
+     * One honest sentence about the catalog pieces attached to a styling reply:
+     * name them when there are some, and say plainly when there are none for
+     * this customer (their gender's pieces in their size) instead of
+     * recommending something they did not ask for.
+     *
+     * @param  array<int, array<string, mixed>>  $products
+     */
+    private function picksSentence(array $products, ?string $size): string
+    {
+        if (! empty($products)) {
+            $names = array_map(fn ($p) => '**' . $p['name'] . '**', array_slice($products, 0, 3));
+
+            return 'From the Hiraya collection, start with ' . implode(', ', $names) . ' — tap a card below for details and stock.';
+        }
+
+        return 'I don\'t have a matching piece in your collection'
+            . ($size ? ' in size ' . $size : '')
+            . ' right now. New pieces are added regularly, so check the shop again soon.';
+    }
+
+    /**
      * Pull a plain occasion label out of the message, or null.
      */
     private function detectOccasion(string $message): ?string
@@ -2420,12 +2482,31 @@ TXT;
         $m = Str::lower($message);
 
         foreach (['wedding', 'party', 'work', 'office', 'date', 'casual', 'formal', 'church', 'beach', 'event'] as $occasion) {
-            if (str_contains($m, $occasion)) {
+            if ($this->containsWord($m, [$occasion])) {
                 return $occasion;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Does the (lower-cased) text contain any of these words or phrases as WHOLE
+     * words? Letters/digits on either side mean it is part of a longer word, so
+     * "fit" is not found in "outfit" and "date" is not found in "update".
+     *
+     * @param  array<int, string>  $words
+     */
+    private function containsWord(string $text, array $words): bool
+    {
+        foreach ($words as $word) {
+            $pattern = '/(?<![\p{L}\p{N}])' . preg_quote($word, '/') . '(?![\p{L}\p{N}])/u';
+            if (preg_match($pattern, $text) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -2620,9 +2701,10 @@ TXT;
             ];
         }
 
-        // Nothing in the message matched anything: answer with the size match.
+        // Nothing in the message matched anything: answer with the size match
+        // (still for the customer's gender — this fallback used to ignore it).
         if (! collect($scored)->contains(fn ($row) => $row['hits'] > 0)) {
-            return $this->catalogForSize($size, $limit);
+            return $this->catalogForSize($size, $limit, $gender);
         }
 
         usort($scored, fn ($a, $b) => $b['score'] <=> $a['score']);
@@ -2654,11 +2736,19 @@ TXT;
         return $out;
     }
 
-    private function catalogForSize(?string $size, int $limit = 4): array
+    private function catalogForSize(?string $size, int $limit = 4, ?string $gender = null): array
     {
         if (! $size) {
             return [];
         }
+
+        // Same gender rule as catalogForChat(): Unisex and untagged pieces
+        // always qualify; a piece cut for the other gender does not.
+        $wantGender = match (Str::lower((string) $gender)) {
+            'male' => 'men',
+            'female' => 'women',
+            default => null,
+        };
 
         try {
             $products = Product::query()
@@ -2676,6 +2766,11 @@ TXT;
         $matches = [];
 
         foreach ($products as $product) {
+            $productGender = Str::lower((string) $product->gender);
+            if ($wantGender && $productGender !== '' && $productGender !== 'unisex' && $productGender !== $wantGender) {
+                continue;
+            }
+
             $sizes = $this->normaliseSizeLabels($product->sizes);
 
             if (! empty($sizes) && ! in_array($needle, $sizes, true)) {

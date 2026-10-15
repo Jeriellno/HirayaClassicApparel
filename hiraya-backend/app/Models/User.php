@@ -72,6 +72,13 @@ class User extends Authenticatable
         'preferred_fit',
         // male / female — filters the Home recommendation feed by product gender.
         'gender',
+        /*
+         * AI STYLIST: which collection to recommend (womenswear | menswear | both;
+         * null = follow `gender`) and the customer-CONFIRMED style profile
+         * ({ undertone, last_occasion, confirmed_at }). See StylistController.
+         */
+        'style_preference',
+        'style_profile',
         'user_photo_url',
         'portrait_base64',
     ];
@@ -91,6 +98,7 @@ class User extends Authenticatable
             'last_login_at'     => 'datetime',
             'suspended_at'      => 'datetime',
             'mfa_enrolled_at'   => 'datetime',
+            'style_profile'     => 'array',
         ];
     }
 

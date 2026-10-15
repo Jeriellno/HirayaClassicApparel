@@ -543,8 +543,10 @@ class ApiStatusController extends Controller
             $okCount = 0;
 
             foreach (GeminiKeyPool::keys() as $poolKey) {
-                $url = $probe['url'] . '?key=' . urlencode($poolKey);
-                $res = Http::timeout($timeout)->acceptJson()->get($url);
+                // Key in a header, never the URL (URLs leak into logged exceptions).
+                $res = Http::timeout($timeout)->acceptJson()
+                    ->withHeaders(['x-goog-api-key' => $poolKey])
+                    ->get($probe['url']);
 
                 $summary = match (true) {
                     $res->successful() => 'Key is VALID and reachable.',

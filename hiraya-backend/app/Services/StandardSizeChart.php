@@ -192,16 +192,29 @@ class StandardSizeChart
         }
 
         // Phase 2: Fall back to hardcoded standard charts
-        $categories = $this->resolveCategories($category);
+        return $this->standardRange($sizeLabel, $category, $gender);
+    }
 
-        foreach ($categories as $cat) {
+    /**
+     * The HARDCODED standard chart only (no database lookup).
+     *
+     * Public so a caller that has already loaded the `size_charts` table once
+     * (the AI Stylist, which checks many sizes per request) can fall back to the
+     * standard charts without two remote queries per lookup.
+     *
+     * @return array<string, float>|null
+     */
+    public function standardRange(string $sizeLabel, string $category, string $gender): ?array
+    {
+        $category = strtoupper($category);
+        $sizeLabel = strtoupper($sizeLabel);
+
+        foreach ($this->resolveCategories($category) as $cat) {
             if (!isset($this->charts[$cat])) {
                 continue;
             }
 
-            $genders = $this->resolveGenders($gender, $cat);
-
-            foreach ($genders as $g) {
+            foreach ($this->resolveGenders($gender, $cat) as $g) {
                 if (!isset($this->charts[$cat][$g][$sizeLabel])) {
                     continue;
                 }

@@ -6,7 +6,9 @@
  *      `removeImageBackground`),
  *   2. CLEANS that cut-out (`cleanCutoutMatte`) so only the garment remains — the
  *      engine's mask can still carry the product-name script, a logo and small
- *      leftover backdrop patches, all of which are erased here,
+ *      leftover backdrop patches, all of which are erased here — then strips
+ *      backdrop still glued to the garment's edge (`stripAttachedBackdrop`),
+ *      the white-garment-on-white-wall case,
  *   3. picks the OCCASION background the AI tagged the garment with and draws
  *      the cut-out centred on it (one preset per vibe, plus a contrast guard so
  *      a dark garment never lands on a dark frame),
@@ -425,15 +427,23 @@ const openMask = (mask, sw, sh, radius) => {
       }
     }
 
+    /*
+     * The vertical pass must be a min-filter too. It used to test ANY row in the
+     * window (a max-filter), so "erode" was really a horizontal erode plus a
+     * vertical dilate: the opened mask came out 4 rows TALLER than the raw one
+     * and a horizontal contact line (artwork resting on a shoulder) was never
+     * cut. A pixel survives only if EVERY row within the radius survived the
+     * horizontal pass, exactly as the horizontal pass treats columns.
+     */
     for (let y = 0; y < sh; y++) {
       const base = y * sw;
       for (let x = 0; x < sw; x++) {
-        let any = 0;
-        for (let d = -radius; d <= radius && !any; d++) {
+        let ok = 1;
+        for (let d = -radius; d <= radius && ok; d++) {
           const ny = y + d;
-          if (ny >= 0 && ny < sh && tmp[ny * sw + x]) any = 1;
+          if (ny < 0 || ny >= sh || !tmp[ny * sw + x]) ok = 0;
         }
-        out[base + x] = any;
+        out[base + x] = ok;
       }
     }
     return out;
@@ -611,6 +621,171 @@ const isTextRun = (run, blockW) => {
 };
 
 /**
+ * DROP WHAT AN ERASED BAND CUT LOOSE FROM THE GARMENT — the pedestal-strip fix.
+ *
+ * WHY THE SECTION SPLIT DID NOT CATCH IT
+ * --------------------------------------
+ * A product shot on a pedestal or a printed label can be welded to the garment
+ * in ONE block. The band pass erases the pedestal's full-width rows, but its
+ * rounded bottom TAPERS IN: its last few rows no longer reach both edges of the
+ * block, so they are not part of the run and survive. They are then a thin
+ * strip floating under the hem, with clear air between the two.
+ *
+ * The section split cannot see that air. It counts the block's ORIGINAL rows,
+ * and the erased rows were full of pixels before the erase. So the strip stays
+ * in the garment's section and ends up on the shop card.
+ *
+ * THE RULE
+ * --------
+ * After a band has been erased, the rows that are STILL KEPT are split into
+ * sections again (two or more empty rows = separation, as in `sectionOf`). The
+ * section with the most pixels is the garment. Any other section is judged
+ * the way a separate group would be: dropped when it is below the noise floor,
+ * or when it has the flat shape of lettering (`looksLikeText`).
+ *
+ * Distance alone is NOT a reason to drop a section here. A caption across the
+ * middle of a garment leaves a gap between the upper and lower halves, and that
+ * lower half is tall, real fabric that must stay.
+ */
+const dropCutLooseSlivers = (block, keep, sw, sh) => {
+  const minY = Math.max(0, block.minY);
+  const maxY = Math.min(sh - 1, block.maxY);
+  if (maxY <= minY) return;
+
+  // The same 1.5 % noise floor `cleanCutoutMatte` applies to separate groups.
+  const SLIVER_RATIO = 0.015;
+
+  // Per-row extents of the block's pixels that SURVIVED the band erase.
+  const rowCount = maxY - minY + 1;
+  const rows = new Array(rowCount);
+  for (let r = 0; r < rowCount; r++) rows[r] = { count: 0, minX: sw, maxX: -1 };
+
+  for (const p of block.members) {
+    if (!keep[p]) continue;
+    const x = p % sw;
+    const y = (p - x) / sw;
+    if (y < minY || y > maxY) continue;
+    const row = rows[y - minY];
+    row.count++;
+    if (x < row.minX) row.minX = x;
+    if (x > row.maxX) row.maxX = x;
+  }
+
+  // One section per stretch of kept rows; a single blank row does not split.
+  const sections = [];
+  let current = null;
+  let blank = 0;
+  for (let r = 0; r < rowCount; r++) {
+    const row = rows[r];
+    if (row.count === 0) {
+      blank++;
+      continue;
+    }
+    if (!current || blank >= 2) {
+      current = { size: 0, minX: sw, maxX: -1, minY: minY + r, maxY: minY + r };
+      sections.push(current);
+    }
+    blank = 0;
+    current.size += row.count;
+    current.maxY = minY + r;
+    if (row.minX < current.minX) current.minX = row.minX;
+    if (row.maxX > current.maxX) current.maxX = row.maxX;
+  }
+  if (sections.length < 2) return;
+
+  const garment = sections.reduce((a, b) => (b.size > a.size ? b : a), sections[0]);
+
+  for (const s of sections) {
+    if (s === garment) continue;
+    if (s.size >= block.size * SLIVER_RATIO && !looksLikeText(s)) continue;
+
+    for (let y = s.minY; y <= s.maxY; y++) {
+      const rowBase = y * sw;
+      for (let x = block.minX; x <= block.maxX; x++) {
+        if (keep[rowBase + x]) keep[rowBase + x] = 0;
+      }
+    }
+  }
+};
+
+/**
+ * CLIP THE FLARE WHERE AN ERASED BAND MEETS THE GARMENT — the pedestal-rim fix.
+ *
+ * WHY THE BAND LEAVES A RIM BEHIND
+ * --------------------------------
+ * A band does not start with a hard edge. A pedestal shot from slightly above
+ * has an oval rim, so the rows just above its full-width run widen by ~10 scan
+ * px per row. They stop short of the block's edges, so they are not part of the
+ * run and are kept — yet they are far wider than the hem standing in front of
+ * the pedestal, and the rim showed as a thin wooden sliver either side of the
+ * hem on the shop card.
+ *
+ * (Until `openMask`'s vertical erode was fixed, a 4-row vertical smear made
+ * those rows look full-width, so they were erased with the band — together with
+ * the real hem fabric in them.)
+ *
+ * THE RULE
+ * --------
+ * Fabric does not widen that fast. In the few rows next to an erased band, each
+ * row may only widen as fast as the garment itself was widening just before
+ * them (measured over the same number of rows further from the band), so a
+ * straight hem gets no allowance and a flared skirt keeps its slope. Anything
+ * further out is the band's flare and is cleared column by column, so the hem
+ * in the same rows stays.
+ *
+ * @param {Object} block  the garment block (bounds are used, members are not).
+ * @param {Uint8Array} keep
+ * @param {number} sw
+ * @param {number} bandTop     first erased row (scan y).
+ * @param {number} bandBottom  last erased row (scan y).
+ */
+const trimBandFlanks = (block, keep, sw, bandTop, bandBottom) => {
+  // How far the flare can reach: a quarter of the band's height, within 2-8 rows.
+  const span = Math.min(8, Math.max(2, Math.round((bandBottom - bandTop + 1) / 4)));
+  const inBlock = (y) => y >= block.minY && y <= block.maxY;
+
+  const extentOf = (y) => {
+    const rowBase = y * sw;
+    let lo = -1;
+    let hi = -1;
+    for (let x = block.minX; x <= block.maxX; x++) {
+      if (!keep[rowBase + x]) continue;
+      if (lo === -1) lo = x;
+      hi = x;
+    }
+    return lo === -1 ? null : { lo, hi };
+  };
+
+  // dir -1: the rows ABOVE the band, walked down towards it; dir +1: the rows
+  // BELOW it, walked up towards it. A side with no garment row to measure from
+  // is skipped — that is a band at the block's edge, left to the sliver pass.
+  for (const dir of [-1, 1]) {
+    const edge = dir < 0 ? bandTop : bandBottom;
+    const refY = edge + dir * (span + 1);
+    if (!inBlock(refY)) continue;
+
+    const ref = extentOf(refY);
+    if (!ref) continue;
+
+    // The garment's own widening towards the band, in pixels per row and per
+    // side. With nothing further out to measure, one pixel per row is allowed.
+    // Rounded DOWN: a leftover rim pixel shows as a coloured tab against the
+    // scene, a missing outline pixel on a flaring hem does not.
+    const far = inBlock(refY + dir * span) ? extentOf(refY + dir * span) : null;
+    const slopeLo = far ? Math.max(0, (far.lo - ref.lo) / span) : 1;
+    const slopeHi = far ? Math.max(0, (ref.hi - far.hi) / span) : 1;
+
+    for (let k = 1, y = refY - dir; y !== edge; k++, y -= dir) {
+      const rowBase = y * sw;
+      const lo = ref.lo - Math.floor(slopeLo * k);
+      const hi = ref.hi + Math.floor(slopeHi * k);
+      for (let x = block.minX; x < lo; x++) keep[rowBase + x] = 0;
+      for (let x = hi + 1; x <= block.maxX; x++) keep[rowBase + x] = 0;
+    }
+  }
+};
+
+/**
  * ERASE TEXT PRINTED ACROSS THE GARMENT.
  *
  * THE CASE THE BLOCK-LEVEL GATES CANNOT CATCH.
@@ -654,8 +829,10 @@ const removeTextBandsFromBlock = (block, keep, sw, sh) => {
     if (x > rows[r].maxX) rows[r].maxX = x;
   }
 
+  let erasedBand = false;
   for (const run of findFullWidthRuns(rows, blockMinX, blockMaxX)) {
     if (!isTextRun(run, blockW)) continue;
+    erasedBand = true;
 
     for (let r = run.startRow; r <= run.endRow; r++) {
       const y = minY + r;
@@ -664,6 +841,8 @@ const removeTextBandsFromBlock = (block, keep, sw, sh) => {
         if (keep[rowBase + x]) keep[rowBase + x] = 0;
       }
     }
+
+    trimBandFlanks(block, keep, sw, minY + run.startRow, minY + run.endRow);
   }
 
   /*
@@ -734,6 +913,14 @@ const removeTextBandsFromBlock = (block, keep, sw, sh) => {
       }
     }
   }
+
+  /*
+   * An erased band can leave its tapered end behind as a strip detached from
+   * the garment (a pedestal's rounded bottom under the hem). The section split
+   * above cannot see that gap, so the leftovers are judged here. When no band
+   * was erased this is skipped and the block is left exactly as before.
+   */
+  if (erasedBand) dropCutLooseSlivers(block, keep, sw, sh);
 
   /*
    * IF A BAND REMOVED SOMETHING, THE RESULT MUST STILL BE A GARMENT.
@@ -820,7 +1007,7 @@ const cleanCutoutMatte = (img) => {
       const keptAfter = opened.reduce((a, v) => a + v, 0);
       const keptBefore = rawMask.reduce((a, v) => a + v, 0);
 
-      // Anything under a third of the original means erosion ate the subject
+      // Losing more than a third of the original means erosion ate the subject
       // rather than a joint — that is a thin garment, not a bridged one.
       if (keptBefore > 0 && keptAfter >= keptBefore * 0.66) {
         mask = opened;
@@ -989,8 +1176,15 @@ const cleanCutoutMatte = (img) => {
 
     /*
      * 6. De-speckle, then write the decision back as ALPHA at the ORIGINAL
-     *    resolution, sampling the scan mask per pixel so the edge stays crisp
-     *    (a scaled mask would blur it).
+     *    resolution.
+     *
+     * BILINEAR, NOT NEAREST. One scan pixel covers 2-3 photo pixels on a normal
+     * upload, so reading the scan mask nearest-neighbour cut every trimmed edge
+     * along the scan grid — the jagged, torn-paper outline a white garment
+     * showed on a dark scene. Interpolating between the four surrounding scan
+     * pixels turns that staircase into a smooth, anti-aliased line. Where the
+     * mask keeps everything around a pixel the factor is exactly 1, so the
+     * garment itself is untouched.
      */
     const cleaned = denoise(keep, sw, sh);
 
@@ -1003,19 +1197,31 @@ const cleanCutoutMatte = (img) => {
     const region = octx.getImageData(0, 0, w, h);
     const px = region.data;
 
-    // Precompute the x -> scan-x map once (it only depends on x).
-    const scanXOf = new Int32Array(w);
+    // Precompute the x -> scan-x interpolation once (it only depends on x).
+    const scanX0 = new Int32Array(w);
+    const scanX1 = new Int32Array(w);
+    const scanTx = new Float32Array(w);
     for (let x = 0; x < w; x++) {
-      const sx = Math.floor(x * sw / w);
-      scanXOf[x] = sx < 0 ? 0 : sx >= sw ? sw - 1 : sx;
+      const sxf = Math.min(sw - 1, Math.max(0, (x + 0.5) * sw / w - 0.5));
+      scanX0[x] = Math.floor(sxf);
+      scanX1[x] = Math.min(sw - 1, scanX0[x] + 1);
+      scanTx[x] = sxf - scanX0[x];
     }
 
     for (let y = 0; y < h; y++) {
-      const sy = Math.floor(y * sh / h);
-      const rowBase = (sy < 0 ? 0 : sy >= sh ? sh - 1 : sy) * sw;
+      const syf = Math.min(sh - 1, Math.max(0, (y + 0.5) * sh / h - 0.5));
+      const sy0 = Math.floor(syf);
+      const row0 = sy0 * sw;
+      const row1 = Math.min(sh - 1, sy0 + 1) * sw;
+      const ty = syf - sy0;
       let o = y * w * 4 + 3;
       for (let x = 0; x < w; x++, o += 4) {
-        if (!cleaned[rowBase + scanXOf[x]]) px[o] = 0;
+        if (!px[o]) continue;
+        const tx = scanTx[x];
+        const top = cleaned[row0 + scanX0[x]] * (1 - tx) + cleaned[row0 + scanX1[x]] * tx;
+        const bottom = cleaned[row1 + scanX0[x]] * (1 - tx) + cleaned[row1 + scanX1[x]] * tx;
+        const m = top * (1 - ty) + bottom * ty;
+        if (m < 1) px[o] = Math.round(px[o] * m);
       }
     }
 
@@ -1023,6 +1229,460 @@ const cleanCutoutMatte = (img) => {
     return out;
   } catch {
     // Cleaning is best-effort: on any failure the caller keeps the raw cut-out.
+    return null;
+  }
+};
+
+/**
+ * STRIP BACKDROP THAT IS STILL ATTACHED TO THE GARMENT — the white-on-white fix.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * A white barong photographed on a white backdrop is the removal model's worst
+ * case: around the hem and under the sleeves it cannot tell fabric from wall, so
+ * it keeps CHUNKS of the backdrop (and the soft floor shadow) glued to the
+ * garment's edge. `cleanCutoutMatte` cannot catch them — it rejects groups that
+ * are separate from the garment, and these are part of the garment's own mass.
+ * Composed on a dark scene they showed as ragged white flakes along the sleeves
+ * and a white slab under the hem.
+ *
+ * HOW
+ * ---
+ * The ORIGINAL photo still shows what the backdrop looks like right next to the
+ * garment. So:
+ *
+ *   1. The backdrop colour is estimated LOCALLY from the photo pixels the model
+ *      did clear (a coarse grid, blurred), because a studio backdrop is rarely
+ *      one colour: it fades from white wall to grey floor. Where that backdrop
+ *      is not PLAIN (a beach, a room, a poster) there is no single colour to
+ *      match, and the step leaves the edge to the model.
+ *   2. From the cleared area, a flood fill walks INTO the cut-out through pixels
+ *      whose photo colour matches that local backdrop. It stops at the garment's
+ *      real edge, where seam shading and fabric tone differ from the wall (the
+ *      reported barong was a bluish white, ~55 RGB away from its pure-white
+ *      wall), and it never walks further than a few percent of the garment.
+ *   3. The walked pixels are made transparent with a one-pixel feather, so the
+ *      new edge is smooth instead of following the flood's pixel steps.
+ *
+ * VALIDATED, NOT TRUSTED. A patch is only stripped when the walk ENDED inside it
+ * on its own, at a colour edge; a patch where the walk was still matching when
+ * it ran out of depth is fabric the same colour as the wall, and is put back
+ * whole. And if the stripped total is more than a small share of the garment,
+ * the model's own matte is kept unchanged: leaving a little backdrop is
+ * recoverable, cutting into the product is not.
+ *
+ * @param {HTMLCanvasElement|HTMLImageElement} cut   the cleaned transparent cut-out.
+ * @param {HTMLImageElement} photo                   the admin's original photo.
+ * @returns {HTMLCanvasElement|null} a copy with the attached backdrop removed, or
+ *          null when there was nothing to remove or it could not run safely.
+ */
+const stripAttachedBackdrop = (cut, photo) => {
+  try {
+    const w = cut.naturalWidth || cut.width;
+    const h = cut.naturalHeight || cut.height;
+    if (!w || !h || !photo) return null;
+
+    // Work at a bounded size; the result is applied back at full resolution.
+    const WORK_MAX = 1600;
+    const scale = Math.min(1, WORK_MAX / Math.max(w, h));
+    const ww = Math.max(1, Math.round(w * scale));
+    const wh = Math.max(1, Math.round(h * scale));
+    const N = ww * wh;
+
+    const read = (src) => {
+      const c = document.createElement('canvas');
+      c.width = ww;
+      c.height = wh;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(src, 0, 0, ww, wh);
+      // A tainted (cross-origin) photo throws here and the step is skipped.
+      return ctx.getImageData(0, 0, ww, wh).data;
+    };
+    const cutPx = read(cut);
+    const photoPx = read(photo);
+
+    // Alpha at or below this is already background.
+    const CLEAR = 8;
+
+    // Opaque bounds: the walk is capped relative to the garment's own size.
+    let minX = ww;
+    let minY = wh;
+    let maxX = -1;
+    let maxY = -1;
+    let opaque = 0;
+    for (let p = 0; p < N; p++) {
+      if (cutPx[p * 4 + 3] <= CLEAR) continue;
+      opaque++;
+      const x = p % ww;
+      const y = (p / ww) | 0;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    if (!opaque || opaque === N) return null;
+
+    /*
+     * 1. LOCAL BACKDROP COLOUR. The photo pixels the model fully CLEARED are
+     *    summed into CELL x CELL cells and box-blurred over a few cells, so a
+     *    pixel on the garment's edge sees the average colour of the backdrop
+     *    around it. Half-cleared pixels are left out: they are the uncertain
+     *    band itself and can carry garment colour. The summed count says how
+     *    much backdrop that average actually saw; deep inside the garment it is
+     *    ~0 and nothing is touched.
+     */
+    const CELL = Math.max(4, Math.round(Math.max(ww, wh) / 160));
+    const gw = Math.ceil(ww / CELL);
+    const gh = Math.ceil(wh / CELL);
+    const G = gw * gh;
+    // Per cell: sum R, sum G, sum B, sum of squares (R^2 + G^2 + B^2), count.
+    // The squares give the backdrop's SPREAD: a plain studio wall is one
+    // colour, a beach or a room is not.
+    const K = 5;
+    const acc = new Float64Array(G * K);
+    for (let p = 0; p < N; p++) {
+      if (cutPx[p * 4 + 3] > CLEAR) continue;
+      const g = ((((p / ww) | 0) / CELL | 0) * gw + ((p % ww) / CELL | 0)) * K;
+      const r = photoPx[p * 4];
+      const gr = photoPx[p * 4 + 1];
+      const b = photoPx[p * 4 + 2];
+      acc[g] += r;
+      acc[g + 1] += gr;
+      acc[g + 2] += b;
+      acc[g + 3] += r * r + gr * gr + b * b;
+      acc[g + 4] += 1;
+    }
+
+    // Separable box blur of the K channels over (2 * radius + 1) cells.
+    const blurGrid = (src, radius) => {
+      const tmp = new Float64Array(G * K);
+      const dst = new Float64Array(G * K);
+      for (let gy = 0; gy < gh; gy++) {
+        for (let gx = 0; gx < gw; gx++) {
+          const o = (gy * gw + gx) * K;
+          for (let d = -radius; d <= radius; d++) {
+            const nx = gx + d;
+            if (nx < 0 || nx >= gw) continue;
+            const s = (gy * gw + nx) * K;
+            for (let k = 0; k < K; k++) tmp[o + k] += src[s + k];
+          }
+        }
+      }
+      for (let gy = 0; gy < gh; gy++) {
+        for (let gx = 0; gx < gw; gx++) {
+          const o = (gy * gw + gx) * K;
+          for (let d = -radius; d <= radius; d++) {
+            const ny = gy + d;
+            if (ny < 0 || ny >= gh) continue;
+            const s = (ny * gw + gx) * K;
+            for (let k = 0; k < K; k++) dst[o + k] += tmp[s + k];
+          }
+        }
+      }
+      return dst;
+    };
+
+    /*
+     * TWO SCALES. The near estimate (~3 cells each way) follows a wall-to-floor
+     * gradient closely, but at the top of a thick chunk glued under a hem it
+     * sees mostly chunk and garment and too little cleared wall to be trusted.
+     * The wide estimate (~10 cells) still reaches the wall there, so it is the
+     * fallback when the near one is starved.
+     */
+    const NEAR = 3;
+    const WIDE = 10;
+    const near = blurGrid(acc, NEAR);
+    const wide = blurGrid(acc, WIDE);
+    const nearArea = (2 * NEAR + 1) * (2 * NEAR + 1) * CELL * CELL;
+    const wideArea = (2 * WIDE + 1) * (2 * WIDE + 1) * CELL * CELL;
+
+    // Enough backdrop around a pixel to trust the estimate.
+    const MIN_COVERAGE = 0.12;
+    /*
+     * Only a PLAIN backdrop has a colour worth matching. Averaging a beach
+     * (sand, sea, a wooden stand) gives a mean that is no real colour at all —
+     * and on the white beach shirt it landed close enough to the fabric's grey
+     * to punch a hole in the hem. A studio wall's spread is JPEG noise plus a
+     * soft shadow, well under this; a busy scene is far over it and is left to
+     * the model's own matte.
+     */
+    const MAX_SPREAD = 12;
+    /*
+     * RGB distance that still counts as "the backdrop". A glued-on chunk IS
+     * backdrop, so it sits within JPEG noise of the wall (the reported white
+     * barong's chunks were ~2-5 away, the barong itself ~55). A light garment
+     * that merely RESEMBLES its backdrop is further out — the white knit shirt
+     * was ~20 from its pale sky, and a looser tolerance ate its shoulder.
+     */
+    const TOLERANCE = 12;
+    const TOL2 = TOLERANCE * TOLERANCE;
+
+    /** RGB distance from pixel p to its local plain backdrop, or -1 when there is none to compare with. */
+    const backdropDistance = (p) => {
+      const g = ((((p / ww) | 0) / CELL | 0) * gw + ((p % ww) / CELL | 0)) * K;
+      let est = near;
+      let count = near[g + 4];
+      if (count < nearArea * MIN_COVERAGE) {
+        est = wide;
+        count = wide[g + 4];
+        if (count < wideArea * MIN_COVERAGE) return -1;
+      }
+      const mr = est[g] / count;
+      const mg = est[g + 1] / count;
+      const mb = est[g + 2] / count;
+      const spread2 = est[g + 3] / count - (mr * mr + mg * mg + mb * mb);
+      if (spread2 > MAX_SPREAD * MAX_SPREAD) return -1;
+      const dr = photoPx[p * 4] - mr;
+      const dg = photoPx[p * 4 + 1] - mg;
+      const db = photoPx[p * 4 + 2] - mb;
+      return Math.sqrt(dr * dr + dg * dg + db * db);
+    };
+    const matchesBackdrop = (p) => {
+      const d = backdropDistance(p);
+      return d >= 0 && d * d <= TOL2;
+    };
+
+    /*
+     * 2. THE WALK. Seeds are kept pixels touching the cleared area that look like
+     *    backdrop; it spreads 4-connected through more of the same, at most
+     *    MAX_DEPTH steps in from where it started.
+     */
+    const MAX_DEPTH = Math.max(4, Math.round(Math.min(maxX - minX + 1, maxY - minY + 1) * 0.08));
+    const removed = new Uint8Array(N);
+    const depth = new Uint16Array(N);
+    // Set where the walk was STOPPED by MAX_DEPTH while it could still go on.
+    const cutShort = new Uint8Array(N);
+    const queue = new Int32Array(N);
+    let head = 0;
+    let tail = 0;
+
+    const isKept = (p) => cutPx[p * 4 + 3] > CLEAR;
+    const touchesClear = (p) => {
+      const x = p % ww;
+      return (x > 0 && !isKept(p - 1))
+        || (x < ww - 1 && !isKept(p + 1))
+        || (p >= ww && !isKept(p - ww))
+        || (p < N - ww && !isKept(p + ww));
+    };
+
+    for (let p = 0; p < N; p++) {
+      if (isKept(p) && touchesClear(p) && matchesBackdrop(p)) {
+        removed[p] = 1;
+        depth[p] = 1;
+        queue[tail++] = p;
+      }
+    }
+
+    const neighbours = new Int32Array(4);
+    const neighboursOf = (p) => {
+      const x = p % ww;
+      neighbours[0] = x > 0 ? p - 1 : -1;
+      neighbours[1] = x < ww - 1 ? p + 1 : -1;
+      neighbours[2] = p >= ww ? p - ww : -1;
+      neighbours[3] = p < N - ww ? p + ww : -1;
+      return neighbours;
+    };
+
+    while (head < tail) {
+      const p = queue[head++];
+      const atLimit = depth[p] >= MAX_DEPTH;
+      for (const q of neighboursOf(p)) {
+        if (q < 0 || removed[q] || !isKept(q) || !matchesBackdrop(q)) continue;
+        if (atLimit) {
+          cutShort[p] = 1;
+          continue;
+        }
+        removed[q] = 1;
+        depth[q] = depth[p] + 1;
+        queue[tail++] = q;
+      }
+    }
+
+    /*
+     * 2b. ONLY PATCHES THAT END AT A REAL EDGE ARE BACKDROP.
+     *
+     * A chunk of wall glued to a hem is bounded by a hard step: the walk crosses
+     * it and stops where the fabric's own tone begins, and the garment pixels
+     * on the far side are clearly NOT wall (the reported barong: ~55 away).
+     * These patches fail that and are put back whole:
+     *
+     *   - CUT SHORT: still matching when it hit MAX_DEPTH. That is fabric which
+     *     happens to be wall-coloured (a blown-out white hem); cutting it there
+     *     leaves triangular notches in the garment.
+     *   - SOFT BORDER: the garment pixels around it are only just past the
+     *     tolerance. That is a shadowed fabric edge drifting towards the wall
+     *     colour (a grey side seam on a grey wall, a white shoulder on a pale
+     *     sky), and the walk merely ran out of match inside smooth fabric —
+     *     removing it bites a ragged hole into the product.
+     */
+    const EDGE_MIN = TOLERANCE * 2;
+    /*
+     *   - THIN: no small square fits inside it. That is a fringe running along
+     *     the edge, not a glued-on chunk (walk depth cannot tell them apart — a
+     *     walk travelling ALONG a 2 px fringe gets "deep" too); removing it only
+     *     swaps a soft edge for a notched one, so it is left to the model.
+     *     Tested with a summed-area table so each square is one lookup.
+     */
+    const THICK_R = Math.max(2, Math.round(Math.min(maxX - minX + 1, maxY - minY + 1) * 0.004));
+    const THICK_AREA = (2 * THICK_R + 1) * (2 * THICK_R + 1);
+    const sat = new Int32Array((ww + 1) * (wh + 1));
+    for (let y = 0; y < wh; y++) {
+      let rowSum = 0;
+      for (let x = 0; x < ww; x++) {
+        rowSum += removed[y * ww + x];
+        sat[(y + 1) * (ww + 1) + x + 1] = sat[y * (ww + 1) + x + 1] + rowSum;
+      }
+    }
+    const isThickAt = (p) => {
+      const x = p % ww;
+      const y = (p / ww) | 0;
+      const x0 = x - THICK_R;
+      const y0 = y - THICK_R;
+      const x1 = x + THICK_R + 1;
+      const y1 = y + THICK_R + 1;
+      if (x0 < 0 || y0 < 0 || x1 > ww || y1 > wh) return false;
+      const sum = sat[y1 * (ww + 1) + x1] - sat[y0 * (ww + 1) + x1] - sat[y1 * (ww + 1) + x0] + sat[y0 * (ww + 1) + x0];
+      return sum === THICK_AREA;
+    };
+    let stripped = 0;
+    const seen = new Uint8Array(N);
+    for (let s = 0; s < N; s++) {
+      if (!removed[s] || seen[s]) continue;
+      head = 0;
+      tail = 0;
+      queue[tail++] = s;
+      seen[s] = 1;
+      let truncated = false;
+      let thick = false;
+      let borderSum = 0;
+      let borderCount = 0;
+      while (head < tail) {
+        const p = queue[head++];
+        if (cutShort[p]) truncated = true;
+        if (!thick && isThickAt(p)) thick = true;
+        for (const q of neighboursOf(p)) {
+          if (q < 0 || seen[q]) continue;
+          if (removed[q]) {
+            seen[q] = 1;
+            queue[tail++] = q;
+          } else if (isKept(q)) {
+            // The garment just across this patch's border — read one pixel
+            // further in as well, past the anti-aliased blend of the edge.
+            const step = q - p;
+            const q2 = q + step;
+            const inRow = step === 1 || step === -1 ? ((q2 / ww) | 0) === ((q / ww) | 0) : true;
+            let d = backdropDistance(q);
+            if (inRow && q2 >= 0 && q2 < N && isKept(q2) && !removed[q2]) {
+              d = Math.max(d, backdropDistance(q2));
+            }
+            if (d >= 0) {
+              borderSum += d;
+              borderCount++;
+            }
+          }
+        }
+      }
+      const softBorder = borderCount > 0 && borderSum / borderCount < EDGE_MIN;
+      if (truncated || softBorder || !thick) {
+        for (let i = 0; i < tail; i++) removed[queue[i]] = 0;
+      } else {
+        stripped += tail;
+      }
+    }
+
+    /*
+     * 3. THE GUARD. Nothing to strip -> keep the cut-out as is. More than
+     *    MAX_SHARE of the garment -> the garment matches its backdrop and the
+     *    walk is cutting fabric, so the model's matte is kept instead.
+     */
+    const MAX_SHARE = 0.1;
+    if (stripped === 0 || stripped > opaque * MAX_SHARE) return null;
+
+    /*
+     * SMOOTH THE NEW EDGE. The walk stops wherever the colour first crosses
+     * the tolerance, which along a soft fabric edge varies row by row and
+     * leaves 1-3 px stair-step notches — the very jaggedness being fixed. A
+     * removed pixel therefore stays removed only when most of its 5x5
+     * neighbourhood is transparent (removed or already cleared): notch tips
+     * poking into the fabric go back, solid chunks stay out. This only ever
+     * puts pixels BACK; it never removes anything the walk did not.
+     */
+    const clearOrRemoved = (p) => removed[p] || !isKept(p);
+    const smoothRemoved = new Uint8Array(N);
+    for (let y = 0; y < wh; y++) {
+      for (let x = 0; x < ww; x++) {
+        const p = y * ww + x;
+        if (!removed[p]) continue;
+        let sum = 0;
+        let count = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= wh) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = x + dx;
+            if (nx < 0 || nx >= ww) continue;
+            sum += clearOrRemoved(ny * ww + nx) ? 1 : 0;
+            count++;
+          }
+        }
+        if (sum * 2 >= count) smoothRemoved[p] = 1;
+      }
+    }
+
+    // One-pixel feather on the kept side of the new edge (3x3 average of the
+    // smoothed removal mask), so the cut is anti-aliased rather than stepped.
+    const soft = new Float32Array(N);
+    for (let y = 0; y < wh; y++) {
+      for (let x = 0; x < ww; x++) {
+        const p = y * ww + x;
+        if (smoothRemoved[p]) { soft[p] = 1; continue; }
+        let sum = 0;
+        let count = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= wh) continue;
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx;
+            if (nx < 0 || nx >= ww) continue;
+            sum += smoothRemoved[ny * ww + nx];
+            count++;
+          }
+        }
+        soft[p] = count ? (sum / count) * 0.6 : 0;
+      }
+    }
+
+    // 4. Apply at FULL resolution, sampling the work mask bilinearly.
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = h;
+    const octx = out.getContext('2d', { willReadFrequently: true });
+    octx.drawImage(cut, 0, 0, w, h);
+    const region = octx.getImageData(0, 0, w, h);
+    const px = region.data;
+
+    for (let y = 0; y < h; y++) {
+      const yf = Math.min(wh - 1, Math.max(0, (y + 0.5) * wh / h - 0.5));
+      const y0 = Math.floor(yf);
+      const y1 = Math.min(wh - 1, y0 + 1);
+      const ty = yf - y0;
+      let o = y * w * 4 + 3;
+      for (let x = 0; x < w; x++, o += 4) {
+        if (!px[o]) continue;
+        const xf = Math.min(ww - 1, Math.max(0, (x + 0.5) * ww / w - 0.5));
+        const x0 = Math.floor(xf);
+        const x1 = Math.min(ww - 1, x0 + 1);
+        const tx = xf - x0;
+        const r = (soft[y0 * ww + x0] * (1 - tx) + soft[y0 * ww + x1] * tx) * (1 - ty)
+          + (soft[y1 * ww + x0] * (1 - tx) + soft[y1 * ww + x1] * tx) * ty;
+        if (r > 0) px[o] = Math.round(px[o] * (1 - r));
+      }
+    }
+
+    octx.putImageData(region, 0, 0);
+    return out;
+  } catch {
+    // Best-effort, like the cleaner: on any failure the cleaned cut-out stands.
     return null;
   }
 };
@@ -1447,7 +2107,15 @@ export const reframeCutout = async ({ cutout, occasion = null, category = null, 
     let garmentLayerUrl = cutoutUrl;
     try {
       const rawCut = await loadImage(cutoutUrl);
-      garmentLayer = cleanCutoutMatte(rawCut) || rawCut;
+      const cleaned = cleanCutoutMatte(rawCut) || rawCut;
+
+      /*
+       * 2c. STRIP BACKDROP STILL GLUED TO THE GARMENT (white-on-white photos).
+       * Needs the ORIGINAL photo to know what the backdrop looks like; if it
+       * cannot be read, or the step declines, the cleaned cut-out stands.
+       */
+      const photo = await loadImage(garmentUrl).catch(() => null);
+      garmentLayer = (photo && stripAttachedBackdrop(cleaned, photo)) || cleaned;
     } catch {
       // Could not decode the cut-out for cleaning — keep the engine's output.
       garmentLayer = null;

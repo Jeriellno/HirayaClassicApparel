@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
 use App\Models\Product;
 use App\Services\SizeChart;
+use App\Support\ProductTaxonomy;
 use App\Support\ProductVariants;
 use App\Support\SupabaseStorage;
 use Illuminate\Http\Request;
@@ -29,17 +30,29 @@ class ProductController extends Controller
      * per-size fallback when an admin supplies no measurements of their own.
      */
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
             // Pairings ride along so the shop, the admin form and the try-on
             // stack can all show "pairs well with" without a request per card.
             // + review count and average, for the star rating on shop cards.
-            $products = Product::with('pairedProducts')
+            $query = Product::with('pairedProducts')
                 ->withCount('reviews')
                 ->withAvg('reviews', 'rating')
-                ->latest()
-                ->get();
+                ->latest();
+
+            // Optional ?category= / ?subcategory= filters. Without them the
+            // response is the full catalog, exactly as before.
+            $category = trim((string) $request->query('category', ''));
+            if ($category !== '') {
+                $query->whereRaw('UPPER(category) = ?', [ProductTaxonomy::normaliseCategory($category)]);
+            }
+            $subcategory = trim((string) $request->query('subcategory', ''));
+            if ($subcategory !== '') {
+                $query->whereRaw('LOWER(subcategory) = ?', [mb_strtolower($subcategory)]);
+            }
+
+            $products = $query->get();
             return response()->json($products, 200);
         } catch (\Throwable $e) {
             Log::error('Error fetching products: ' . $e->getMessage());
@@ -171,7 +184,7 @@ class ProductController extends Controller
              * product to itself and always report "no tracked field changed".
              */
             $changes = $this->describeChanges($before, $validated, [
-                'name', 'description', 'price', 'category', 'stock',
+                'name', 'description', 'price', 'category', 'subcategory', 'stock',
                 'body_shapes', 'undertone', 'occasions', 'fit_type', 'sku',
             ]);
 

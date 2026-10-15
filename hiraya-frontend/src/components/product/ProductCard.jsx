@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import Currency from '../common/Currency';
 import { getProductImageUrl } from '../../utils/imageHelper';
 import { themeSurfaceFor } from '../../utils/framePresets';
+import { productTypeLabel } from '../../constants/productCategories';
 
 /*
  * Placeholder shown when a product has no image, or the one it has fails to load.
@@ -80,7 +81,8 @@ const ProductCard = ({
   };
 
   const isFormalWear = product?.category === 'FORMAL_MEN' || product?.category === 'FORMAL_WOMEN';
-  const categoryLabel = product?.category?.replace('_', ' ') || product?.garment_type || 'GARMENT';
+  // The subcategory is the more specific name ("Barong Tagalog"); older pieces show their category.
+  const categoryLabel = productTypeLabel(product, product?.garment_type || 'GARMENT');
 
   return (
     <Link

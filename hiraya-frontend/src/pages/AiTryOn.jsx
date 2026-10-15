@@ -9,6 +9,11 @@ import { TryOnCanvas } from '../components/tryon/TryOnCanvas';
 import { StylistChat } from '../components/tryon/StylistChat';
 import SideDrawer from '../components/tryon/SideDrawer';
 import TryOnHistoryPanel, { HISTORY_QUERY_KEY } from '../components/tryon/TryOnHistoryPanel';
+import { useStylist } from '../hooks/useStylist';
+import StylistConsultation from '../components/tryon/stylist/StylistConsultation';
+import { LookbookOverlay, LookbookDetails } from '../components/tryon/stylist/Lookbook';
+import { VerdictOverlay, VerdictDetails } from '../components/tryon/stylist/StylistVerdict';
+import StylistStatus from '../components/tryon/stylist/StylistStatus';
 
 const AiTryOn = () => {
   const navigate = useNavigate();
@@ -27,8 +32,27 @@ const AiTryOn = () => {
     photoVerification,
     photoRejection,
     dressLockedCategories,
-    chatMessages, isChatTyping, handleSendMessage
+    chatMessages, isChatTyping, handleSendMessage,
+    sessionId, clearResult, userPhotoBase64,
   } = useTryOnState();
+
+  /*
+   * THE AI STYLIST — visible, photo-first. An accepted photo opens the
+   * style-profile modal, the lookbook is drawn on the photo, and the verdict on
+   * the render. It drives the Studio only through the hook's public functions.
+   */
+  const stylist = useStylist({
+    userPhotoBase64,
+    photoRejection,
+    selectedGarments,
+    applySavedOutfit,
+    handleGenerateFitting,
+    canGenerate,
+    isGenerating,
+    tryOnStatus,
+    generatedImage,
+    sessionId,
+  });
 
   /*
    * FLOW GATE: a body photo comes FIRST.
@@ -105,6 +129,9 @@ const AiTryOn = () => {
   }, [tryOnStatus, generatedImage, historyOpen, queryClient]);
 
   const anyDrawerOpen = stylistOpen || historyOpen;
+
+  // While the lookbook is on the photo, "Try this look" is the one primary action.
+  const lookbookShowing = stylist.lookbook.status === 'ready' && !!stylist.look && !generatedImage && !isGenerating;
 
   return (
     /*
@@ -197,6 +224,29 @@ const AiTryOn = () => {
           /* Opens the try-on history drawer (button in the canvas header). */
           onOpenHistory={openHistory}
           newLooks={newLooks}
+          /* AI Stylist: a live status pill in the header; one primary action at a time. */
+          headerSlot={(
+            <StylistStatus
+              stylist={stylist}
+              hasPhoto={hasBodyPhoto && !photoRejection}
+              isGenerating={isGenerating}
+              hasResult={!!generatedImage}
+            />
+          )}
+          generateEmphasis={lookbookShowing ? 'secondary' : 'primary'}
+          /* AI Stylist: lookbook on the photo, verdict on the render, details below. */
+          photoOverlay={<LookbookOverlay stylist={stylist} photoSrc={userPhotoPreview} isGenerating={isGenerating} />}
+          resultOverlay={<VerdictOverlay verdict={stylist.verdict} renderSrc={generatedImage} anchors={stylist.anchors} />}
+          belowCanvas={generatedImage && !isGenerating ? (
+            <VerdictDetails
+              verdict={stylist.verdict}
+              onAddLookToBag={addWornItemsToBag}
+              onTryAnotherLook={clearResult}
+              canTryAnother={stylist.lookbook.status === 'ready'}
+            />
+          ) : (
+            <LookbookDetails stylist={stylist} />
+          )}
           /*
            * NO `onRetry` HERE. The canvas opens its OWN file input for "Upload a
            * different photo" (via its local `fileInputRef`), so it needs nothing
@@ -235,7 +285,7 @@ const AiTryOn = () => {
           )}
         </span>
         <span className="hidden text-[9.5px] font-semibold uppercase tracking-[0.24em] [writing-mode:vertical-rl] lg:block">
-          AI Stylist &amp; Sizing
+          Ask the stylist
         </span>
       </motion.button>
 
@@ -262,6 +312,18 @@ const AiTryOn = () => {
         onNavigate={(url) => navigate(url)}
       />
       </SideDrawer>
+
+      {/* 6. THE STYLIST CONSULTATION (opens when an accepted photo lands) */}
+      <StylistConsultation
+        open={stylist.modalOpen}
+        onClose={stylist.closeModal}
+        onSubmit={stylist.showLooks}
+        analysis={stylist.analysis}
+        answers={stylist.answers}
+        setAnswer={stylist.setAnswer}
+        occasions={stylist.profile?.occasions}
+        photoSrc={userPhotoPreview}
+      />
 
       {/* 5. THE DRAWER: TRY-ON HISTORY (opened from the canvas header) */}
       <SideDrawer

@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
+use App\Support\ProductTaxonomy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class ProductRequest extends FormRequest
 {
@@ -33,6 +36,11 @@ class ProductRequest extends FormRequest
         'HOURGLASS', 'PEAR', 'APPLE', 'RECTANGLE', 'INVERTED_TRIANGLE',
     ];
 
+    /** Memo for storedProduct(): the edited row, looked up at most once. */
+    private ?Product $storedProduct = null;
+
+    private bool $storedProductLoaded = false;
+
     public function authorize(): bool
     {
         return true;
@@ -60,6 +68,16 @@ class ProductRequest extends FormRequest
         if ($this->has('featured')) {
             $this->merge([
                 'featured' => filter_var($this->featured, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+            ]);
+        }
+
+        // "polo shirts" -> "Polo Shirts", so the stored text always matches the
+        // list the console and the shop filter on. Unknown text is left as sent
+        // and judged in withValidator().
+        if (is_string($this->input('subcategory'))) {
+            $subcategory = trim($this->input('subcategory'));
+            $this->merge([
+                'subcategory' => ProductTaxonomy::canonicalSubcategory($this->effectiveCategory(), $subcategory) ?? $subcategory,
             ]);
         }
 
@@ -129,7 +147,15 @@ class ProductRequest extends FormRequest
             'name'                     => $isPost ? 'required|string|max:255' : 'sometimes|string|max:255',
             'price'                    => $isPost ? 'required|numeric|min:0' : 'sometimes|numeric|min:0',
             'category'                 => $isPost ? 'required|string|max:255' : 'sometimes|string|max:255',
-            'subcategory'              => 'nullable|string|max:255',
+            /*
+             * A NEW product in one of the seven categories must name one of its
+             * subcategories (membership is checked in withValidator()). Edits
+             * stay optional, so products saved before subcategories existed —
+             * subcategory NULL — still open and save unchanged.
+             */
+            'subcategory'              => $isPost && ProductTaxonomy::hasSubcategories($this->input('category'))
+                ? 'required|string|max:255'
+                : 'nullable|string|max:255',
             'description'              => 'nullable|string',
             'image_url'                => 'nullable|string',
             // STAGE 1 outputs: the catalog image drawn on the occasion's
@@ -218,5 +244,71 @@ class ProductRequest extends FormRequest
             'paired_product_ids.*'     => 'integer|distinct|exists:products,id',
             '_method'                  => 'nullable|string|in:PUT,PATCH,DELETE',
         ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'subcategory.required' => 'Select a subcategory for this product.',
+        ];
+    }
+
+    /**
+     * The subcategory must belong to the category being saved.
+     *
+     * The one exception is an edit that keeps the category + subcategory the
+     * product ALREADY has: older rows carry seeded free-text subcategories
+     * ("T-Shirts"), and refusing those would make the product impossible to
+     * edit.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $subcategory = $this->input('subcategory');
+            $category = $this->effectiveCategory();
+
+            if (! is_string($subcategory) || trim($subcategory) === '' || ! ProductTaxonomy::hasSubcategories($category)) {
+                return;
+            }
+
+            if (in_array($subcategory, ProductTaxonomy::subcategoriesFor($category), true)) {
+                return;
+            }
+
+            $stored = $this->storedProduct();
+            if (
+                $stored
+                && $stored->subcategory === $subcategory
+                && ProductTaxonomy::normaliseCategory($stored->category) === ProductTaxonomy::normaliseCategory($category)
+            ) {
+                return;
+            }
+
+            $validator->errors()->add(
+                'subcategory',
+                'The subcategory "' . $subcategory . '" does not belong to the '
+                    . strtolower(str_replace('_', ' ', ProductTaxonomy::normaliseCategory($category))) . ' category.'
+            );
+        });
+    }
+
+    /** The category this request saves: the one sent, or (on an edit) the stored one. */
+    private function effectiveCategory(): ?string
+    {
+        $sent = $this->input('category');
+
+        return is_string($sent) && trim($sent) !== '' ? $sent : $this->storedProduct()?->category;
+    }
+
+    /** The product an update targets (null on create). Loaded once per request. */
+    private function storedProduct(): ?Product
+    {
+        if (! $this->storedProductLoaded) {
+            $this->storedProductLoaded = true;
+            $id = $this->route('product');
+            $this->storedProduct = $id !== null && is_numeric($id) ? Product::find((int) $id) : null;
+        }
+
+        return $this->storedProduct;
     }
 }

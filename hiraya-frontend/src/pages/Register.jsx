@@ -9,6 +9,7 @@ import {
     meetsPasswordPolicy,
     passwordPolicyError,
 } from '../utils/passwordPolicy';
+import { cleanEmail, normaliseEmail, EMAIL_INPUT_PROPS } from '../utils/emailInput';
 import { useT } from '../context/PreferencesContext';
 
 // Shared field styling, drawn from the .field primitive so every input on this
@@ -44,7 +45,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * to the address (the account is created only after that code comes back).
  * Mirrors AuthController::GMAIL_PATTERN.
  */
-const GMAIL_REGEX = /^[a-z0-9](?:[a-z0-9.+_-]{0,62}[a-z0-9])?@gmail\.com$/i;
+const GMAIL_REGEX = /^(?!.*\.\.)[a-z0-9](?:[a-z0-9.+_-]{0,62}[a-z0-9])?@gmail\.com$/i;
 
 /*
  * REGISTRATION IS ONE STEP AGAIN — BUT IT STILL COLLECTS A SIZING PROFILE.
@@ -163,9 +164,13 @@ const Register = () => {
     const validate = () => {
         const errs = {};
         if (!formData.full_name.trim()) errs.full_name = "Full Name is required";
-        if (!formData.email.trim()) errs.email = "Email Address is required";
-        else if (!EMAIL_REGEX.test(formData.email.trim())) errs.email = "Please enter a valid email address.";
-        else if (!GMAIL_REGEX.test(formData.email.trim())) errs.email = "Please sign up with a Gmail address (name@gmail.com).";
+        // Validate the CLEANED address (no hidden spaces / zero-width characters),
+        // which is exactly what is sent and what the server re-checks.
+        const email = cleanEmail(formData.email);
+        if (!email) errs.email = "Email Address is required";
+        else if (!EMAIL_REGEX.test(email)) errs.email = "Please enter a valid email address.";
+        else if (email.includes('..')) errs.email = "Gmail addresses can't have two dots in a row.";
+        else if (!GMAIL_REGEX.test(email)) errs.email = "Please sign up with a Gmail address (name@gmail.com).";
         if (!formData.upper_body_size) errs.upper_body_size = "Please choose your upper body size.";
         else if (!SIZE_LABELS.some((s) => s.value === formData.upper_body_size)) {
             errs.upper_body_size = "Please choose a valid upper body size.";
@@ -213,7 +218,7 @@ const Register = () => {
              */
             const payload = {
                 full_name: formData.full_name.trim(),
-                email: formData.email.trim().toLowerCase(),
+                email: normaliseEmail(formData.email),
                 password: formData.password,
                 password_confirmation: formData.password_confirmation,
                 upper_body_size: formData.upper_body_size,
@@ -388,12 +393,11 @@ const Register = () => {
                         {/* EMAIL */}
                         <div>
                             <input
-                                type="email"
+                                {...EMAIL_INPUT_PROPS}
                                 placeholder={`${t('auth.email')} (Gmail)`}
-                                autoComplete="email"
                                 className={fieldClass(errors.email)}
                                 value={formData.email}
-                                onChange={(e) => updateField('email', e.target.value)}
+                                onChange={(e) => updateField('email', cleanEmail(e.target.value))}
                             />
                             {errors.email && <p className="mt-1.5 pl-2 text-[10px] font-medium text-red-700">{errors.email}</p>}
                         </div>

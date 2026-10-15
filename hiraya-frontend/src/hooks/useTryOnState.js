@@ -54,10 +54,11 @@ const shouldRefetchOnFocus = () => {
  * never silently dropped.
  */
 /*
- * A dress is ONE continuous garment: it replaces the top AND the bottom.
- * Selecting a dress while a top/bottom is worn (or vice versa) would render two
+ * A dress is ONE continuous garment: it replaces the BOTTOM, and a top + bottom
+ * set. Selecting a dress while a bottom is worn (or vice versa) would render two
  * competing garments over the same body region, so the toggle enforces the rule
- * rather than silently stacking them.
+ * rather than silently stacking them. ONE top may stay on over the dress (a
+ * bolero or cropped top); the render layers it on in a second pass.
  */
 export const DRESS_EXCLUSIVE = true;
 
@@ -429,10 +430,17 @@ export const useTryOnState = () => {
    * customer stays on the canvas. Each garment replaces its own layer only;
    * layers the saved look did not wear are left as they are.
    */
-  const applySavedOutfit = useCallback((garments) => {
+  /*
+   * `replace: true` (used by the AI Stylist's "Try this look") empties every
+   * layer first, so the stack holds EXACTLY the suggested look — a leftover bag
+   * piece in another layer would otherwise make the pair unsupported.
+   */
+  const applySavedOutfit = useCallback((garments, { replace = false } = {}) => {
     if (!Array.isArray(garments) || garments.length === 0) return;
     setSelectedGarments((current) => {
-      const next = { ...current };
+      const next = replace
+        ? { top: null, bottom: null, footwear: null, outerwear: null, dress: null, accessories: null }
+        : { ...current };
       for (const garment of garments) {
         const category = resolveCategory(garment.category);
         if (category === 'accessories') continue;
@@ -669,14 +677,18 @@ export const useTryOnState = () => {
   /**
    * Toggle a garment in the outfit.
    *
-   * DRESS IS EXCLUSIVE — a dress is ONE continuous garment covering both the
-   * upper and lower body, so it cannot coexist with a separate top or bottom:
+   * DRESS vs BOTTOM IS EXCLUSIVE — a dress is ONE continuous garment covering the
+   * lower body, so it cannot coexist with a separate bottom. ONE top or ONE
+   * outerwear piece can be worn over it (a bolero, cropped top or jacket):
    *
-   *   - picking a DRESS  -> clears any top + bottom
-   *   - picking a TOP or BOTTOM -> clears any dress
+   *   - picking a DRESS   -> clears any bottom; a lone top stays on over the
+   *                          dress, a top + bottom SET is replaced whole;
+   *                          outerwear always stays
+   *   - picking a BOTTOM  -> clears any dress
+   *   - picking a TOP or
+   *     OUTERWEAR         -> keeps a worn dress (layered over it)
    *
-   * Without this rule the compositor would paint two garments over the same body
-   * region and the render would look broken.
+   * Without this rule the render would be asked to dress the lower body twice.
    */
   const toggleGarment = (garment) => {
     /*
@@ -709,27 +721,33 @@ export const useTryOnState = () => {
       let updated = { ...prev };
 
       /*
-       * DRESS IS EXCLUSIVE — ONE CONTINUOUS GARMENT, BOTH BODY REGIONS.
+       * DRESS vs BOTTOM IS EXCLUSIVE; ONE TOP OR OUTERWEAR MAY GO OVER A DRESS.
        *
-       * A dress covers the upper AND lower body in a single piece, so it cannot
-       * coexist with a separate top or bottom: the renderer would be told to dress
-       * the same region twice.
+       * A dress covers the lower body in a single piece, so it cannot coexist
+       * with a separate bottom: the renderer would be told to dress the same
+       * region twice. A top or outerwear CAN stay on over it — the render
+       * dresses the dress first, then layers that piece on
+       * (utils/tryOnStackPlan.js).
        *
-       *   picking a DRESS        -> clears any top + bottom
-       *   picking a TOP/BOTTOM   -> clears any dress
+       *   picking a DRESS    -> clears any bottom. A lone top stays (layered
+       *                         over the dress); a top + bottom SET is replaced
+       *                         whole, because the dress replaces that look.
+       *                         Outerwear is never touched.
+       *   picking a BOTTOM   -> clears any dress
+       *   picking a TOP /
+       *   OUTERWEAR          -> keeps the dress
        *
-       * The clear is applied on BOTH sides of the rule. The previous version only
-       * cleared `dress` on the top/bottom branch, which was correct, but it never
-       * verified that the incoming piece really was a top or bottom — so a
-       * mis-bucketed dress replaced nothing and both ended up selected.
+       * The incoming piece's row is resolved from its own label above, so a
+       * mis-bucketed dress cannot slip past the rule and end up worn with a
+       * bottom.
        */
       if (category === 'dress') {
-        updated.top = null;
+        if (prev.bottom) updated.top = null;
         updated.bottom = null;
         updated.dress = garment;
-      } else if (category === 'top' || category === 'bottom') {
+      } else if (category === 'bottom') {
         updated.dress = null;
-        updated[category] = garment;
+        updated.bottom = garment;
       } else {
         updated[category] = garment;
       }
@@ -755,16 +773,18 @@ export const useTryOnState = () => {
   /*
    * WHICH LAYERS THE DRESS RULE IS CURRENTLY BLOCKING.
    *
-   * The Style Stack uses this to disable the Top/Bottom rows (and the Dress row
-   * when a top or bottom is worn) instead of letting a customer tap a tile that
-   * would silently cancel the piece they just chose. Derived rather than stored so
-   * it can never disagree with `selectedGarments`.
+   * The Style Stack uses this to disable the Bottom row while a dress is worn
+   * (and the Dress row while a bottom is worn) instead of letting a customer tap
+   * a tile that would silently cancel the piece they just chose. The Top and
+   * Outerwear rows are never locked by a dress: one top or outerwear piece can
+   * be layered over it. Derived rather than
+   * stored so it can never disagree with `selectedGarments`.
    */
   const dressLockedCategories = useMemo(() => {
-    if (selectedGarments.dress) return ['top', 'bottom'];
-    if (selectedGarments.top || selectedGarments.bottom) return ['dress'];
+    if (selectedGarments.dress) return ['bottom'];
+    if (selectedGarments.bottom) return ['dress'];
     return [];
-  }, [selectedGarments.dress, selectedGarments.top, selectedGarments.bottom]);
+  }, [selectedGarments.dress, selectedGarments.bottom]);
 
   // 3. CANVAS & AI TRY-ON
   const [userPhotoPreview, setUserPhotoPreview] = useState(null);
@@ -794,7 +814,7 @@ export const useTryOnState = () => {
   // canvas can render a real progress bar instead of a fake spinner.
   const [tryOnStatus, setTryOnStatus] = useState(null);   // queued | processing | completed | failed
   const [tryOnProgress, setTryOnProgress] = useState(0);  // 0 - 100
-  // { pass, passes } while a top + bottom pair renders (two passes); else null.
+  // { pass, passes } while a pair (top + bottom, or a top / outerwear over a dress) renders in two passes; else null.
   const [renderPass, setRenderPass] = useState(null);
   const [tryOnError, setTryOnError] = useState(null);     // { message, code }
   const [recommendedSize, setRecommendedSize] = useState(null);
@@ -1348,9 +1368,9 @@ export const useTryOnState = () => {
    */
   /*
    * WHAT ONE FITTING CAN WEAR (utils/tryOnStackPlan.js, mirroring the backend):
-   * one piece, or a top/outerwear + bottom pair rendered in two passes. Any
-   * other multi-piece stack is explained under Generate instead of being
-   * rendered with pieces silently missing.
+   * one piece, a top/outerwear + bottom pair, or one top/outerwear over a dress — a pair
+   * renders in two passes. Any other multi-piece stack is explained under
+   * Generate instead of being rendered with pieces silently missing.
    */
   const stackPlan = useMemo(() => planStack(selectedGarments), [selectedGarments]);
 
@@ -1371,7 +1391,7 @@ export const useTryOnState = () => {
 
   // 4. CHATBOT LOGIC
   const [chatMessages, setChatMessages] = useState([
-    { role: 'assistant', text: "Hello! I am your Hiraya AI Stylist. Ask me about Hiraya pieces, sizing, fit, or how to pair and style a look. After you render a fitting, I will read the look and suggest pieces that complete it." }
+    { role: 'assistant', text: "Hello! I am your Hiraya AI Stylist. Upload a full-body photo and I will build looks for you from the Hiraya collection. You can also ask me about sizing, fit, or what to wear for an occasion." }
   ]);
   const [isChatTyping, setIsChatTyping] = useState(false);
 
@@ -1556,6 +1576,9 @@ export const useTryOnState = () => {
            * matte, so it re-resolves the input from this id when one is available.
            */
           product_id: p.product?.productId ?? p.product?.id ?? p.product?.product_id ?? null,
+          // The chosen colour, so the server uses that colour variant's own
+          // cut-out instead of the primary colour's (a Navy pick rendered White).
+          color: p.product?.selected_color || null,
           image: p.dataUri,
         })),
       });
@@ -1563,7 +1586,7 @@ export const useTryOnState = () => {
       const activeSessionId = res.data?.session_id || res.data?.id;
       if (!activeSessionId) return { ok: false, reason: 'no_session' };
 
-      // A top + bottom pair is two provider renders, so it gets twice the wait.
+      // A pair (top + bottom, or a top / outerwear over a dress) is two provider renders, so it gets twice the wait.
       const passes = Number(res.data?.render_passes) > 1 ? Number(res.data.render_passes) : 1;
       if (passes > 1) setRenderPass({ pass: 1, passes });
 
@@ -2311,6 +2334,24 @@ export const useTryOnState = () => {
     return handleGenerateFitting();
   };
 
+  /*
+   * Leave the finished render and return to the photo (the AI Stylist's
+   * "Try another look"). The render itself is already saved in the Gallery, and
+   * the photo and Style Stack are kept, so nothing is lost.
+   */
+  const clearResult = useCallback(() => {
+    if (isGenerating) return;
+    setGeneratedImage(null);
+    setTryOnStatus(null);
+    setTryOnError(null);
+    setTryOnProgress(0);
+    setRecommendedSize(null);
+    setAiFeedback(null);
+    setRenderEngine(null);
+    setPlacedRegions([]);
+    setFitCheck(null);
+  }, [isGenerating]);
+
   /**
    * Promote every worn (rendered) garment into My Bag.
    *
@@ -2333,7 +2374,9 @@ export const useTryOnState = () => {
         await api.post('/cart', {
           product_id: garment.productId,
           quantity: 1,
-          selected_size: garment.selected_size || 'M',
+          // The size the stylist recommended (cross-cut converted) wins over
+          // the old blanket 'M' default; the customer's own size comes next.
+          selected_size: garment.selected_size || recommendSizeForCategory(bodySizes, resolveCategory(garment.productCategory || garment.category)) || 'M',
           selected_color: garment.selected_color || 'Standard',
         });
         added++;
@@ -2346,7 +2389,7 @@ export const useTryOnState = () => {
     queryClient.invalidateQueries({ queryKey: ['cart'] });
 
     return { added };
-  }, [selectedGarments, queryClient]);
+  }, [selectedGarments, queryClient, bodySizes]);
 
   /**
    * Send the worn garment straight to My Bag / checkout from the render result.
@@ -2430,6 +2473,8 @@ export const useTryOnState = () => {
     handleGenerateFitting, handleRetryFitting, proceedToCheckout, addWornItemsToBag,
     // Canvas controls: cancel an in-flight render, and clear ONLY the body photo.
     cancelFitting, removeUserPhoto,
+    // Back from a finished render to the photo (AI Stylist "Try another look").
+    clearResult, userPhotoBase64,
     // Live pipeline telemetry for the Cream & Obsidian loading / error surfaces.
     tryOnStatus, tryOnProgress, tryOnError, recommendedSize, aiFeedback, sessionId,
     // Non-fatal notice: a dispatched render used a non-cut-out garment asset.

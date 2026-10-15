@@ -23,6 +23,7 @@ import {
 } from '../services/supabaseMfa';
 import { supabase } from '../services/supabase';
 import { useT } from '../context/PreferencesContext';
+import { cleanEmail, EMAIL_INPUT_PROPS } from '../utils/emailInput';
 
 /*
  * Login — THE ONE DOOR.
@@ -475,16 +476,16 @@ const Login = () => {
                         {/* Email Input */}
                         <div>
                             <input
-                                type="email"
+                                {...EMAIL_INPUT_PROPS}
                                 placeholder={t('auth.email')}
-                                autoComplete="email"
                                 className={`field ${fieldErrors.email
                                         ? 'border-red-500/50 focus:border-red-500'
                                         : ''
                                     }`}
                                 value={email}
                                 onChange={(e) => {
-                                    setEmail(e.target.value);
+                                    // Drop hidden spaces / zero-width characters a phone keyboard adds.
+                                    setEmail(cleanEmail(e.target.value));
                                     if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: null }));
                                 }}
                                 required

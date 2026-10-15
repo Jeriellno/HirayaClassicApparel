@@ -16,8 +16,34 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    /** New sign-ups must use a real Gmail address (ownership is proven by a mailed code). */
-    public const GMAIL_PATTERN = '/^[a-z0-9](?:[a-z0-9.+_-]{0,62}[a-z0-9])?@gmail\.com$/i';
+    /**
+     * New sign-ups must use a real Gmail address (ownership is proven by a mailed
+     * code). Two dots in a row are refused here too — Gmail does not allow them,
+     * and `email:rfc` already rejected them with a vaguer message.
+     */
+    public const GMAIL_PATTERN = '/^(?!.*\.\.)[a-z0-9](?:[a-z0-9.+_-]{0,62}[a-z0-9])?@gmail\.com$/i';
+
+    /**
+     * The address as the customer meant it: Unicode-folded (full-width letters
+     * become ASCII), every space and invisible character removed, lower-cased.
+     *
+     * Mirrors `normaliseEmail()` in hiraya-frontend/src/utils/emailInput.js. A
+     * phone keyboard can slip a space after "@" or a zero-width character into
+     * the field; an email address can never contain either, so they are removed
+     * before validation instead of failing it with "Please enter a valid email".
+     */
+    public static function normaliseEmail(mixed $value): string
+    {
+        $email = (string) $value;
+
+        if (class_exists(\Normalizer::class)) {
+            $email = \Normalizer::normalize($email, \Normalizer::FORM_KC) ?: $email;
+        }
+
+        $email = preg_replace('/[\s\x{00A0}\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', '', $email) ?? $email;
+
+        return strtolower($email);
+    }
 
     /**
      * Register User with their sizing profile — STEP 1 of 2.
@@ -38,6 +64,12 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'New sign-ups are paused right now. Please try again later.',
             ], 403);
+        }
+
+        // Clean the address BEFORE validating, so `unique`, the Gmail rule and the
+        // stored value all see the same string the frontend validated.
+        if ($request->has('email')) {
+            $request->merge(['email' => self::normaliseEmail($request->input('email'))]);
         }
 
         $validator = Validator::make($request->all(), [
@@ -85,7 +117,7 @@ class AuthController extends Controller
             'gender'          => ['required', 'string', 'in:male,female'],
         ], [
             'email.unique'                => 'That email address is already registered.',
-            'email.email'                 => 'Please enter a valid email address.',
+            'email.email'                 => 'That email address isn\'t valid. Check for typos such as two dots in a row.',
             'email.regex'                 => 'Please sign up with a Gmail address (name@gmail.com).',
             'password.confirmed'          => 'The password confirmation does not match.',
             'password.min'                => 'Your password must be at least 8 characters.',
@@ -122,8 +154,8 @@ class AuthController extends Controller
 
         if (! $sent) {
             return response()->json([
-                'message' => 'We could not send the verification code to that address right now. Please try again in a moment.',
-                'errors'  => ['email' => ['The verification email could not be sent.']],
+                'message' => 'We could not send the verification code right now. Please try again in a minute.',
+                'errors'  => ['email' => ['We couldn\'t send the code to this Gmail right now (mail server not reachable). Please try again in a minute.']],
             ], 503);
         }
 
@@ -143,6 +175,10 @@ class AuthController extends Controller
      */
     public function verifyRegistration(Request $request, RegistrationVerificationService $verification)
     {
+        if ($request->has('email')) {
+            $request->merge(['email' => self::normaliseEmail($request->input('email'))]);
+        }
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|max:255',
             'code'  => 'required|string|max:12',
@@ -219,6 +255,10 @@ class AuthController extends Controller
     /** POST /register/resend — a fresh code for a sign-up that is still pending. */
     public function resendRegistrationCode(Request $request, RegistrationVerificationService $verification)
     {
+        if ($request->has('email')) {
+            $request->merge(['email' => self::normaliseEmail($request->input('email'))]);
+        }
+
         $validator = Validator::make($request->all(), ['email' => 'required|email|max:255']);
         if ($validator->fails()) {
             return response()->json(['message' => 'Please enter a valid email address.'], 422);

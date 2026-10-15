@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../api/axios';
 import { invalidateCatalog } from '../../utils/invalidateCatalog';
@@ -11,6 +11,7 @@ import { useStaffSession } from '../../context/StaffSessionContext';
 import useConfirm from '../../hooks/useConfirm';
 import { supabase } from '../../services/supabase';
 import { roleOf as supabaseRoleOf, signOutSupabase, fetchAuthoritativeRole } from '../../services/supabaseMfa';
+import { reloadToLogin } from '../../utils/authRedirect';
 import {
   canAccessSection,
   resolveConsoleRole,
@@ -62,7 +63,7 @@ const SuperAdmin = ({ onLogout }) => {
    * looking at a different, lesser application, they are looking at the same one
    * with the parts they were not given removed from the sidebar.
    */
-  const { user } = useAuth();
+  const { user, beginSignOut } = useAuth();
 
   /*
    * WHICH CONSOLE IS THIS? — DECIDED BY THE ROLE, AND THE ROLE COMES FROM
@@ -148,7 +149,6 @@ const SuperAdmin = ({ onLogout }) => {
    * the authority on WHO; the url only says where inside the console to look.
    */
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   void pathname;
 
   const allowedSections = useMemo(() => sectionsForRole(role), [role]);
@@ -1001,6 +1001,10 @@ const SuperAdmin = ({ onLogout }) => {
     });
     if (!confirmed) return;
 
+    // Swap to the "Signing out..." screen BEFORE the Supabase session closes, so
+    // ProtectedRoute is unmounted and cannot redirect in-app ahead of the reload.
+    beginSignOut();
+
     // Audit Logs: record the sign-out while the session is still valid —
     // but never make the user wait more than 1.5 s for it.
     await Promise.race([
@@ -1016,14 +1020,13 @@ const SuperAdmin = ({ onLogout }) => {
       console.warn('SuperAdmin: Supabase sign-out failed', err);
     } finally {
       /*
-       * In-app navigation, not `window.location.href`. The full page load was a
-       * second, redundant navigation on top of the one `ProtectedRoute` already
-       * makes the moment the Supabase session reads as gone — the guard and this
-       * button were both writing the same redirect, and the user paid for it with
-       * a double refresh. `ProtectedRoute` owns the destination; the sign-out here
-       * only has to close the session.
+       * ONE full page load of /login (see utils/authRedirect.js). It used to be
+       * a second, redundant navigation on top of ProtectedRoute's in-app redirect
+       * — the double refresh. `beginSignOut()` above removed the guard from the
+       * tree, so this is now the only navigation, and the console's timers,
+       * caches and remembered `/superadmin` die with the old document.
        */
-      navigate('/login', { replace: true });
+      reloadToLogin();
     }
   };
 

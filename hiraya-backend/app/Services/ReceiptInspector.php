@@ -289,8 +289,10 @@ PROMPT;
             (array) config('services.gemini.models', [])
         )))) as $model) {
             try {
+                // Key in a header, never the URL (URLs leak into logged exceptions).
                 $response = Http::acceptJson()->timeout(30)->connectTimeout(10)
-                    ->post('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . urlencode($key), [
+                    ->withHeaders(['x-goog-api-key' => $key])
+                    ->post('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent', [
                         'contents' => [[
                             'parts' => [
                                 ['text' => $prompt],

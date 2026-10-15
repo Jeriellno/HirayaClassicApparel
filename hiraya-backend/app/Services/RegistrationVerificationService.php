@@ -107,20 +107,64 @@ class RegistrationVerificationService
         return ['status' => 'ok', 'data' => $entry['data']];
     }
 
+    /**
+     * Mail the code, retrying ONCE when the mail server could not be reached.
+     *
+     * "Minsan email not sent": the log shows intermittent
+     * `Connection could not be established with host smtp.gmail.com:587`. That is
+     * a network hiccup, and a second attempt usually goes through. Login/credential
+     * failures (SMTP 535) are NOT retried — they will not fix themselves.
+     */
     private function send(string $email, string $name, string $code): bool
     {
-        try {
-            Mail::mailer(config('mail.default'))->send(
-                new RegistrationCodeMail($email, $name, $code, self::TTL_MINUTES)
-            );
+        $mailer = config('mail.default');
+        $lastError = null;
 
-            return true;
-        } catch (\Throwable $e) {
-            // Never log the code itself.
-            Log::error('Registration code mail could not be sent: ' . $e->getMessage());
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                Mail::mailer($mailer)->send(
+                    new RegistrationCodeMail($email, $name, $code, self::TTL_MINUTES)
+                );
 
+                return true;
+            } catch (\Throwable $e) {
+                $lastError = $e;
+
+                if ($attempt === 2 || ! $this->isTransientMailFailure($e)) {
+                    break;
+                }
+
+                // Never log the code itself.
+                Log::warning('Registration code mail attempt 1 failed, retrying once: ' . $e->getMessage());
+
+                // A failed connection can leave the SMTP transport half-open; drop
+                // the cached mailer so the retry opens a fresh connection.
+                app('mail.manager')->purge($mailer);
+                usleep(800_000);
+            }
+        }
+
+        Log::error('Registration code mail could not be sent: ' . $lastError?->getMessage());
+
+        return false;
+    }
+
+    /** A connection/timeout problem that a second attempt can plausibly fix. */
+    private function isTransientMailFailure(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, '535') || stripos($message, 'authenticate') !== false) {
             return false;
         }
+
+        foreach (['Connection could not be established', 'Unable to connect', 'timed out', 'Connection refused', 'Connection reset', 'stream_socket_client', 'Expected response code "220"'] as $needle) {
+            if (stripos($message, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function newCode(): string

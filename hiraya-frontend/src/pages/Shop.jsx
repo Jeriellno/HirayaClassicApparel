@@ -21,6 +21,9 @@ const Shop = () => {
     searchKeyword,
     activeSubCat,
     setActiveSubCat,
+    activeSubcategory,
+    setActiveSubcategory,
+    subcategoryOptions,
     selectedProductModal,
     setSelectedProductModal,
     addedSuccess,
@@ -118,7 +121,13 @@ const Shop = () => {
       )}
 
       {/* HEADER & FILTER TABS */}
-      <ShopHeader activeSubCat={activeSubCat} onSelectSubCat={setActiveSubCat} />
+      <ShopHeader
+        activeSubCat={activeSubCat}
+        onSelectSubCat={setActiveSubCat}
+        subcategoryOptions={subcategoryOptions}
+        activeSubcategory={activeSubcategory}
+        onSelectSubcategory={setActiveSubcategory}
+      />
 
       {/* FEATURED STAGE — read-only carousel over the pieces already loaded
           (and already filtered) above; it links to the existing product page. */}

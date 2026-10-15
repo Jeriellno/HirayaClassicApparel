@@ -1,7 +1,8 @@
 ﻿import PropTypes from 'prop-types';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { reloadToLogin } from '../utils/authRedirect';
 import { StaffSessionContext } from '../context/StaffSessionContext';
 import { supabase, withTimeout } from '../services/supabase';
 import {
@@ -65,17 +66,20 @@ SessionGate.propTypes = {
  * granted: the console only opens after a successful re-check.
  */
 const SessionProblem = ({ onRetry }) => {
-    const navigate = useNavigate();
+    const { beginSignOut } = useAuth();
     const [busy, setBusy] = useState(false);
 
+    // A staff sign-out like the console's: "Signing out..." first, then ONE
+    // full page load of /login (see utils/authRedirect.js).
     const signInAgain = async () => {
         setBusy(true);
+        beginSignOut();
         try {
             await withTimeout(signOutSupabase(), SESSION_STEP_TIMEOUT_MS);
         } catch {
             /* the local session is cleared by the next sign-in anyway */
         }
-        navigate('/login', { replace: true });
+        reloadToLogin();
     };
 
     return (

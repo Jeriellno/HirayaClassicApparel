@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\OccasionBackgroundResolver;
 use App\Services\GeminiKeyPool;
+use App\Support\ProductTaxonomy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -304,6 +305,19 @@ class ProductImageAnalysisController extends Controller
             self::OCCASIONS,
         );
 
+        /*
+         * SUBCATEGORY — only a name from the chosen category's own list in
+         * App\Support\ProductTaxonomy (the copy ProductRequest enforces), in its
+         * canonical spelling ("polo shirts" -> "Polo Shirts"). A name from
+         * another category, an invented one or a missing one becomes null, so
+         * the Inventory form keeps its "Select Subcategory" placeholder and the
+         * admin picks it instead of the save answering 422.
+         */
+        $analysis['subcategory'] = ProductTaxonomy::canonicalSubcategory(
+            is_string($analysis['category'] ?? null) ? $analysis['category'] : null,
+            is_string($analysis['subcategory'] ?? null) ? $analysis['subcategory'] : null,
+        );
+
         $occasions = $analysis['occasions'];
 
         /*
@@ -457,7 +471,8 @@ class ProductImageAnalysisController extends Controller
             )
             ->timeout(30)
             ->connectTimeout(10)
-            ->post($this->endpoint($apiKey, $model), [
+            ->withHeaders(['x-goog-api-key' => $apiKey])
+            ->post($this->endpoint($model), [
                 'contents' => [[
                     'parts' => [
                         ['text' => $parts['prompt']],
@@ -482,32 +497,43 @@ class ProductImageAnalysisController extends Controller
      * The catalog-analysis prompt, kept as its own method so `askGemini` stays a
      * pure transport and the text is not rebuilt inside the model loop.
      *
+     * The subcategory rule is generated from ProductTaxonomy::SUBCATEGORIES, so
+     * the names the model may answer are always the ones ProductRequest accepts.
+     *
      * @return array{prompt: string}
      */
     private function prompt(): array
     {
+        $subcategories = implode('; ', array_map(
+            fn (string $category, array $names) => $category . ': ' . implode(', ', $names),
+            array_keys(ProductTaxonomy::SUBCATEGORIES),
+            ProductTaxonomy::SUBCATEGORIES,
+        ));
+
         return ['prompt' => <<<'PROMPT'
-Analyze this garment catalog image and return ONLY valid JSON with these keys: description, category, material, gender, colors, undertone, fit_type, body_shapes, occasions, background_vibe.
+Analyze this garment catalog image and return ONLY valid JSON with these keys: description, category, subcategory, material, gender, colors, undertone, fit_type, body_shapes, occasions, background_vibe.
 category must be TOPS, BOTTOMS, DRESSES, OUTERWEAR, FORMAL_MEN, FORMAL_WOMEN, or FULL_BODY. gender must be Men, Women, or Unisex. colors, body_shapes, and occasions must be arrays. undertone must be WARM, COOL, or NEUTRAL. fit_type must be SLIM, REGULAR, or LOOSE. Never invent exact body measurements; those are entered separately.
 Judge fit_type from the CUT of the garment as it actually hangs on the body, not from the model wearing it: a shirt that tapers at the waist with little ease through the chest is SLIM, one that falls straight from the shoulder with ordinary room is REGULAR, and one visibly wider than the wearer with dropped shoulders or extra drape is LOOSE. This value drives the storefront's "recommended for you" feed, so an inaccurate answer sends a shopper the wrong silhouette. When you genuinely cannot tell, return REGULAR.
 description must be one short shopper-facing sentence about fabric, cut and feel — no measurements, no size chart, no marketing superlatives.
 background_vibe picks the catalog backdrop scene for this garment and must be exactly ONE of: summer, cultural, formal, business, streetwear, everyday. Choose by what the garment is worn for: Filipino or other traditional/heritage wear (barong tagalog, filipiniana, terno, baro't saya, malong) is cultural; gowns, cocktail and evening wear is formal; suits, tuxedos, blazers, slacks, dress shirts and office wear is business; beach, resort, linen, floral, shorts and swimwear is summer; hoodies, cargo, graphic tees, bombers and sneakers-culture pieces is streetwear; plain tees, jeans and basics is everyday.
-PROMPT];
+PROMPT . "\nsubcategory must be exactly ONE name from the list for the category you chose, spelled as written ({$subcategories}). "
+            . 'When none of that category\'s names fits the garment, return null.'];
     }
 
     /**
-     * Full Gemini generateContent URL for a SPECIFIC model, with the API key
-     * always URL-encoded into the query string.
+     * Full Gemini generateContent URL for a SPECIFIC model. The API key is NOT in
+     * it — it travels in the `x-goog-api-key` header (see askGemini), because a
+     * URL is copied into exception messages and from there into laravel.log.
      *
      * Takes the model as a parameter because the caller walks a chain: a single
      * hardcoded endpoint is what made one retired model take the whole feature
      * down with it.
      */
-    private function endpoint(string $apiKey, ?string $model = null): string
+    private function endpoint(?string $model = null): string
     {
         return 'https://generativelanguage.googleapis.com/v1beta/models/'
             . ($model ?: config('services.gemini.model'))
-            . ':generateContent?key=' . urlencode($apiKey);
+            . ':generateContent';
     }
 
     private function base64Data(string $dataUri): string

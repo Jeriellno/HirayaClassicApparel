@@ -6,7 +6,8 @@ import api from '../api/axios';
 import { parseVariants } from '../utils/stylistHelper';
 import { normalizeCartPayload } from '../utils/cartShape';
 import { notify } from '../utils/notify';
-import { rowsForProducts } from '../utils/shopRows';
+import { rowsForProducts, rowMatchesTab, shopRowFor } from '../utils/shopRows';
+import { PRODUCT_CATEGORIES, sameSubcategory } from '../constants/productCategories';
 
 
 /**
@@ -49,7 +50,14 @@ export const useShopData = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth(); // 👈 Kunin ang authenticated user state
 
-  const [activeSubCat, setActiveSubCat] = useState('all');
+  const [activeSubCat, setActiveSubCatState] = useState('all');
+  // The subcategory chip under the tabs ('' = all of the tab). A chip belongs
+  // to its tab, so choosing another tab (or "Explore More") clears it.
+  const [activeSubcategory, setActiveSubcategory] = useState('');
+  const setActiveSubCat = useCallback((value) => {
+    setActiveSubCatState(value);
+    setActiveSubcategory('');
+  }, []);
   const [selectedProductModal, setSelectedProductModal] = useState(null);
   const [addedSuccess, setAddedSuccess] = useState(false);
 
@@ -147,7 +155,7 @@ export const useShopData = () => {
   );
 
   // 3. Search Filter
-  const filteredProducts = useMemo(() => {
+  const searchedProducts = useMemo(() => {
     const source = normalizedProducts;
     if (!searchKeyword.trim()) return source;
 
@@ -161,23 +169,48 @@ export const useShopData = () => {
     return source.filter((p) => (p?.name || '').toLowerCase().includes(query));
   }, [normalizedProducts, searchKeyword]);
 
+  /*
+   * 3b. Subcategory chips for the active tab (none on "All Garments").
+   *
+   * The list's subcategories of every category in the tab's row(s), in list
+   * order, then any older stored value — each ONLY when a product in view
+   * carries it, so a chip never leads to an empty collection.
+   */
+  const subcategoryOptions = useMemo(() => {
+    const tab = String(activeSubCat || '').trim().toLowerCase();
+    if (!tab || tab === 'all' || tab === 'all garments') return [];
+
+    const inTab = searchedProducts.filter((p) => rowMatchesTab(shopRowFor(p?.category), activeSubCat));
+    const known = PRODUCT_CATEGORIES
+      .filter((c) => rowMatchesTab(shopRowFor(c.value), activeSubCat))
+      .flatMap((c) => c.subcategories);
+    const stored = inTab.map((p) => String(p?.subcategory || '').trim()).filter(Boolean);
+    const ordered = [...known, ...stored];
+
+    return ordered.filter((name, i) =>
+      ordered.findIndex((other) => sameSubcategory(other, name)) === i
+      && inTab.some((p) => sameSubcategory(p?.subcategory, name))
+    );
+  }, [searchedProducts, activeSubCat]);
+
+  // A chip whose pieces a new search hid stops filtering, instead of leaving
+  // an empty page with no chip to clear.
+  const effectiveSubcategory = subcategoryOptions.find((name) => sameSubcategory(name, activeSubcategory)) || '';
+
+  const filteredProducts = useMemo(
+    () => (effectiveSubcategory
+      ? searchedProducts.filter((p) => sameSubcategory(p?.subcategory, effectiveSubcategory))
+      : searchedProducts),
+    [searchedProducts, effectiveSubcategory]
+  );
+
   // 4. Category Filter
   const availableCategories = useMemo(() => {
     if (!filteredProducts.length) return [];
 
     // Every product maps to exactly one row (see utils/shopRows.js), so a
     // product in a category outside the five original rows is still listed.
-    let orderedCategories = rowsForProducts(filteredProducts);
-
-    const normalizedActive = activeSubCat?.trim().toLowerCase();
-    if (normalizedActive && normalizedActive !== 'all' && normalizedActive !== 'all garments') {
-      orderedCategories = orderedCategories.filter((cat) => {
-        const catLower = cat.toLowerCase();
-        return catLower.startsWith(normalizedActive.slice(0, 3)) || normalizedActive.startsWith(catLower.slice(0, 3));
-      });
-    }
-
-    return orderedCategories;
+    return rowsForProducts(filteredProducts).filter((cat) => rowMatchesTab(cat, activeSubCat));
   }, [filteredProducts, activeSubCat]);
 
   // 5. Bag Mutation — the heart/save toggle on shop cards.
@@ -337,6 +370,9 @@ export const useShopData = () => {
     searchKeyword,
     activeSubCat,
     setActiveSubCat,
+    activeSubcategory: effectiveSubcategory,
+    setActiveSubcategory,
+    subcategoryOptions,
     selectedProductModal,
     setSelectedProductModal,
     addedSuccess,

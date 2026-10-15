@@ -103,6 +103,9 @@ class HuggingFaceVtonRenderer
      * @param  string|null  $recommendedSize  Unused here (kept for parity).
      * @param  array|null  $renderPlan  Unused here (kept for parity).
      * @param  array<int, string|null>  $categories  Style Stack category per garment.
+     * @param  string|null  $garmentDescription  The Space's `garment_des` text for this
+     *                                           pass (e.g. a top worn over a dress);
+     *                                           null = the configured default prompt.
      * @return array{success: bool, image_base64?: string, feedback?: string, error?: string, code?: string, placed?: array<int, string>}
      */
     public function render(
@@ -111,7 +114,8 @@ class HuggingFaceVtonRenderer
         array $measurements = [],
         ?string $recommendedSize = null,
         ?array $renderPlan = null,
-        array $categories = []
+        array $categories = [],
+        ?string $garmentDescription = null
     ): array {
         $base = $this->baseUrl();
 
@@ -225,7 +229,7 @@ class HuggingFaceVtonRenderer
                     'composite' => null,
                 ],
                 ['path' => $garmentPath, 'meta' => ['_type' => 'gradio.FileData']],
-                (string) config('services.huggingface.vton_prompt', 'a photo of a person wearing the garment'),
+                $garmentDescription ?: (string) config('services.huggingface.vton_prompt', 'a photo of a person wearing the garment'),
                 (bool) config('services.huggingface.vton_auto_mask', true),
                 (bool) config('services.huggingface.vton_auto_crop', false),
                 $this->optionalPositiveInt(config('services.huggingface.vton_denoise_steps'), 30),

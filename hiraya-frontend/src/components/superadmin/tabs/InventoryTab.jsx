@@ -12,6 +12,7 @@ import PairingPanel from './PairingPanel';
 import AutoFillProgress from './AutoFillProgress';
 import StockAdjustModal from './StockAdjustModal';
 import { canPair, pairedIdsOf } from '../../../utils/garmentPairing';
+import { PRODUCT_CATEGORIES, normaliseCategory, sameSubcategory, subcategoriesFor } from '../../../constants/productCategories';
 import useConfirm from '../../../hooks/useConfirm';
 
 const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
@@ -32,6 +33,12 @@ const SectionTitle = ({ n, title, hint, done }) => (
 
 /** Products per inventory page; the sixth starts page two. */
 const PAGE_SIZE = 5;
+
+/** The list filter's "products with no subcategory yet" value. */
+const NO_SUBCATEGORY = '__none__';
+
+/** The list filters' selects — the form's field style at the table's text size. */
+const FILTER_SELECT = 'w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl px-3 py-2 text-[11px] text-hiraya-ink focus:outline-none focus:border-hiraya-accent focus:ring-2 focus:ring-hiraya-accent/20 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60';
 
 /** The theme picker's "follow the details" value. Anything else is a preset key. */
 const AUTO_THEME = 'auto';
@@ -131,6 +138,9 @@ const INITIAL_FORM_STATE = {
   name: '',
   description: '',
   category: 'TOPS',
+  // One of the category's subcategories (constants/productCategories.js);
+  // '' until the admin picks one. Required for a NEW product only.
+  subcategory: '',
   price: '',
   sizes: {},
   size_measurements: {},
@@ -177,10 +187,41 @@ export default function InventoryTab({
    */
   const [page, setPage] = useState(0);
   const [openStockRows, setOpenStockRows] = useState(() => new Set());
-  const pageCount = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
+
+  /*
+   * LIST FILTERS (UI only; '' = all). The subcategory filter can also pick
+   * NO_SUBCATEGORY, which lists products saved before subcategories existed so
+   * an admin can find and tag them.
+   */
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubcategory, setFilterSubcategory] = useState('');
+  const visibleProducts = useMemo(
+    () =>
+      products.filter((item) => {
+        if (filterCategory && normaliseCategory(item.category) !== filterCategory) return false;
+        if (filterSubcategory === NO_SUBCATEGORY) return !String(item.subcategory || '').trim();
+        return !filterSubcategory || sameSubcategory(item.subcategory, filterSubcategory);
+      }),
+    [products, filterCategory, filterSubcategory]
+  );
+  /** Subcategory filter options per category: the list, plus any older stored values. */
+  const filterSubcategoryGroups = useMemo(
+    () =>
+      PRODUCT_CATEGORIES.filter((c) => !filterCategory || c.value === filterCategory).map((c) => {
+        const stored = products
+          .filter((p) => normaliseCategory(p.category) === c.value && String(p.subcategory || '').trim())
+          .map((p) => String(p.subcategory).trim());
+        const extra = [...new Set(stored)].filter((s) => !c.subcategories.some((known) => sameSubcategory(known, s)));
+        return { ...c, options: [...c.subcategories, ...extra] };
+      }),
+    [products, filterCategory]
+  );
+  const isFiltered = Boolean(filterCategory || filterSubcategory);
+
+  const pageCount = Math.max(1, Math.ceil(visibleProducts.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pageStart = safePage * PAGE_SIZE;
-  const pagedProducts = products.slice(pageStart, pageStart + PAGE_SIZE);
+  const pagedProducts = visibleProducts.slice(pageStart, pageStart + PAGE_SIZE);
 
   const toggleStockRow = (rowId) => {
     setOpenStockRows((prev) => {
@@ -394,44 +435,58 @@ export default function InventoryTab({
       if (!isMountedRef.current) return;
       setAiOccasions(analysis?.occasions ?? null);
       setAiVibe(isThemeKey(analysis?.background_vibe) ? analysis.background_vibe : null);
-      setFormData((prev) => ({
-        ...prev,
-        /*
-         * FIRST PASS FILLS ONLY WHAT IS EMPTY. A RE-RUN OVERWRITES.
-         *
-         * On a fresh upload there is nothing to protect, so the AI is allowed to
-         * supply anything it is confident about — that is the whole point of the
-         * "drop a photo in, get a draft" flow.
-         *
-         * On a RE-RUN the admin is deliberately asking for the AI's answer again,
-         * typically because the first one was wrong (a garment photographed at an
-         * angle reads as the wrong category). Filling only empty fields would
-         * make the button do nothing at all, because everything is now filled —
-         * so the re-run REPLACES the values. It still never touches the size and
-         * stock matrix: that is hand-entered data the AI has no opinion about,
-         * and silently clearing it would discard real counts.
-         */
-        // PRODUCT NAME IS NEVER AI-FILLED: staff type it themselves, and an
-        // auto-fill run (first pass or re-run) leaves whatever they typed alone.
-        name: prev.name,
-        description: overwrite
-          ? (analysis.description || prev.description)
-          : (prev.description || analysis.description || ''),
-        // The category is a closed set with no sensible "keep what I had"
-        // fallback, so the AI's answer wins on a re-run and is only a default
-        // on the first pass.
-        category: analysis.category || prev.category,
-        price: overwrite
-          ? (analysis.price || prev.price)
-          : (prev.price !== '' && prev.price != null ? prev.price : (analysis.price || prev.price)),
-        fit_type: analysis.fit_type || prev.fit_type,
-        // Running the AI hands the background back to AUTO, so its vibe applies.
-        background_theme: AUTO_THEME,
-        gender: normaliseGender(analysis.gender) || prev.gender,
-        primary_color: overwrite
-          ? (analysis.colors?.[0] || prev.primary_color)
-          : (prev.primary_color || analysis.colors?.[0] || '')
-      }));
+      setFormData((prev) => {
+        const category = analysis.category || prev.category;
+        // The subcategory belongs to the category: the admin's pick survives
+        // only while the category is unchanged, and the AI's is used only when
+        // it is one of the resulting category's own names.
+        const keptSubcategory = category === prev.category ? prev.subcategory : '';
+        const aiSubcategory = subcategoriesFor(category).find((s) => sameSubcategory(s, analysis.subcategory)) || '';
+
+        return {
+          ...prev,
+          /*
+           * FIRST PASS FILLS ONLY WHAT IS EMPTY. A RE-RUN OVERWRITES.
+           *
+           * On a fresh upload there is nothing to protect, so the AI is allowed to
+           * supply anything it is confident about — that is the whole point of the
+           * "drop a photo in, get a draft" flow.
+           *
+           * On a RE-RUN the admin is deliberately asking for the AI's answer again,
+           * typically because the first one was wrong (a garment photographed at an
+           * angle reads as the wrong category). Filling only empty fields would
+           * make the button do nothing at all, because everything is now filled —
+           * so the re-run REPLACES the values. It still never touches the size and
+           * stock matrix: that is hand-entered data the AI has no opinion about,
+           * and silently clearing it would discard real counts.
+           */
+          // PRODUCT NAME IS NEVER AI-FILLED: staff type it themselves, and an
+          // auto-fill run (first pass or re-run) leaves whatever they typed alone.
+          name: prev.name,
+          description: overwrite
+            ? (analysis.description || prev.description)
+            : (prev.description || analysis.description || ''),
+          // The category is a closed set with no sensible "keep what I had"
+          // fallback, so the AI's answer wins on a re-run and is only a default
+          // on the first pass.
+          category,
+          // Same rule as the free-text fields: a first pass only fills an empty
+          // pick, a re-run replaces it (or keeps it when the AI offers nothing valid).
+          subcategory: overwrite
+            ? (aiSubcategory || keptSubcategory)
+            : (keptSubcategory || aiSubcategory),
+          price: overwrite
+            ? (analysis.price || prev.price)
+            : (prev.price !== '' && prev.price != null ? prev.price : (analysis.price || prev.price)),
+          fit_type: analysis.fit_type || prev.fit_type,
+          // Running the AI hands the background back to AUTO, so its vibe applies.
+          background_theme: AUTO_THEME,
+          gender: normaliseGender(analysis.gender) || prev.gender,
+          primary_color: overwrite
+            ? (analysis.colors?.[0] || prev.primary_color)
+            : (prev.primary_color || analysis.colors?.[0] || '')
+        };
+      });
 
       /*
        * BACKGROUND REMOVAL — the SAME step the Admin console runs after analysis.
@@ -798,6 +853,11 @@ export default function InventoryTab({
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // A new category has its own subcategories, so the old pick is cleared.
+    if (name === 'category') {
+      setFormData((prev) => ({ ...prev, category: value, subcategory: value === prev.category ? prev.subcategory : '' }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -939,6 +999,9 @@ export default function InventoryTab({
       name: item.name || '',
       description: item.description || '',
       category: item.category || 'TOPS',
+      // Older products have none: the dropdown then opens on its placeholder.
+      // A stored "polo shirts" opens as the list's "Polo Shirts".
+      subcategory: subcategoriesFor(item.category).find((s) => sameSubcategory(s, item.subcategory)) || item.subcategory || '',
       price: item.price || '',
       sizes: normalizedSizes,
       size_measurements: parseSizes(item.size_measurements) || {},
@@ -1008,6 +1071,8 @@ export default function InventoryTab({
     const formProblem =
       !formData.name.trim() ? 'Product name is required.'
         : !Number.isFinite(priceValue) || priceValue <= 0 ? 'Enter a price greater than ₱0.'
+        // New products need one; older products may still be saved without.
+        : !editingId && !formData.subcategory && subcategoriesFor(formData.category).length > 0 ? 'Select a subcategory.'
         : !editingId && !imageFile ? 'Upload a photo of the garment.'
         : Object.keys(formData.sizes || {}).length === 0 ? 'Turn on at least one size this garment comes in.'
         : variantProblem;
@@ -1066,6 +1131,8 @@ export default function InventoryTab({
       const payload = new FormData();
       payload.append('name', formData.name);
       payload.append('category', formData.category.toUpperCase());
+      // '' (no pick on an older product) reaches the API as null — unchanged.
+      payload.append('subcategory', formData.subcategory || '');
       payload.append('price', parseFloat(formData.price) || 0);
       payload.append('description', formData.description || '');
       payload.append('stock', computedTotalStock);
@@ -1244,12 +1311,76 @@ export default function InventoryTab({
         )}
       </div>
 
+      {/* FILTERS — category, then that category's subcategories. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="sm:w-56">
+          <label htmlFor="inventory_filter_category" className="block text-[10px] uppercase text-hiraya-ink-muted font-semibold tracking-wider mb-1">Category</label>
+          <select
+            id="inventory_filter_category"
+            value={filterCategory}
+            onChange={(e) => {
+              setFilterCategory(e.target.value);
+              setFilterSubcategory('');
+              setPage(0);
+            }}
+            className={FILTER_SELECT}
+          >
+            <option value="">All categories</option>
+            {PRODUCT_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:w-56">
+          <label htmlFor="inventory_filter_subcategory" className="block text-[10px] uppercase text-hiraya-ink-muted font-semibold tracking-wider mb-1">Subcategory</label>
+          <select
+            id="inventory_filter_subcategory"
+            value={filterSubcategory}
+            onChange={(e) => {
+              setFilterSubcategory(e.target.value);
+              setPage(0);
+            }}
+            className={FILTER_SELECT}
+          >
+            <option value="">All subcategories</option>
+            <option value={NO_SUBCATEGORY}>No subcategory yet</option>
+            {filterCategory
+              ? filterSubcategoryGroups[0]?.options.map((s) => <option key={s} value={s}>{s}</option>)
+              : filterSubcategoryGroups.map((group) => (
+                  <optgroup key={group.value} label={group.label}>
+                    {group.options.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </optgroup>
+                ))}
+          </select>
+        </div>
+        {isFiltered && (
+          <div className="flex items-center gap-3 sm:pb-2">
+            <span className="text-[10px] uppercase tracking-wider text-hiraya-ink-muted tabular-nums">
+              {visibleProducts.length} of {products.length} shown
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setFilterCategory('');
+                setFilterSubcategory('');
+                setPage(0);
+              }}
+              className="text-[10px] font-bold uppercase tracking-wider text-hiraya-accent hover:underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* INVENTORY TABLE */}
       <div className="bg-hiraya-surface rounded-[22px] shadow-neu ring-1 ring-cream-50/80 overflow-hidden text-xs">
         {/* PHONES: one card per product — the table hid stock, price and actions off-screen. */}
         <ul className="divide-y divide-hiraya-structure-line/70 md:hidden">
-          {products.length === 0 ? (
-            <li className="px-4 py-10 text-center text-[11px] text-hiraya-ink-muted">No products yet.</li>
+          {visibleProducts.length === 0 ? (
+            <li className="px-4 py-10 text-center text-[11px] text-hiraya-ink-muted">
+              {isFiltered && products.length > 0 ? 'No products match these filters.' : 'No products yet.'}
+            </li>
           ) : (
             pagedProducts.map((item, idx) => {
               const totalStock = totalStockOf(item);
@@ -1261,7 +1392,10 @@ export default function InventoryTab({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[12px] font-semibold text-hiraya-ink">{item.name}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-hiraya-ink-muted">{String(item.category || '').replace(/_/g, ' ')}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-hiraya-ink-muted">
+                      {String(item.category || '').replace(/_/g, ' ')}
+                      {item.subcategory && <span> · {item.subcategory}</span>}
+                    </p>
                     <p className="mt-0.5 text-[11px] text-hiraya-ink">
                       ₱{Number(item.price || 0).toLocaleString('en-PH')}
                       <span className={`ml-2 font-semibold ${totalStock === 0 ? 'text-red-700' : totalStock < 5 ? 'text-amber-700' : 'text-emerald-700'}`}>
@@ -1298,7 +1432,7 @@ export default function InventoryTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-hiraya-structure-line/70 text-hiraya-ink font-mono">
-               {products && products.length > 0 ? (
+               {visibleProducts.length > 0 ? (
                  pagedProducts.map((item, idx) => {
                    /*
                     * THE STOCK MAP IS THE SOURCE OF TRUTH.
@@ -1403,6 +1537,11 @@ export default function InventoryTab({
 
                       <td className="p-4 uppercase text-hiraya-ink whitespace-nowrap">
                         {item.category || 'N/A'}
+                        {item.subcategory && (
+                          <span className="mt-1 block text-[10px] normal-case tracking-wide text-hiraya-ink-soft">
+                            {item.subcategory}
+                          </span>
+                        )}
                         {pairedIdsOf(item).length > 0 && (
                           <span
                             className="mt-1 block text-[9px] normal-case tracking-wide text-hiraya-ink-muted"
@@ -1541,7 +1680,7 @@ export default function InventoryTab({
               ) : (
                 <tr>
                   <td colSpan="5" className="p-8 text-center text-hiraya-sand uppercase tracking-widest">
-                    No products found in inventory
+                    {isFiltered && products.length > 0 ? 'No products match these filters' : 'No products found in inventory'}
                   </td>
                 </tr>
               )}
@@ -1556,10 +1695,10 @@ export default function InventoryTab({
          * list never grows past the screen; the range line says which slice is in
          * view out of how many.
          */}
-        {products.length > PAGE_SIZE && (
+        {visibleProducts.length > PAGE_SIZE && (
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-hiraya-structure-line/70 font-mono">
             <p className="text-[10px] uppercase tracking-wider text-hiraya-ink-muted tabular-nums">
-              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, products.length)} of {products.length}
+              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, visibleProducts.length)} of {visibleProducts.length}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -1616,6 +1755,7 @@ export default function InventoryTab({
       {isModalOpen && (() => {
         const field = 'w-full bg-cream-200/55 border border-hiraya-ink/10 shadow-neu-inset rounded-xl px-3 py-2.5 text-[12px] text-hiraya-ink focus:outline-none focus:border-hiraya-accent focus:ring-2 focus:ring-hiraya-accent/20';
         const labelCls = 'block text-[10px] uppercase text-hiraya-ink-muted font-semibold tracking-wider mb-1';
+        const subcategoryOptions = subcategoriesFor(formData.category);
         const offeredSizes = AVAILABLE_SIZES.filter((size) => Object.prototype.hasOwnProperty.call(formData.sizes || {}, size));
         const hasPhoto = Boolean(previewUrl || compositeUrl);
         const detailsDone = Boolean(formData.name.trim() && String(formData.price).trim() !== '');
@@ -1805,6 +1945,32 @@ export default function InventoryTab({
                             <option value="FULL_BODY">Full body</option>
                           </select>
                         </div>
+                        {/*
+                          * SUBCATEGORY — directly under Category (row 3 on wider
+                          * screens, the next field on phones). Its options follow
+                          * the category; a value saved before this list existed
+                          * is kept as its own option so editing never drops it.
+                          */}
+                        <div className="sm:col-span-2 sm:col-start-1 sm:row-start-3">
+                          <label htmlFor="product_subcategory" className={labelCls}>{editingId ? 'Subcategory' : 'Subcategory *'}</label>
+                          <select
+                            id="product_subcategory"
+                            name="subcategory"
+                            value={formData.subcategory}
+                            onChange={handleInputChange}
+                            required={!editingId && subcategoryOptions.length > 0}
+                            disabled={subcategoryOptions.length === 0 && !formData.subcategory}
+                            className={field}
+                          >
+                            <option value="" disabled>Select Subcategory</option>
+                            {formData.subcategory && !subcategoryOptions.includes(formData.subcategory) && (
+                              <option value={formData.subcategory}>{formData.subcategory}</option>
+                            )}
+                            {subcategoryOptions.map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        </div>
                         <div className="sm:col-span-2">
                           <label htmlFor="product_fit" className={labelCls}>Fit</label>
                           <select id="product_fit" name="fit_type" value={formData.fit_type} onChange={handleInputChange} className={field}>
@@ -1822,7 +1988,7 @@ export default function InventoryTab({
                             <option value="Unisex">Unisex</option>
                           </select>
                         </div>
-                        <div className="sm:col-span-6">
+                        <div className="sm:col-span-4">
                           <label htmlFor="product_description" className={labelCls}>Description</label>
                           <textarea id="product_description" name="description" rows={2} placeholder="Fabric, cut and feel" value={formData.description} onChange={handleInputChange} className={`${field} resize-none`} />
                         </div>

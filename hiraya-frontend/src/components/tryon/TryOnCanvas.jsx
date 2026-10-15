@@ -128,6 +128,23 @@ export const TryOnCanvas = ({
    */
   onOpenHistory = null,
   newLooks = 0,
+  /*
+   * AI STYLIST SLOTS (optional; the canvas works without them).
+   *   photoOverlay  — drawn over the uploaded photo (the lookbook callouts)
+   *   resultOverlay — drawn over the finished render (the verdict callouts)
+   *   belowCanvas   — the stylist's numbered details panel under the canvas
+   */
+  photoOverlay = null,
+  resultOverlay = null,
+  belowCanvas = null,
+  /*
+   * ONE PRIMARY PER VIEW. While the stylist's lookbook is on the photo its
+   * "Try this look" is the primary action, so Generate steps down to a
+   * secondary outline ('secondary') for rendering the customer's own stack.
+   */
+  generateEmphasis = 'primary',
+  /* Extra header content beside the canvas title (the stylist status pill). */
+  headerSlot = null,
 }) => {
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -159,7 +176,14 @@ export const TryOnCanvas = ({
     stackPlan?.mode === 'unsupported'
       ? { tone: 'warn', text: stackPlan.message }
       : stackPlan?.mode === 'pair'
-        ? { tone: 'info', text: 'Top and bottom render together in two passes — this look uses 2 renders and takes about twice as long.' }
+        ? {
+            tone: 'info',
+            text: stackPlan.layering === 'over_dress'
+              ? (stackPlan.outer === 'outerwear'
+                  ? 'Your dress renders first, then the outerwear layered over it — this look uses 2 renders and takes about twice as long.'
+                  : 'Your dress renders first, then the top layered over it — this look uses 2 renders and takes about twice as long.')
+              : 'Top and bottom render together in two passes — this look uses 2 renders and takes about twice as long.',
+          }
         : null;
   const progress = Math.min(100, Math.max(0, Number(tryOnProgress) || 0));
 
@@ -363,14 +387,18 @@ export const TryOnCanvas = ({
 
   return (
     <section className="flex min-h-[420px] flex-1 flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <span
-          data-tour="fitting-canvas"
-          className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy-900 text-cream-100 shadow-neu-sm"><Layers size={14} /></span>
-          Virtual Fitting Canvas
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            data-tour="fitting-canvas"
+            className="flex items-center gap-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-hiraya-ink"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy-900 text-cream-100 shadow-neu-sm"><Layers size={14} /></span>
+            {/* With a header slot the title yields its words on small screens. */}
+            <span className={headerSlot ? 'hidden 2xl:inline' : undefined}>Virtual Fitting Canvas</span>
+          </span>
+          {headerSlot}
+        </div>
         <div className="flex items-center gap-2 sm:gap-3">
           {onOpenHistory && (
             <button
@@ -432,7 +460,8 @@ export const TryOnCanvas = ({
        * vignette rather than as a frame. Every render is letterboxed onto BLACK,
        * so the well is a flat black plate with the system hairline.
        */}
-      <div className="relative isolate flex min-h-[360px] max-h-[calc(100vh-16rem)] flex-1 flex-col items-center justify-center overflow-hidden rounded-[28px] border border-cream-50/10 bg-noir shadow-[0_40px_80px_-40px_rgba(13,21,36,0.8)]">
+      {/* With the stylist panel below, the well keeps a real height and the page scrolls. */}
+      <div className={`relative isolate flex ${belowCanvas ? 'min-h-[min(34rem,calc(100vh-16rem))]' : 'min-h-[360px]'} max-h-[calc(100vh-16rem)] flex-1 flex-col items-center justify-center overflow-hidden rounded-[28px] border border-cream-50/10 bg-noir shadow-[0_40px_80px_-40px_rgba(13,21,36,0.8)]`}>
         {/* The stage's light: a soft vignette and grain behind every state. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_50%_35%,rgba(40,58,87,0.45)_0%,transparent_65%)]" />
         <div aria-hidden="true" className="vintage-grain pointer-events-none absolute inset-0 -z-10 opacity-25 mix-blend-soft-light" />
@@ -503,6 +532,8 @@ export const TryOnCanvas = ({
                       </span>
                     </div>
                   )}
+
+                  {photoOverlay}
                 </>
               ) : photoRejection ? (
                 /*
@@ -779,6 +810,8 @@ export const TryOnCanvas = ({
                 className="h-full w-full rounded-lg object-contain"
               />
 
+              {resultOverlay}
+
               {/* Size chip extracted from the render feedback (SIZE: prefix). */}
               {recommendedSize && (
                 <div className="absolute left-4 top-4 rounded-full border border-cream-50/60 bg-cream-50/85 px-4 py-1.5 shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)] backdrop-blur-md">
@@ -989,6 +1022,8 @@ export const TryOnCanvas = ({
         </AnimatePresence>
       </div>
 
+      {belowCanvas}
+
       {/*
        * VTON INPUT QUALITY NOTICE.
        *
@@ -999,17 +1034,17 @@ export const TryOnCanvas = ({
        * real fix is to populate the product's try-on cut-out in the admin panel.
        */}
       {vtonAssetWarning && !isGenerating && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-600/40 bg-amber-500/15 px-4 py-3 text-left">
-          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-800" />
+        <div className="notice-warn flex items-start gap-3 rounded-lg px-4 py-3 text-left">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-800">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em]">
               Garment image not try-on ready
             </p>
-            <p className="text-[11px] leading-relaxed text-amber-900">
+            <p className="text-xs leading-relaxed">
               {vtonAssetWarning.count === 1
                 ? '1 piece was sent without a clean cut-out:'
                 : `${vtonAssetWarning.count} pieces were sent without a clean cut-out:`}{' '}
-              <span className="font-semibold text-amber-800">{(vtonAssetWarning.names || []).join(', ')}</span>.
+              <span className="font-semibold">{(vtonAssetWarning.names || []).join(', ')}</span>.
               {' '}The model may copy the shop background, framing or artwork. The fix is a
               ghost-mannequin cut-out on the product (admin → Try-on image).
             </p>
@@ -1030,7 +1065,7 @@ export const TryOnCanvas = ({
         disabled={!canGenerate || isGenerating}
         data-tour="generate-fitting"
         aria-describedby={stackNote ? 'generate-stack-note' : undefined}
-        className="btn-primary w-full rounded-full py-4 text-xs"
+        className={`${generateEmphasis === 'secondary' && !isGenerating && !hasError ? 'btn-secondary py-3' : 'btn-primary py-4'} w-full rounded-full text-xs`}
       >
         {isGenerating ? (
           <>
@@ -1039,6 +1074,10 @@ export const TryOnCanvas = ({
         ) : hasError ? (
           <>
             <RefreshCw size={15} /> Retry Virtual Fitting
+          </>
+        ) : generateEmphasis === 'secondary' ? (
+          <>
+            <Layers size={15} /> Render my own stack
           </>
         ) : (
           <>
@@ -1065,7 +1104,7 @@ export const TryOnCanvas = ({
           role="status"
           className={`flex items-start justify-center gap-2 rounded-xl px-4 py-2.5 text-center text-xs leading-relaxed ${
             stackNote.tone === 'warn'
-              ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-200'
+              ? 'notice-warn'
               : 'bg-hiraya-surface text-hiraya-ink ring-1 ring-hiraya-structure-line'
           }`}
         >

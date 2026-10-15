@@ -140,12 +140,14 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
                  * The card's native title is written for the photo lock. When the
                  * row is blocked by the dress rule instead, the reason is named
                  * here so hovering a greyed tile does not give the wrong advice.
+                 * Only Dresses (a bottom is worn) and Bottoms (a dress is worn)
+                 * are ever locked; a top or outerwear can be layered over a dress.
                  */
                 disabledReason={
                   excludedByRule
                     ? (label === 'Dresses'
-                        ? 'A top or bottom is already worn — clear it to wear a dress'
-                        : 'A dress is worn — it covers the top and bottom already')
+                        ? 'A bottom is already worn — remove it to wear a dress'
+                        : 'A dress is worn — it already covers the bottom')
                     : null
                 }
               />
@@ -157,8 +159,8 @@ const CategoryStackRow = ({ meta, items, selected, onToggle, disabled, excludedB
           {excludedByRule && (
             <p className="mt-1.5 text-[9px] leading-snug text-amber-800">
               {label === 'Dresses'
-                ? 'Remove your top or bottom to wear a dress.'
-                : 'A dress covers these — remove the dress to layer separately.'}
+                ? 'Remove your bottom to wear a dress — a top can stay on over it.'
+                : 'A dress covers this — remove the dress to wear a bottom.'}
             </p>
           )}
         </div>
@@ -242,11 +244,21 @@ export const StyleStack = ({
    * is not in the bag links to its product page (a size has to be chosen
    * before it can join the bag). Each partner is listed once even when two
    * worn pieces both point to it.
+   *
+   * A dress + top or dress + outerwear pair is worn together too: the top or
+   * outerwear is layered over the dress. A worn dress never locks the Tops or
+   * Outerwear rows, so its paired piece just toggles on. A dress paired with
+   * the worn top or outerwear while a BOTTOM is also worn is the one locked
+   * partner that can still be worn: "Wear together" takes the bottom off first
+   * (`swapsBottom`), so the dress keeps the upper piece instead of replacing
+   * the whole set. Any other partner in a locked row links to its page,
+   * because tapping it would take a worn piece off.
    */
   const pairSuggestions = useMemo(() => {
+    const locks = Array.isArray(lockedCategories) ? lockedCategories : [];
     const inBag = new Map();
-    Object.values(resolvedByCategory || {}).forEach((rows) =>
-      (rows || []).forEach((g) => inBag.set(Number(g.productId), g)),
+    Object.entries(resolvedByCategory || {}).forEach(([rowKey, rows]) =>
+      (rows || []).forEach((g) => inBag.set(Number(g.productId), { garment: g, rowKey })),
     );
     const wornIds = new Set(wornPieces.map((g) => Number(g.productId)));
     const seen = new Set();
@@ -256,11 +268,16 @@ export const StyleStack = ({
         const pid = Number(pair?.id);
         if (!pid || wornIds.has(pid) || seen.has(pid)) return;
         seen.add(pid);
-        out.push({ pair, with: worn.name, garment: inBag.get(pid) || null });
+        const hit = inBag.get(pid);
+        const rowLocked = !!hit && locks.includes(hit.rowKey);
+        const swapsBottom = rowLocked && hit.rowKey === 'dress' && ['top', 'outerwear'].includes(worn.category)
+          && typeof clearLayer === 'function';
+        const wearable = !!hit && (!rowLocked || swapsBottom);
+        out.push({ pair, with: worn.name, garment: wearable ? hit.garment : null, swapsBottom });
       });
     });
     return out;
-  }, [resolvedByCategory, wornPieces]);
+  }, [resolvedByCategory, wornPieces, lockedCategories, clearLayer]);
 
   const handleToggle = useCallback(
     (garment) => {
@@ -302,7 +319,9 @@ export const StyleStack = ({
         * THE VITRINE HEADER — a navy plate carrying the title, a live count
         * of what is on the shelves and what is worn, and the door to My Bag.
         */}
-      <div className="relative isolate overflow-hidden rounded-[20px] bg-[linear-gradient(150deg,#1D2C45_0%,#152036_55%,#0D1524_100%)] px-4 py-4 text-cream-100 shadow-[0_16px_30px_-20px_rgba(13,21,36,0.9)]">
+      {/* `theme-locked`: the plate is navy in BOTH themes, so its cream text
+          must not follow the dark-mode ramp swap (it went near-invisible). */}
+      <div className="theme-locked relative isolate overflow-hidden rounded-[20px] bg-[linear-gradient(150deg,#1D2C45_0%,#152036_55%,#0D1524_100%)] px-4 py-4 text-cream-100 shadow-[0_16px_30px_-20px_rgba(13,21,36,0.9)]">
         <div aria-hidden="true" className="absolute -right-10 -top-14 -z-10 h-36 w-36 rounded-full border border-cream-50/10" />
         <div aria-hidden="true" className="vintage-grain absolute inset-0 -z-10 opacity-25 mix-blend-soft-light" />
         <div className="flex items-start justify-between gap-3">
@@ -333,9 +352,9 @@ export const StyleStack = ({
       </div>
 
       {locked && (
-        <div className="mx-1 mt-3 flex items-start gap-2 rounded-xl border border-amber-600/40 bg-amber-500/15 px-3 py-2.5">
-          <Lock size={12} className="mt-0.5 shrink-0 text-amber-800" />
-          <p className="text-[10px] leading-relaxed text-amber-800">{lockedMessage}</p>
+        <div className="notice-warn mx-1 mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5">
+          <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-xs leading-relaxed">{lockedMessage}</p>
         </div>
       )}
 
@@ -403,7 +422,7 @@ export const StyleStack = ({
                   <Link2 size={10} className="text-navy-800" /> Paired looks
                 </p>
                 <ul className="space-y-1.5">
-                  {pairSuggestions.slice(0, 3).map(({ pair, with: withName, garment }) => (
+                  {pairSuggestions.slice(0, 3).map(({ pair, with: withName, garment, swapsBottom }) => (
                     <li key={pair.id} className="flex items-center justify-between gap-2 text-[10px]">
                       <span className="min-w-0 text-hiraya-ink">
                         <span className="block truncate font-semibold">{pair.name}</span>
@@ -412,7 +431,11 @@ export const StyleStack = ({
                       {garment ? (
                         <button
                           type="button"
-                          onClick={() => handleToggle(garment)}
+                          onClick={() => {
+                            // Free the Dresses row first, so the dress keeps the top / outerwear on over it.
+                            if (swapsBottom) clearLayer('bottom');
+                            handleToggle(garment);
+                          }}
                           className="shrink-0 cursor-pointer rounded-full bg-navy-900 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-cream-100 transition-colors hover:bg-navy-800"
                         >
                           Wear together

@@ -18,7 +18,7 @@ const en = {
   // Navigation
   'nav.home': 'Home',
   'nav.shop': 'Shop',
-  'nav.tryon': 'AI Try-On',
+  'nav.tryon': 'AI Stylist',
   'nav.bag': 'My Bag',
   'nav.orders': 'My Orders',
   'nav.settings': 'Account Settings',
@@ -208,7 +208,7 @@ const en = {
 const tl = {
   'nav.home': 'Home',
   'nav.shop': 'Tindahan',
-  'nav.tryon': 'AI Sukatan',
+  'nav.tryon': 'AI Stylist',
   'nav.bag': 'Aking Bag',
   'nav.orders': 'Aking mga Order',
   'nav.settings': 'Settings ng Account',
@@ -391,7 +391,7 @@ const tl = {
 const ja = {
   'nav.home': 'ホーム',
   'nav.shop': 'ショップ',
-  'nav.tryon': 'AI試着',
+  'nav.tryon': 'AIスタイリスト',
   'nav.bag': 'バッグ',
   'nav.orders': '注文履歴',
   'nav.settings': 'アカウント設定',

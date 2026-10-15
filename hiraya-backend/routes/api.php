@@ -792,6 +792,21 @@ foreach (['tryon', 'try-on'] as $tryOnPrefix) {
 }
 
 /*
+ * AI STYLIST — the visible, photo-first stylist in the Studio (StylistController).
+ * Customer-scoped like the try-on routes above. "AI describes, rules choose,
+ * the customer decides": analyze-photo only describes the photo (async + poll),
+ * the lookbook and verdict are chosen by the rules in config/stylist.php.
+ */
+Route::prefix('stylist')->middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [\App\Http\Controllers\Api\StylistController::class, 'profile']);
+    Route::put('/profile', [\App\Http\Controllers\Api\StylistController::class, 'updateProfile'])->middleware('throttle:30,1');
+    Route::post('/analyze-photo', [\App\Http\Controllers\Api\StylistController::class, 'analyzePhoto'])->middleware('throttle:10,1');
+    Route::get('/analyze-photo/{hash}', [\App\Http\Controllers\Api\StylistController::class, 'analysisStatus'])->middleware('throttle:120,1');
+    Route::post('/lookbook', [\App\Http\Controllers\Api\StylistController::class, 'lookbook'])->middleware('throttle:30,1');
+    Route::post('/verdict', [\App\Http\Controllers\Api\StylistController::class, 'verdict'])->middleware('throttle:30,1');
+});
+
+/*
  * Checkout & Orders — ALL customer-scoped, so every one of them needs a real
  * authenticated user. `/checkout`, `pay-balance` and `reupload-dp` used to sit
  * OUTSIDE auth, which left `$request->user()` null in the controller (orders

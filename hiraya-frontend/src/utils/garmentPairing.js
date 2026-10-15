@@ -6,11 +6,16 @@
  * A pairing is an outfit suggestion, so both pieces must be worn on DIFFERENT
  * layers of the body:
  *
- *   top       (TOPS)                 pairs with outerwear, bottom
+ *   top       (TOPS)                 pairs with outerwear, bottom, full
  *   bottom    (BOTTOMS)              pairs with top, outerwear
  *   outerwear (OUTERWEAR)            pairs with anything except outerwear
- *   full      (DRESSES, FULL_BODY)   pairs with outerwear only
+ *   full      (DRESSES, FULL_BODY)   pairs with outerwear and top (a bolero
+ *                                    or cropped top worn over the dress)
  *   formal    (FORMAL_MEN/WOMEN)     pairs with anything except formal
+ *
+ * The try-on wears a dress + top or dress + outerwear pair as the dress first,
+ * then the top or outerwear over it (utils/tryOnStackPlan.js), so StyleStack's
+ * "Paired looks" can offer "Wear together" for it.
  */
 
 export const MAX_PAIRS = 8;
@@ -34,7 +39,10 @@ export const canPair = (a, b) => {
   const la = layerOf(a);
   const lb = layerOf(b);
   if (la === lb) return false;
-  if (la === 'full' || lb === 'full') return la === 'outerwear' || lb === 'outerwear';
+  if (la === 'full' || lb === 'full') {
+    const other = la === 'full' ? lb : la;
+    return other === 'outerwear' || other === 'top';
+  }
   return true;
 };
 

@@ -89,8 +89,9 @@ class TryOnSession extends Model
     /*
      * RENDER PIPELINE STATE — `render_plan_json['pipeline']`.
      *
-     * A top + bottom look renders in two provider passes (App\Support\TryOnGarmentPlan).
-     * The mode and pass order are frozen here when the session is created, and the
+     * A top + bottom look, or a top / outerwear over a dress, renders in two
+     * provider passes (App\Support\TryOnGarmentPlan). The mode, pass order,
+     * `layering` kind and `outer` piece are frozen here when the session is created, and the
      * finished first pass is recorded as an opaque RenderVault reference, so a retry
      * resumes at pass 2 instead of paying for pass 1 again. Kept inside the existing
      * JSON column (no schema change); the renderers never read this key.

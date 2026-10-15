@@ -180,6 +180,62 @@ class TryOnPairRenderTest extends TestCase
         $this->assertCount(1, Storage::disk('local')->allFiles('renders'));
     }
 
+    public function test_a_top_over_a_dress_renders_the_dress_first_then_the_top_on_it(): void
+    {
+        // The Studio sends the stack in slot order: the top before the dress.
+        $res = $this->generate([
+            ['category' => 'TOPS', 'name' => 'Lace Bolero', 'image' => self::TOP],
+            ['category' => 'DRESSES', 'name' => 'Strapless Dress', 'image' => self::BOTTOM],
+        ]);
+
+        $res->assertOk()->assertJsonPath('status', 'completed')->assertJsonPath('render_passes', 2);
+
+        $this->assertCount(2, $this->submits, 'a top over a dress is exactly two provider jobs');
+        // Pass 1: the customer's photo + the DRESS.
+        $this->assertSame(self::PORTRAIT, $this->submits[0]['person']);
+        $this->assertSame(self::BOTTOM, $this->submits[0]['garment']);
+        $this->assertSame('dress', $this->submits[0]['category']);
+        // Pass 2: the dressed render + the TOP, so the top is the outer layer.
+        $this->assertSame($this->dataUriOf('RENDER-1'), $this->submits[1]['person']);
+        $this->assertSame(self::TOP, $this->submits[1]['garment']);
+        $this->assertSame('upperbody', $this->submits[1]['category']);
+
+        $session = TryOnSession::firstOrFail();
+        $this->assertSame($this->dataUriOf('RENDER-2'), $session->resultImage());
+        $this->assertSame([1, 0], $session->pipeline()['order']);
+        $this->assertSame(\App\Support\TryOnGarmentPlan::LAYERING_OVER_DRESS, $session->pipeline()['layering']);
+        $this->assertStringContainsString('the dress first, then the top layered over it', $session->ai_feedback);
+    }
+
+    public function test_outerwear_over_a_dress_renders_the_dress_first_then_the_outerwear_on_it(): void
+    {
+        // Slot order again puts the upper piece first: the outerwear before the dress.
+        $res = $this->generate([
+            ['category' => 'OUTERWEAR', 'name' => 'Cropped Denim Jacket', 'image' => self::TOP],
+            ['category' => 'DRESSES', 'name' => 'Slip Dress', 'image' => self::BOTTOM],
+        ]);
+
+        $res->assertOk()->assertJsonPath('status', 'completed')->assertJsonPath('render_passes', 2);
+
+        $this->assertCount(2, $this->submits, 'outerwear over a dress is exactly two provider jobs');
+        // Pass 1: the customer's photo + the DRESS.
+        $this->assertSame(self::PORTRAIT, $this->submits[0]['person']);
+        $this->assertSame(self::BOTTOM, $this->submits[0]['garment']);
+        $this->assertSame('dress', $this->submits[0]['category']);
+        // Pass 2: the dressed render + the OUTERWEAR, dressed as an upper-body piece.
+        $this->assertSame($this->dataUriOf('RENDER-1'), $this->submits[1]['person']);
+        $this->assertSame(self::TOP, $this->submits[1]['garment']);
+        $this->assertSame('upperbody', $this->submits[1]['category']);
+
+        $session = TryOnSession::firstOrFail();
+        $this->assertSame($this->dataUriOf('RENDER-2'), $session->resultImage());
+        $this->assertSame([1, 0], $session->pipeline()['order']);
+        $this->assertSame(\App\Support\TryOnGarmentPlan::LAYERING_OVER_DRESS, $session->pipeline()['layering']);
+        $this->assertSame(\App\Support\TryOnGarmentPlan::OUTER_OUTERWEAR, $session->pipeline()['outer']);
+        $this->assertSame(['the dress', 'the outerwear'], \App\Support\TryOnGarmentPlan::passLabels($session->pipeline()));
+        $this->assertStringContainsString('Cropped Denim Jacket + Slip Dress (the dress first, then the outerwear layered over it)', $session->ai_feedback);
+    }
+
     public function test_a_retry_after_a_busy_second_pass_resumes_without_rendering_the_first_again(): void
     {
         $this->answers = ['ok', 503]; // pass 1 renders, pass 2 is refused (busy)
@@ -208,18 +264,26 @@ class TryOnPairRenderTest extends TestCase
     public function test_unsupported_combinations_are_refused_before_any_render(): void
     {
         $cases = [
-            'two_upper' => [['category' => 'TOPS', 'image' => self::TOP], ['category' => 'Outerwear', 'image' => self::BOTTOM]],
-            'dress_combo' => [['category' => 'DRESSES', 'image' => self::TOP], ['category' => 'Outerwear', 'image' => self::BOTTOM]],
-            'footwear_combo' => [['category' => 'TOPS', 'image' => self::TOP], ['category' => 'Footwear', 'image' => self::BOTTOM]],
-            'two_lower' => [['category' => 'PANTS', 'image' => self::TOP], ['category' => 'SKIRT', 'image' => self::BOTTOM]],
-            'too_many' => [
+            ['two_upper', [['category' => 'TOPS', 'image' => self::TOP], ['category' => 'Outerwear', 'image' => self::BOTTOM]]],
+            // A dress already covers the bottom; only a top or outerwear may be layered over it.
+            ['dress_combo', [['category' => 'DRESSES', 'image' => self::TOP], ['category' => 'BOTTOMS', 'image' => self::BOTTOM]]],
+            ['dress_combo', [['category' => 'DRESSES', 'image' => self::TOP], ['category' => 'Footwear', 'image' => self::BOTTOM]]],
+            // One piece over a dress, not two.
+            ['too_many', [
+                ['category' => 'TOPS', 'image' => self::TOP],
+                ['category' => 'OUTERWEAR', 'image' => self::BOTTOM],
+                ['category' => 'DRESSES', 'image' => self::TOP],
+            ]],
+            ['footwear_combo', [['category' => 'TOPS', 'image' => self::TOP], ['category' => 'Footwear', 'image' => self::BOTTOM]]],
+            ['two_lower', [['category' => 'PANTS', 'image' => self::TOP], ['category' => 'SKIRT', 'image' => self::BOTTOM]]],
+            ['too_many', [
                 ['category' => 'TOPS', 'image' => self::TOP],
                 ['category' => 'BOTTOMS', 'image' => self::BOTTOM],
                 ['category' => 'Footwear', 'image' => self::TOP],
-            ],
+            ]],
         ];
 
-        foreach ($cases as $reason => $garments) {
+        foreach ($cases as [$reason, $garments]) {
             $this->generate($garments)
                 ->assertStatus(422)
                 ->assertJsonPath('code', 'unsupported_garment_combination')

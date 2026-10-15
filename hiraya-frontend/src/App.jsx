@@ -64,11 +64,20 @@ GuestRoute.propTypes = {
  * out in two files, and one of the two answers was always wrong.
  */
 const AppRoutes = () => {
-    const { loading: authLoading } = useAuth();
+    const { loading: authLoading, signingOut } = useAuth();
     const location = useLocation();
     const maintenanceHook = useMaintenanceMode() || {};
     const registrationsOpen = maintenanceHook.registrationsOpen !== false;
     const aiEngineActive = maintenanceHook.aiEngineActive !== false;
+
+    /*
+     * A sign-out (any role) is in progress and ends in a full page load of
+     * /login. The routes are unmounted meanwhile so no guard can redirect
+     * in-app first — that redirect plus the reload was the old double refresh.
+     */
+    if (signingOut) {
+        return <ShellNotice title="Hiraya" message="Signing out..." pending />;
+    }
 
     if (authLoading) {
         return <ShellNotice title="Hiraya" message="Loading your session..." pending />;

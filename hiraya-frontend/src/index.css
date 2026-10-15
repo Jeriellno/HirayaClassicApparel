@@ -1234,3 +1234,24 @@ html.dark .theme-locked .glass { background-color: rgba(252, 250, 245, 0.92); }
 @media (prefers-reduced-motion: reduce) {
   .animate-fadeIn, .animate-slideUp, .animate-scaleIn { animation: none !important; }
 }
+
+/*
+ * WARNING NOTICE — readable in BOTH themes.
+ *
+ * Tailwind's amber ramp is not on the token ramps, so the old
+ * `bg-amber-500/15 text-amber-800` notices turned dark-brown-on-navy in dark
+ * mode. One class, two tunings; children inherit the colour (icons use
+ * currentColor), and the icon + words carry the meaning, never colour alone.
+ */
+@layer components {
+  .notice-warn {
+    border: 1px solid rgba(180, 83, 9, 0.35);
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #78350F;
+  }
+  html.dark .notice-warn {
+    border-color: rgba(251, 191, 36, 0.32);
+    background-color: rgba(251, 191, 36, 0.1);
+    color: #FCD34D;
+  }
+}

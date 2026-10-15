@@ -9,10 +9,19 @@ const GARMENT_FILTERS = [
   { label: 'Bottoms', value: 'bottom' },
   { label: 'Footwear', value: 'footwear' },
   { label: 'Outerwear', value: 'outerwear' },
-  { label: 'Dresses', value: 'dress' }
+  { label: 'Dresses', value: 'dress' },
+  // Formal — Men / Formal — Women and Full body had a shop row but no tab.
+  { label: 'Formal Wear', value: 'formal' },
+  { label: 'Full Outfits', value: 'full' }
 ];
 
-const ShopHeader = ({ activeSubCat, onSelectSubCat }) => {
+const ShopHeader = ({
+  activeSubCat,
+  onSelectSubCat,
+  subcategoryOptions = [],
+  activeSubcategory = '',
+  onSelectSubcategory
+}) => {
   return (
     <div
       data-tour="shop-header"
@@ -69,6 +78,33 @@ const ShopHeader = ({ activeSubCat, onSelectSubCat }) => {
           </div>
         </div>
 
+        {/*
+          * SUBCATEGORY CHIPS — the active tab's subcategories that have pieces
+          * in view (see useShopData). Hidden on "All Garments".
+          */}
+        {subcategoryOptions.length > 0 && typeof onSelectSubcategory === 'function' && (
+          <div className="flex flex-wrap items-center gap-2 pl-[27px]" role="group" aria-label="Subcategories">
+            {['', ...subcategoryOptions].map((name) => {
+              const active = activeSubcategory === name;
+              return (
+                <button
+                  key={name || 'all'}
+                  type="button"
+                  onClick={() => onSelectSubcategory(name)}
+                  aria-pressed={active}
+                  className={`cursor-pointer rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-hiraya-focus ${
+                    active
+                      ? 'border-hiraya-accent bg-hiraya-accent text-hiraya-on-accent'
+                      : 'border-hiraya-structure-line bg-cream-200/50 text-hiraya-ink-soft hover:text-hiraya-ink'
+                  }`}
+                >
+                  {name || 'All'}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div data-tour="shop-search">
           <SearchBar />
         </div>
@@ -80,6 +116,9 @@ const ShopHeader = ({ activeSubCat, onSelectSubCat }) => {
 ShopHeader.propTypes = {
   activeSubCat: PropTypes.string,
   onSelectSubCat: PropTypes.func.isRequired,
+  subcategoryOptions: PropTypes.arrayOf(PropTypes.string),
+  activeSubcategory: PropTypes.string,
+  onSelectSubcategory: PropTypes.func,
 };
 
 export default ShopHeader;

@@ -292,13 +292,19 @@ class ProcessTryOnJob implements ShouldQueue
     }
 
     /**
-     * TOP + BOTTOM IN ONE IMAGE — two single-garment passes on the same photo.
+     * TWO PIECES IN ONE IMAGE — two single-garment passes on the same photo.
      *
-     * The providers dress ONE garment per job, so a supported pair (one upper +
-     * one lower, see App\Support\TryOnGarmentPlan) is rendered as:
+     * The providers dress ONE garment per job, so a supported pair (see
+     * App\Support\TryOnGarmentPlan) is rendered in the frozen `pipeline.order`:
      *
-     *   pass 1: the customer's photo  + the BOTTOM  -> intermediate image
-     *   pass 2: the intermediate image + the TOP    -> the final fitting
+     *   top + bottom:            pass 1 = photo + BOTTOM, pass 2 = that result + TOP
+     *   top over a dress:        pass 1 = photo + DRESS,  pass 2 = that result + TOP
+     *   outerwear over a dress:  pass 1 = photo + DRESS,  pass 2 = that result + OUTERWEAR
+     *
+     * Pass 2 always dresses the upper body of a person who is ALREADY wearing
+     * pass 1's garment, which is what puts the top over the waistband or over
+     * the dress. For a piece over a dress, pass 2 also carries a garment
+     * description for the one tier that reads text (Hugging Face).
      *
      * CREDIT SAFETY. Each pass is exactly one provider job (the customer is told
      * up front that this look uses two renders). Pass 1's image is stored in the
@@ -375,7 +381,14 @@ class ProcessTryOnJob implements ShouldQueue
             $person = $first['image_base64'];
         }
 
-        $second = $this->timedRender($session, $pick($secondIndex, $person), 'pair-2');
+        $secondInput = $pick($secondIndex, $person);
+        if (($pipeline['layering'] ?? null) === \App\Support\TryOnGarmentPlan::LAYERING_OVER_DRESS) {
+            $secondInput['description'] = \App\Support\TryOnGarmentPlan::outerPiece($pipeline) === \App\Support\TryOnGarmentPlan::OUTER_OUTERWEAR
+                ? 'a jacket or coat worn over a dress, the dress still showing below it'
+                : 'a top worn over a dress, the dress still showing below it';
+        }
+
+        $second = $this->timedRender($session, $secondInput, 'pair-2');
         if (empty($second['success'])) {
             return $second;
         }
@@ -634,6 +647,7 @@ class ProcessTryOnJob implements ShouldQueue
             null,
             $session->render_plan_json,
             $input['categories'],
+            $input['description'] ?? null,
         );
     }
 
@@ -1147,7 +1161,11 @@ class ProcessTryOnJob implements ShouldQueue
          */
         $names = collect((array) ($session->garment_metadata_json ?? []))->pluck('name')->filter()->values();
         if (! empty($vtonResult['pair'])) {
-            $feedback .= '**Rendered pieces:** ' . ($names->count() >= 2 ? $names->join(' + ') : 'top + bottom') . " (one pass each)\n\n";
+            $overDress = ($session->pipeline()['layering'] ?? null) === \App\Support\TryOnGarmentPlan::LAYERING_OVER_DRESS;
+            // 'top' or 'outerwear' — what was layered over the dress.
+            $outer = \App\Support\TryOnGarmentPlan::outerPiece($session->pipeline());
+            $feedback .= '**Rendered pieces:** ' . ($names->count() >= 2 ? $names->join(' + ') : ($overDress ? "dress + {$outer}" : 'top + bottom'))
+                . ($overDress ? " (the dress first, then the {$outer} layered over it)\n\n" : " (one pass each)\n\n");
         } elseif (count((array) ($session->garment_photos_json ?? [])) > 1 && ! empty($vtonResult['feedback'])) {
             $feedback .= '**Note:** ' . $vtonResult['feedback'] . "\n\n";
         }

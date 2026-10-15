@@ -21,7 +21,16 @@ const TIMEOUTS = {
   STATUS: 8000,
   AI_TRYON: 180000,
   AI_ANALYSIS: 300000,
+  // Requests that SEND AN EMAIL before answering (SMTP 15 s + one retry server-side).
+  MAIL_SEND: 45000,
 };
+
+/*
+ * Endpoints that mail a code or link synchronously. They used to share the 20 s
+ * AUTH budget, so a slow SMTP handshake showed "took too long" while the code was
+ * in fact still being sent — the customer then retried and got a second code.
+ */
+const MAIL_SEND_PATTERN = /^\/(register(\/resend)?|forgot-password)\/?(\?|$)/;
 
 const AUTH_ENDPOINTS = [
   '/login',
@@ -45,6 +54,8 @@ const TIMEOUT_RULES = [
   { pattern: /\/admin\/(accounts|settings|audit-logs|feedbacks)/, timeout: TIMEOUTS.HEAVY_DATA },
   { pattern: /\/admin\/customers/, timeout: TIMEOUTS.HEAVY_DATA },
   { pattern: /\/products/, timeout: TIMEOUTS.HEAVY_DATA },
+  // AI Stylist: the photo upload is ~1 MB and the lookbook reads the catalog.
+  { pattern: /\/stylist\//, timeout: TIMEOUTS.HEAVY_DATA },
   // Customer order history (with products) and its reviews / ratings.
   { pattern: /^\/(orders|reviews\/mine|feedback\/mine)/, timeout: TIMEOUTS.HEAVY_DATA },
 ];
@@ -80,6 +91,7 @@ const getTimeoutForUrl = (url = '') => {
   // Same leading-slash restore as isCatalogWrite: every rule (and the auth
   // list) starts with "/", so without it every request fell to the 15s default.
   const target = `/${String(url).replace(/^\/+/, '')}`;
+  if (MAIL_SEND_PATTERN.test(target)) return TIMEOUTS.MAIL_SEND;
   if (isAuthEndpoint(target)) return TIMEOUTS.AUTH;
   const matchedRule = TIMEOUT_RULES.find((rule) => rule.pattern.test(target));
   return matchedRule ? matchedRule.timeout : TIMEOUTS.DEFAULT;

@@ -62,9 +62,9 @@ use App\Support\LocalAsset;
  * it could not include. Claiming a six-layer outfit from a one-garment call
  * would be the same class of dishonesty as the old SVG placeholder.
  *
- * TOP + BOTTOM: ProcessTryOnJob runs a supported upper + lower pair as TWO
- * single-garment calls (bottom, then top on that result) — see
- * App\Support\TryOnGarmentPlan. This class still renders one garment per call.
+ * TOP + BOTTOM / TOP OVER A DRESS: ProcessTryOnJob runs a supported pair as TWO
+ * single-garment calls (the bottom or the dress, then the top on that result) —
+ * see App\Support\TryOnGarmentPlan. This class still renders one garment per call.
  */
 class VtonApiRenderer
 {
